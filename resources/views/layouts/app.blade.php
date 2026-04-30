@@ -12,8 +12,167 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Select2 (local) -->
+    <link href="{{ asset('vendor/select2/select2.min.css') }}" rel="stylesheet">
+    <!-- Flatpickr (local) -->
+    <link href="{{ asset('vendor/flatpickr/flatpickr.min.css') }}" rel="stylesheet">
 
     <style>
+        /* ── Select2 Custom Theme ── */
+        .select2-container--default .select2-selection--single {
+            height: 38px !important;
+            border: 1px solid #e5e7eb !important;
+            border-radius: 7px !important;
+            background: #fff !important;
+            font-size: .82rem;
+            display: flex;
+            align-items: center;
+            transition: border-color .2s;
+        }
+        .select2-container--default .select2-selection--single:hover {
+            border-color: #d1d5db !important;
+        }
+        .select2-container--default.select2-container--open .select2-selection--single,
+        .select2-container--default.select2-container--focus .select2-selection--single {
+            border-color: #2563eb !important;
+            box-shadow: 0 0 0 3px rgba(37,99,235,.1) !important;
+            outline: none !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 36px !important;
+            padding-left: 12px !important;
+            padding-right: 30px !important;
+            color: #374151 !important;
+            font-size: .82rem;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__placeholder {
+            color: #9ca3af !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 36px !important;
+            right: 8px !important;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow b {
+            border-color: #9ca3af transparent transparent transparent !important;
+        }
+        .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+            border-color: transparent transparent #2563eb transparent !important;
+        }
+        /* Multiple select2 */
+        .select2-container--default .select2-selection--multiple {
+            border: 1px solid #e5e7eb !important;
+            border-radius: 7px !important;
+            min-height: 38px !important;
+            font-size: .82rem;
+        }
+        .select2-container--default.select2-container--focus .select2-selection--multiple {
+            border-color: #2563eb !important;
+            box-shadow: 0 0 0 3px rgba(37,99,235,.1) !important;
+            outline: none !important;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            background: #eff6ff !important;
+            border: 1px solid #bfdbfe !important;
+            color: #2563eb !important;
+            border-radius: 20px !important;
+            font-size: .75rem;
+            padding: 1px 8px !important;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            color: #93c5fd !important;
+            margin-right: 4px !important;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
+            color: #2563eb !important;
+        }
+        /* Dropdown */
+        .select2-dropdown {
+            border: 1px solid #e5e7eb !important;
+            border-radius: 8px !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,.1) !important;
+            font-size: .82rem;
+            overflow: hidden;
+        }
+        .select2-container--default .select2-search--dropdown .select2-search__field {
+            border: 1px solid #e5e7eb !important;
+            border-radius: 6px !important;
+            font-size: .82rem;
+            padding: 6px 10px;
+        }
+        .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+            border-color: #2563eb !important;
+            outline: none;
+        }
+        .select2-container--default .select2-results__option {
+            padding: 8px 12px;
+            font-size: .82rem;
+            color: #374151;
+        }
+        .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background: #eff6ff !important;
+            color: #2563eb !important;
+        }
+        .select2-container--default .select2-results__option[aria-selected=true] {
+            background: #f0fdf4 !important;
+            color: #16a34a !important;
+        }
+        .select2-results__option--group { font-weight: 600; color: #9ca3af; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+
+        /* ── Flatpickr Custom Theme ── */
+        .flatpickr-input {
+            background: #fff !important;
+            cursor: pointer;
+        }
+        .flatpickr-input:focus {
+            border-color: #2563eb !important;
+            box-shadow: 0 0 0 3px rgba(37,99,235,.1) !important;
+        }
+        .flatpickr-calendar {
+            border: 1px solid #e5e7eb !important;
+            border-radius: 12px !important;
+            box-shadow: 0 8px 32px rgba(0,0,0,.12) !important;
+            font-family: 'Inter', sans-serif !important;
+            overflow: hidden;
+        }
+        .flatpickr-months { background: #0f1d35; border-radius: 10px 10px 0 0; padding: 4px 0; }
+        .flatpickr-month { color: #fff !important; }
+        .flatpickr-current-month { font-size: .9rem !important; font-weight: 600 !important; color: #fff !important; }
+        .flatpickr-current-month .flatpickr-monthDropdown-months { color: #fff !important; background: transparent; }
+        .flatpickr-current-month input.cur-year { color: #fff !important; font-weight: 600 !important; }
+        .flatpickr-prev-month, .flatpickr-next-month { color: #fff !important; fill: #fff !important; padding: 8px !important; }
+        .flatpickr-prev-month:hover svg, .flatpickr-next-month:hover svg { fill: #93c5fd !important; }
+        .flatpickr-weekdays { background: #f9fafb; }
+        .flatpickr-weekday { color: #9ca3af !important; font-size: .72rem !important; font-weight: 600 !important; }
+        .flatpickr-day {
+            border-radius: 8px !important;
+            font-size: .8rem !important;
+            color: #374151 !important;
+            height: 34px !important;
+            line-height: 34px !important;
+        }
+        .flatpickr-day:hover { background: #eff6ff !important; color: #2563eb !important; border-color: transparent !important; }
+        .flatpickr-day.selected, .flatpickr-day.selected:hover {
+            background: #2563eb !important;
+            border-color: #2563eb !important;
+            color: #fff !important;
+            border-radius: 8px !important;
+        }
+        .flatpickr-day.today { border-color: #2563eb !important; color: #2563eb !important; font-weight: 600 !important; }
+        .flatpickr-day.today:hover { background: #eff6ff !important; }
+        .flatpickr-day.today.selected { color: #fff !important; }
+        .flatpickr-day.inRange { background: #dbeafe !important; border-color: transparent !important; }
+        .flatpickr-day.disabled { color: #d1d5db !important; }
+        .flatpickr-time input { font-size: .82rem !important; color: #374151 !important; font-family: 'Inter', sans-serif !important; }
+        .flatpickr-time .flatpickr-am-pm { font-size: .82rem !important; color: #374151 !important; }
+        .flatpickr-time input:hover, .flatpickr-time .flatpickr-am-pm:hover,
+        .flatpickr-time input:focus, .flatpickr-time .flatpickr-am-pm:focus { background: #eff6ff !important; }
+
+        /* Input date wrapper icon */
+        .date-input-wrap { position: relative; }
+        .date-input-wrap .date-icon {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            color: #9ca3af; font-size: .8rem; pointer-events: none;
+        }
         :root {
             --sidebar-bg: #0f1d35;
             --sidebar-width: 220px;
@@ -137,13 +296,12 @@
             justify-content: space-between;
             position: sticky;
             top: 0;
-            z-index: 500;
-            overflow: visible;   /* ← tambahkan */
+            z-index: 100;
         }
         .topbar-title h5 { font-size: 1.05rem; font-weight: 700; color: #111827; margin: 0; }
         .topbar-title p { font-size: .75rem; color: var(--text-muted); margin: 0; }
 
-        .topbar-right { display: flex; align-items: center; gap: 16px; overflow: visible; position: relative; }
+        .topbar-right { display: flex; align-items: center; gap: 16px; }
         .topbar-search {
             position: relative;
         }
@@ -654,10 +812,16 @@
     </main>
 </div>
 
+<!-- jQuery (harus sebelum Bootstrap & Select2) -->
+<script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- Select2 (local) -->
+<script src="{{ asset('vendor/select2/select2.min.js') }}"></script>
+<!-- Flatpickr (local) -->
+<script src="{{ asset('vendor/flatpickr/flatpickr.min.js') }}"></script>
 
 <script>
 function toggleSidebar() {
@@ -757,6 +921,86 @@ function renderSearchResults(data, q) {
         </a>`;
     }).join('');
 }
+</script>
+
+<script>
+// ── Global Init: Select2 & Flatpickr ──
+function initSelect2(scope) {
+    const ctx = scope ? $(scope) : $(document);
+    ctx.find('select').filter('.form-select, .form-select-sm, .select2').not('.no-select2').each(function() {
+        if ($(this).data('select2')) return;
+        $(this).select2({
+            width: '100%',
+            placeholder: $(this).data('placeholder') || $(this).find('option[value=""]').text() || 'Pilih...',
+            allowClear: true,
+            minimumResultsForSearch: 0,
+            dropdownParent: $(this).closest('.modal').length ? $(this).closest('.modal') : $('body'),
+            language: {
+                noResults: () => '<span style="font-size:13px;color:#9ca3af">Tidak ada hasil</span>',
+                searching: () => '<span style="font-size:13px;color:#9ca3af">Mencari...</span>',
+            }
+        });
+    });
+}
+
+function initFlatpickr(scope) {
+    const ctx = scope || document;
+
+    // Date only
+    $(ctx).find('input[type="date"]').not('.flatpickr-input').each(function() {
+        if (this._flatpickr) return;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'date-input-wrap';
+        this.parentNode.insertBefore(wrapper, this);
+        wrapper.appendChild(this);
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-calendar-alt date-icon';
+        wrapper.appendChild(icon);
+        flatpickr(this, {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'd M Y',
+            locale: { firstDayOfWeek: 1 },
+            disableMobile: true,
+            allowInput: true,
+        });
+    });
+
+    // DateTime
+    $(ctx).find('input[type="datetime-local"]').not('.flatpickr-input').each(function() {
+        if (this._flatpickr) return;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'date-input-wrap';
+        this.parentNode.insertBefore(wrapper, this);
+        wrapper.appendChild(this);
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-clock date-icon';
+        wrapper.appendChild(icon);
+        flatpickr(this, {
+            dateFormat: 'Y-m-d H:i',
+            altInput: true,
+            altFormat: 'd M Y H:i',
+            enableTime: true,
+            time_24hr: true,
+            minuteIncrement: 15,
+            locale: { firstDayOfWeek: 1 },
+            disableMobile: true,
+            allowInput: true,
+        });
+    });
+}
+
+// Init saat DOM ready
+$(document).ready(function() {
+    initSelect2();
+    initFlatpickr();
+
+    // Re-init setiap kali modal Bootstrap dibuka
+    $(document).on('shown.bs.modal', '.modal', function() {
+        initSelect2(this);
+        initFlatpickr(this);
+    });
+});
 </script>
 
 @stack('scripts')
