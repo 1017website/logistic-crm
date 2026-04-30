@@ -1,0 +1,218 @@
+@extends('layouts.app')
+
+@section('title', 'Leads')
+@section('page-title', 'Leads')
+@section('page-subtitle', 'Kelola data prospek dan potensi penjualan')
+
+@section('content')
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addLeadModal">
+            <i class="fas fa-plus me-1"></i> Add Lead
+        </button>
+        <button class="btn btn-outline-secondary btn-sm"><i class="fas fa-upload me-1"></i> Import</button>
+        <button class="btn btn-outline-secondary btn-sm"><i class="fas fa-download me-1"></i> Export</button>
+    </div>
+</div>
+
+{{-- Filters --}}
+<form method="GET" action="{{ route('leads.index') }}">
+    <div class="card mb-3">
+        <div class="card-body p-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <select name="stage" class="form-select form-select-sm">
+                        <option value="">All Stage</option>
+                        @foreach(['Identifying','Approaching','Follow Up','Closing','Won','Lost'] as $s)
+                        <option value="{{ $s }}" @selected($stage == $s)>{{ $s }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <select name="temperature" class="form-select form-select-sm">
+                        <option value="">All Temperature</option>
+                        @foreach(['Hot','Warm','Cold'] as $t)
+                        <option value="{{ $t }}" @selected($temperature == $t)>{{ $t }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-3">
+                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Cari company..." value="{{ $search }}">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                    <a href="{{ route('leads.index') }}" class="btn btn-sm btn-outline-secondary ms-1">Reset</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+{{-- Table --}}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table crm-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th>PIC</th>
+                        <th>Service / Route</th>
+                        <th>Stage</th>
+                        <th>Temp</th>
+                        <th>Potensi Revenue</th>
+                        <th>Sales PIC</th>
+                        <th>Next Follow Up</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($leads as $lead)
+                    <tr>
+                        <td>
+                            <a href="{{ route('leads.show', $lead) }}" style="font-weight:600;color:#111;text-decoration:none">{{ $lead->company_name }}</a>
+                            <div style="font-size:.7rem;color:var(--text-muted)">{{ $lead->lead_code }}</div>
+                        </td>
+                        <td>
+                            <div style="font-size:.8rem">{{ $lead->pic_name }}</div>
+                            <div style="font-size:.7rem;color:var(--text-muted)">{{ $lead->phone }}</div>
+                        </td>
+                        <td>
+                            <div style="font-size:.8rem">{{ $lead->service_type ?? '-' }}</div>
+                            <div style="font-size:.7rem;color:var(--text-muted)">{{ $lead->route }}</div>
+                        </td>
+                        <td>
+                            @php
+                            $stageMap = ['Identifying'=>'identifying','Approaching'=>'approaching','Follow Up'=>'follow-up','Closing'=>'closing','Won'=>'won','Lost'=>'lost'];
+                            $slug = $stageMap[$lead->pipeline_stage] ?? 'identifying';
+                            @endphp
+                            <span class="badge-stage badge-{{ $slug }}">{{ $lead->pipeline_stage }}</span>
+                        </td>
+                        <td><span class="badge-{{ strtolower($lead->temperature) }}">{{ $lead->temperature }}</span></td>
+                        <td style="font-weight:600;color:var(--primary)">Rp {{ number_format($lead->potensi_revenue/1000000, 0) }}M</td>
+                        <td style="font-size:.78rem">{{ $lead->salesUser?->name }}</td>
+                        <td style="font-size:.78rem">
+                            @if($lead->next_follow_up)
+                                <span style="color:{{ $lead->next_follow_up->isPast() ? '#dc2626' : '#d97706' }};font-weight:600">
+                                    {{ $lead->next_follow_up->format('d M Y') }}
+                                </span>
+                            @else
+                                <span class="text-muted">-</span>
+                            @endif
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ route('leads.show', $lead) }}" class="btn btn-sm btn-outline-primary" style="padding:3px 7px">
+                                    <i class="fas fa-eye" style="font-size:.7rem"></i>
+                                </a>
+                                <form method="POST" action="{{ route('leads.destroy', $lead) }}" onsubmit="return confirm('Hapus lead ini?')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:3px 7px">
+                                        <i class="fas fa-trash" style="font-size:.7rem"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">Tidak ada data leads.</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @if($leads->hasPages())
+    <div class="card-footer p-3">{{ $leads->links() }}</div>
+    @endif
+</div>
+
+{{-- Add Lead Modal --}}
+<div class="modal fade" id="addLeadModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">Add Lead Baru</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ route('leads.store') }}">
+                @csrf
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label">Company Name *</label>
+                            <input type="text" name="company_name" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">PIC Name *</label>
+                            <input type="text" name="pic_name" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="phone" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Service Type</label>
+                            <select name="service_type" class="form-select">
+                                <option value="">Pilih service</option>
+                                @foreach(['Import Sea Freight','Export Sea Freight','Import Air Freight','Export Air Freight','Trucking Domestic','Project Cargo'] as $svc)
+                                <option value="{{ $svc }}">{{ $svc }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Route</label>
+                            <input type="text" name="route" class="form-control" placeholder="Misal: Shanghai - Surabaya">
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label">Pipeline Stage *</label>
+                            <select name="pipeline_stage" class="form-select" required>
+                                @foreach(['Identifying','Approaching','Follow Up','Closing'] as $s)
+                                <option value="{{ $s }}">{{ $s }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label">Temperature *</label>
+                            <select name="temperature" class="form-select" required>
+                                @foreach(['Warm','Hot','Cold'] as $t)
+                                <option value="{{ $t }}">{{ $t }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label">Potensi Revenue</label>
+                            <input type="number" name="potensi_revenue" class="form-control" placeholder="0">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Sales PIC *</label>
+                            <select name="sales_user_id" class="form-select" required>
+                                @foreach($salesUsers as $su)
+                                <option value="{{ $su->id }}">{{ $su->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Lead Source</label>
+                            <select name="lead_source" class="form-select">
+                                @foreach(['Referral','Website','Cold Call','Email Campaign','Lainnya'] as $src)
+                                <option value="{{ $src }}">{{ $src }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Simpan Lead</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endsection
