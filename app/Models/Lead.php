@@ -55,4 +55,10 @@ class Lead extends Model
         $num = $last ? (int) substr($last->lead_code, -4) + 1 : 1;
         return "LEAD-{$year}-" . str_pad($num, 4, '0', STR_PAD_LEFT);
     }
+
+    public function getLogoInitialsAttribute(): string
+    {
+        $parts = explode(' ', $this->company_name);
+        return strtoupper(substr($parts[0], 0, 1) . (isset($parts[1]) ? substr($parts[1], 0, 1) : substr($parts[0], 1, 1)));
+    }
 }

@@ -137,12 +137,13 @@
             justify-content: space-between;
             position: sticky;
             top: 0;
-            z-index: 100;
+            z-index: 500;
+            overflow: visible;   /* ← tambahkan */
         }
         .topbar-title h5 { font-size: 1.05rem; font-weight: 700; color: #111827; margin: 0; }
         .topbar-title p { font-size: .75rem; color: var(--text-muted); margin: 0; }
 
-        .topbar-right { display: flex; align-items: center; gap: 16px; }
+        .topbar-right { display: flex; align-items: center; gap: 16px; overflow: visible; position: relative; }
         .topbar-search {
             position: relative;
         }

@@ -16,7 +16,7 @@
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div class="d-flex align-items-center gap-3">
         <div class="user-avatar" style="width:50px;height:50px;font-size:1rem;border-radius:10px">
-            {{ $lead->getLogoInitialsAttribute() ?? substr($lead->company_name, 0, 2) }}
+            {{ $lead->logo_initials }}
         </div>
         <div>
             <h4 class="mb-1 fw-bold">{{ $lead->company_name }}</h4>
