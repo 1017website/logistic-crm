@@ -693,10 +693,17 @@
             </div>
 
             {{-- ── NOTIFICATION ── --}}
+            @php
+            $notifCount = \App\Models\Activity::where('status','Overdue')
+                ->orWhere(function($q){ $q->whereDate('activity_at', today())->where('status','!=','Done'); })
+                ->count();
+            @endphp
             <div style="position:relative" id="notifWrap">
                 <div class="notif-btn" onclick="toggleNotif()">
                     <i class="fas fa-bell" style="font-size:.85rem"></i>
-                    <span class="notif-badge" id="notifCount">3</span>
+                    @if($notifCount > 0)
+                    <span class="notif-badge" id="notifCount">{{ $notifCount > 9 ? '9+' : $notifCount }}</span>
+                    @endif
                 </div>
                 {{-- Notification dropdown --}}
                 <div id="notifDrop" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:320px;background:#fff;border-radius:10px;border:1px solid #e5e7eb;box-shadow:0 4px 20px rgba(0,0,0,.12);z-index:999;overflow:hidden">
@@ -706,29 +713,65 @@
                     </div>
                     <div style="max-height:320px;overflow-y:auto" id="notifList">
                         @php
-                        $notifItems = [
-                            ['icon'=>'exclamation-circle','color'=>'#ef4444','bg'=>'#fee2e2','title'=>'Activity Overdue','desc'=>'Follow up PT. Maju Bersama sudah melewati batas waktu','time'=>'5 menit lalu','read'=>false],
-                            ['icon'=>'user-plus','color'=>'#3b82f6','bg'=>'#eff6ff','title'=>'Lead Baru','desc'=>'PT. Armada Trans ditambahkan oleh Rina Anita','time'=>'1 jam lalu','read'=>false],
-                            ['icon'=>'trophy','color'=>'#10b981','bg'=>'#f0fdf4','title'=>'Deal Won!','desc'=>'PT. Global Indo – Sea Freight Rp 95.000.000','time'=>'3 jam lalu','read'=>false],
-                            ['icon'=>'clock','color'=>'#f59e0b','bg'=>'#fef9c3','title'=>'Follow Up Reminder','desc'=>'Jadwal call dengan PT. Prima Sukses besok 09:00','time'=>'Kemarin','read'=>true],
-                            ['icon'=>'chart-line','color'=>'#8b5cf6','bg'=>'#faf5ff','title'=>'Target Warning','desc'=>'Rina Anita baru mencapai 42% target bulan ini','time'=>'2 hari lalu','read'=>true],
-                        ];
+                        $notifActivities = \App\Models\Activity::with(['lead','customer','salesUser'])
+                            ->where(function($q) {
+                                $q->where('status', 'Overdue')
+                                  ->orWhere(function($q2) {
+                                      $q2->whereDate('activity_at', today())
+                                         ->where('status','!=','Done');
+                                  })
+                                  ->orWhere(function($q3) {
+                                      $q3->whereDate('next_follow_up', today());
+                                  });
+                            })
+                            ->orderBy('activity_at')
+                            ->limit(5)
+                            ->get();
+                        $recentLeads = \App\Models\Lead::orderBy('created_at','desc')->limit(3)->get();
                         @endphp
-                        @foreach($notifItems as $n)
-                        <div class="notif-item {{ !$n['read'] ? 'unread' : '' }}" style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid #f9fafb;cursor:pointer;background:{{ !$n['read'] ? '#fafbff' : '#fff' }}" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='{{ !$n['read'] ? '#fafbff' : '#fff' }}'">
-                            <div style="width:34px;height:34px;border-radius:50%;background:{{ $n['bg'] }};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                                <i class="fas fa-{{ $n['icon'] }}" style="font-size:13px;color:{{ $n['color'] }}"></i>
-                            </div>
-                            <div style="flex:1;min-width:0">
-                                <div style="font-size:12px;font-weight:{{ !$n['read'] ? '600' : '500' }};color:#0f1d35">{{ $n['title'] }}</div>
-                                <div style="font-size:11px;color:#6b7280;margin-top:2px;line-height:1.4">{{ $n['desc'] }}</div>
-                                <div style="font-size:10px;color:#9ca3af;margin-top:4px">{{ $n['time'] }}</div>
-                            </div>
-                            @if(!$n['read'])
-                            <div style="width:7px;height:7px;border-radius:50%;background:#3b82f6;flex-shrink:0;margin-top:4px"></div>
-                            @endif
+
+                        @if($notifActivities->isEmpty() && $recentLeads->isEmpty())
+                        <div style="padding:24px 16px;text-align:center;color:#9ca3af;font-size:13px">
+                            <i class="fas fa-bell-slash" style="font-size:24px;display:block;margin-bottom:8px;opacity:.4"></i>
+                            Tidak ada notifikasi
                         </div>
-                        @endforeach
+                        @else
+                            @foreach($notifActivities as $act)
+                            @php
+                            $isOverdue = $act->status === 'Overdue';
+                            $icon  = $isOverdue ? 'exclamation-circle' : 'clock';
+                            $color = $isOverdue ? '#ef4444' : '#f59e0b';
+                            $bg    = $isOverdue ? '#fee2e2' : '#fef9c3';
+                            $title = $isOverdue ? 'Activity Overdue' : 'Reminder Hari Ini';
+                            $who   = $act->customer?->company_name ?? $act->lead?->company_name ?? '-';
+                            $diff  = $act->activity_at ? $act->activity_at->diffForHumans() : '-';
+                            @endphp
+                            <div class="notif-item unread" style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid #f9fafb;cursor:pointer;background:#fafbff" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='#fafbff'">
+                                <div style="width:34px;height:34px;border-radius:50%;background:{{ $bg }};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                                    <i class="fas fa-{{ $icon }}" style="font-size:13px;color:{{ $color }}"></i>
+                                </div>
+                                <div style="flex:1;min-width:0">
+                                    <div style="font-size:12px;font-weight:600;color:#0f1d35">{{ $title }}</div>
+                                    <div style="font-size:11px;color:#6b7280;margin-top:2px;line-height:1.4">{{ $act->subject }} — {{ $who }}</div>
+                                    <div style="font-size:10px;color:#9ca3af;margin-top:4px">{{ $diff }}</div>
+                                </div>
+                                <div style="width:7px;height:7px;border-radius:50%;background:{{ $color }};flex-shrink:0;margin-top:4px"></div>
+                            </div>
+                            @endforeach
+
+                            @foreach($recentLeads as $lead)
+                            <div class="notif-item" style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid #f9fafb;cursor:pointer;background:#fff" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='#fff'">
+                                <div style="width:34px;height:34px;border-radius:50%;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                                    <i class="fas fa-user-plus" style="font-size:13px;color:#2563eb"></i>
+                                </div>
+                                <div style="flex:1;min-width:0">
+                                    <div style="font-size:12px;font-weight:500;color:#0f1d35">Lead Baru</div>
+                                    <div style="font-size:11px;color:#6b7280;margin-top:2px">{{ $lead->company_name }} — {{ $lead->pipeline_stage }}</div>
+                                    <div style="font-size:10px;color:#9ca3af;margin-top:4px">{{ $lead->created_at->diffForHumans() }}</div>
+                                </div>
+                            </div>
+                            @endforeach
+                        @endif
                     </div>
                     <a href="{{ route('tasks.index') }}" style="display:block;text-align:center;padding:12px;font-size:12px;color:#3b82f6;text-decoration:none;border-top:1px solid #f0f0f0" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
                         Lihat semua notifikasi →

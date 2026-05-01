@@ -6,6 +6,14 @@
 
 @section('content')
 {{-- KPI Row --}}
+@php
+function growthBadge($val, $prev_label) {
+    if ($val == 0) return '<span class="kpi-change" style="color:#9ca3af">— vs ' . $prev_label . '</span>';
+    $cls = $val > 0 ? 'up' : 'down';
+    $icon = $val > 0 ? 'arrow-up' : 'arrow-down';
+    return '<span class="kpi-change ' . $cls . '"><i class="fas fa-' . $icon . '"></i> ' . abs($val) . '%</span><span class="kpi-vs ms-1">vs ' . $prev_label . '</span>';
+}
+@endphp
 <div class="row g-3 mb-4">
     <div class="col-xl col-md-6">
         <div class="kpi-card">
@@ -15,10 +23,7 @@
             <div>
                 <div class="kpi-label">Revenue (Omzet)</div>
                 <div class="kpi-value">Rp {{ number_format($revenue/1000000000,2) }}M</div>
-                <div>
-                    <span class="kpi-change up"><i class="fas fa-arrow-up"></i> 12.5%</span>
-                    <span class="kpi-vs ms-1">vs Apr 2025</span>
-                </div>
+                <div>{!! growthBadge($revenueGrowth, $prevLabel) !!}</div>
             </div>
         </div>
     </div>
@@ -30,10 +35,7 @@
             <div>
                 <div class="kpi-label">Total DO</div>
                 <div class="kpi-value">{{ $totalDo }}</div>
-                <div>
-                    <span class="kpi-change up"><i class="fas fa-arrow-up"></i> 8.2%</span>
-                    <span class="kpi-vs ms-1">vs Apr 2025</span>
-                </div>
+                <div>{!! growthBadge($doGrowth, $prevLabel) !!}</div>
             </div>
         </div>
     </div>
@@ -45,10 +47,7 @@
             <div>
                 <div class="kpi-label">Conversion Rate</div>
                 <div class="kpi-value">{{ $conversionRate }}%</div>
-                <div>
-                    <span class="kpi-change up"><i class="fas fa-arrow-up"></i> 6.7%</span>
-                    <span class="kpi-vs ms-1">vs Apr 2025</span>
-                </div>
+                <div><span class="kpi-change" style="color:#9ca3af">Bulan ini</span></div>
             </div>
         </div>
     </div>
@@ -60,10 +59,7 @@
             <div>
                 <div class="kpi-label">Active Leads</div>
                 <div class="kpi-value">{{ $activeLeads }}</div>
-                <div>
-                    <span class="kpi-change up"><i class="fas fa-arrow-up"></i> 5.3%</span>
-                    <span class="kpi-vs ms-1">vs Apr 2025</span>
-                </div>
+                <div>{!! growthBadge($leadsGrowth, $prevLabel) !!}</div>
             </div>
         </div>
     </div>
@@ -75,10 +71,7 @@
             <div>
                 <div class="kpi-label">Deal Closed</div>
                 <div class="kpi-value">{{ $dealClosed }}</div>
-                <div>
-                    <span class="kpi-change up"><i class="fas fa-arrow-up"></i> 10.8%</span>
-                    <span class="kpi-vs ms-1">vs Apr 2025</span>
-                </div>
+                <div>{!! growthBadge($dealGrowth, $prevLabel) !!}</div>
             </div>
         </div>
     </div>
@@ -319,23 +312,22 @@
 
 @push('scripts')
 <script>
-// Revenue Line Chart
-const ctx1 = document.getElementById('revenueChart').getContext('2d');
-const labels = {!! json_encode(array_column($revenueChart, 'date')) !!};
-const values = {!! json_encode(array_column($revenueChart, 'value')) !!};
+// ── Revenue Chart (data real dari DB) ──
+const labels     = {!! json_encode(array_column($revenueChart, 'date')) !!};
+const values     = {!! json_encode(array_column($revenueChart, 'value')) !!};
+const volValues  = {!! json_encode(array_column($volumeChart, 'value')) !!};
+const wonValues  = {!! json_encode(array_column($trendWon, 'value')) !!};
+const lostValues = {!! json_encode(array_column($trendLost, 'value')) !!};
 
-new Chart(ctx1, {
+new Chart(document.getElementById('revenueChart').getContext('2d'), {
     type: 'line',
     data: {
-        labels: labels,
+        labels,
         datasets: [{
             data: values.map(v => v / 1000000),
             borderColor: '#2563eb',
             backgroundColor: 'rgba(37,99,235,.1)',
-            fill: true,
-            tension: .4,
-            borderWidth: 2,
-            pointRadius: 0,
+            fill: true, tension: .4, borderWidth: 2, pointRadius: 0,
         }]
     },
     options: {
@@ -347,14 +339,13 @@ new Chart(ctx1, {
     }
 });
 
-// Volume Bar Chart
-const ctx2 = document.getElementById('volumeChart').getContext('2d');
-new Chart(ctx2, {
+// ── Volume DO Chart (data real dari DB) ──
+new Chart(document.getElementById('volumeChart').getContext('2d'), {
     type: 'bar',
     data: {
-        labels: labels,
+        labels,
         datasets: [{
-            data: labels.map(() => Math.floor(Math.random() * 80) + 20),
+            data: volValues,
             backgroundColor: '#10b981',
             borderRadius: 3,
         }]
@@ -363,26 +354,25 @@ new Chart(ctx2, {
         plugins: { legend: { display: false } },
         scales: {
             x: { grid: { display: false }, ticks: { font: { size: 10 }, maxTicksLimit: 6 } },
-            y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } }
+            y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, stepSize: 1 } }
         }
     }
 });
 
-// Closing Trend
-const ctx3 = document.getElementById('closingChart').getContext('2d');
-new Chart(ctx3, {
+// ── Closing Trend Chart (data real dari DB) ──
+new Chart(document.getElementById('closingChart').getContext('2d'), {
     type: 'line',
     data: {
-        labels: labels,
+        labels,
         datasets: [
             {
                 label: 'Won',
-                data: labels.map(() => Math.floor(Math.random() * 40) + 30),
+                data: wonValues,
                 borderColor: '#10b981', fill: false, tension: .4, borderWidth: 2, pointRadius: 0,
             },
             {
                 label: 'Lost',
-                data: labels.map(() => Math.floor(Math.random() * 25) + 15),
+                data: lostValues,
                 borderColor: '#ef4444', fill: false, tension: .4, borderWidth: 2, pointRadius: 0,
             }
         ]
@@ -391,7 +381,7 @@ new Chart(ctx3, {
         plugins: { legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } } },
         scales: {
             x: { grid: { display: false }, ticks: { font: { size: 10 }, maxTicksLimit: 5 } },
-            y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } }
+            y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, stepSize: 1 } }
         }
     }
 });
