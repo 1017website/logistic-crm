@@ -14,6 +14,7 @@ use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\TaskReminderController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\UserController;
 
 // ── Auth (Guest only) ──────────────────────────────
 Route::middleware('guest')->group(function () {
