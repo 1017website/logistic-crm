@@ -1043,6 +1043,33 @@ $(document).ready(function() {
         initSelect2(this);
         initFlatpickr(this);
     });
+
+    // ── Format input IDR ──
+    $(document).on('input', '.idr-input', function() {
+        let pos = this.selectionStart;
+        let raw = $(this).val().replace(/\D/g, '');
+        if (raw === '') { $(this).val(''); return; }
+        let formatted = parseInt(raw, 10).toLocaleString('id-ID');
+        $(this).val(formatted);
+    });
+    $(document).on('focus', '.idr-input', function() {
+        // Saat focus, strip format untuk mudah edit
+        let raw = $(this).val().replace(/\D/g, '');
+        $(this).val(raw);
+    });
+    $(document).on('blur', '.idr-input', function() {
+        let raw = $(this).val().replace(/\D/g, '');
+        if (raw === '') return;
+        $(this).val(parseInt(raw, 10).toLocaleString('id-ID'));
+    });
+
+    // Strip separator titik dari .idr-input sebelum form submit
+    $(document).on('submit', 'form', function() {
+        $(this).find('.idr-input').each(function() {
+            let raw = $(this).val().replace(/\./g, '').replace(/,/g, '');
+            $(this).val(raw);
+        });
+    });
 });
 </script>
 

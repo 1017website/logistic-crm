@@ -38,6 +38,9 @@ Route::middleware('auth')->group(function () {
     });
 
     // Leads & Pipeline
+    Route::get('/leads/export', [LeadsController::class, 'export'])->name('leads.export');
+    Route::post('/leads/import', [LeadsController::class, 'import'])->name('leads.import');
+    Route::post('/leads/{lead}/activity', [LeadsController::class, 'storeActivity'])->name('leads.activity.store');
     Route::resource('leads', LeadsController::class);
     Route::get('/pipeline', [PipelineController::class, 'index'])->name('pipeline.index');
 
@@ -49,13 +52,19 @@ Route::middleware('auth')->group(function () {
     Route::delete('/tasks/{activity}', [TaskReminderController::class, 'destroy'])->name('tasks.destroy');
 
     // CRM Data
+    Route::get('/customers/export', [CustomerController::class, 'export'])->name('customers.export');
+    Route::post('/customers/import', [CustomerController::class, 'import'])->name('customers.import');
+    Route::post('/customers/{customer}/activity', [CustomerController::class, 'storeActivity'])->name('customers.activity.store');
     Route::resource('customers', CustomerController::class);
-    Route::resource('vendors', VendorController::class)->only(['index', 'show']);
+    Route::get('/vendors/export', [VendorController::class, 'export'])->name('vendors.export');
+    Route::post('/vendors/{vendor}/rates', [VendorController::class, 'storeRate'])->name('vendors.rates.store');
+    Route::resource('vendors', VendorController::class);
 
     // ── Manager & Admin only ───────────────────────
     Route::middleware('role:Admin,Sales Manager')->group(function () {
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
-        Route::get('/reports',   [ReportsController::class, 'index'])->name('reports.index');
+        Route::get('/reports',        [ReportsController::class, 'index'])->name('reports.index');
+        Route::get('/reports/export', [ReportsController::class, 'export'])->name('reports.export');
         Route::resource('users', UserController::class)->except(['create', 'edit', 'show']);
     });
 

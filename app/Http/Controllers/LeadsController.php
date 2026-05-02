@@ -2,66 +2,105 @@
 namespace App\Http\Controllers;
 
 use App\Models\Lead;
-use App\Models\Customer;
 use App\Models\SalesUser;
 use App\Models\Activity;
-use App\Models\Quotation;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class LeadsController extends Controller
 {
     public function index(Request $request)
     {
-        $stage = $request->get('stage');
+        $stage       = $request->get('stage');
         $temperature = $request->get('temperature');
-        $search = $request->get('search');
+        $search      = $request->get('search');
 
-        $query = Lead::with(['customer', 'salesUser', 'activities'])
+        $query = Lead::with(['salesUser', 'activities'])
             ->whereNotIn('pipeline_stage', ['Won', 'Lost']);
 
-        if ($stage) $query->where('pipeline_stage', $stage);
+        if ($stage)       $query->where('pipeline_stage', $stage);
         if ($temperature) $query->where('temperature', $temperature);
-        if ($search) $query->where('company_name', 'like', "%$search%");
+        if ($search)      $query->where('company_name', 'like', "%$search%");
 
-        $leads = $query->orderBy('updated_at', 'desc')->paginate(15);
-        $salesUsers = SalesUser::all();
+        $leads      = $query->orderBy('updated_at', 'desc')->paginate(15);
+        $salesUsers = SalesUser::orderBy('name')->get();
 
         return view('leads.index', compact('leads', 'salesUsers', 'stage', 'temperature', 'search'));
     }
 
     public function show(Lead $lead)
     {
-        $lead->load(['customer', 'salesUser', 'activities.salesUser', 'quotations']);
-        return view('leads.show', compact('lead'));
+        $lead->load(['salesUser', 'activities.salesUser', 'quotations']);
+        $salesUsers = SalesUser::orderBy('name')->get();
+        return view('leads.show', compact('lead', 'salesUsers'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'company_name'   => 'required|string|max:255',
-            'pic_name'       => 'required|string|max:255',
-            'phone'          => 'nullable|string',
-            'email'          => 'nullable|email',
-            'service_type'   => 'nullable|string',
-            'route'          => 'nullable|string',
-            'pipeline_stage' => 'required|in:Identifying,Approaching,Follow Up,Closing,Won,Lost',
-            'temperature'    => 'required|in:Hot,Warm,Cold',
-            'potensi_revenue'=> 'nullable|numeric',
-            'sales_user_id'  => 'required|exists:sales_users,id',
+            'company_name'    => 'required|string|max:255',
+            'pic_name'        => 'required|string|max:255',
+            'pic_position'    => 'nullable|string|max:100',
+            'phone'           => 'nullable|string|max:20',
+            'email'           => 'nullable|email|max:255',
+            'address'         => 'nullable|string',
+            'industry'        => 'nullable|string|max:100',
+            'pipeline_stage'  => 'required|in:Identifying,Approaching,Follow Up,Closing,Won,Lost',
+            'temperature'     => 'required|in:Hot,Warm,Cold',
+            'service_type'    => 'nullable|string|max:100',
+            'route'           => 'nullable|string|max:255',
+            'commodity'       => 'nullable|string|max:255',
+            'volume_estimate' => 'nullable|string|max:100',
+            'potensi_revenue' => 'nullable|numeric|min:0',
+            'probability'     => 'nullable|integer|min:0|max:100',
+            'lead_source'     => 'nullable|string|max:100',
+            'competitor'      => 'nullable|string|max:255',
+            'expected_closing'=> 'nullable|date',
+            'sales_user_id'   => 'required|exists:sales_users,id',
+            'notes_kebutuhan' => 'nullable|string',
         ]);
+
         $validated['lead_code'] = Lead::generateLeadCode();
-        Lead::create($validated);
-        return redirect()->route('leads.index')->with('success', 'Lead berhasil ditambahkan.');
+        $lead = Lead::create($validated);
+
+        return redirect()->route('leads.show', $lead)->with('success', 'Lead berhasil ditambahkan.');
     }
 
     public function update(Request $request, Lead $lead)
     {
         $validated = $request->validate([
-            'pipeline_stage' => 'sometimes|in:Identifying,Approaching,Follow Up,Closing,Won,Lost',
-            'temperature'    => 'sometimes|in:Hot,Warm,Cold',
-            'catatan_internal' => 'nullable|string',
+            'company_name'    => 'sometimes|string|max:255',
+            'pic_name'        => 'sometimes|string|max:255',
+            'pic_position'    => 'nullable|string|max:100',
+            'phone'           => 'nullable|string|max:20',
+            'email'           => 'nullable|email|max:255',
+            'address'         => 'nullable|string',
+            'industry'        => 'nullable|string|max:100',
+            'pipeline_stage'  => 'sometimes|in:Identifying,Approaching,Follow Up,Closing,Won,Lost',
+            'temperature'     => 'sometimes|in:Hot,Warm,Cold',
+            'service_type'    => 'nullable|string|max:100',
+            'route'           => 'nullable|string|max:255',
+            'commodity'       => 'nullable|string|max:255',
+            'volume_estimate' => 'nullable|string|max:100',
+            'potensi_revenue' => 'nullable|numeric|min:0',
+            'probability'     => 'nullable|integer|min:0|max:100',
+            'lead_source'     => 'nullable|string|max:100',
+            'competitor'      => 'nullable|string|max:255',
+            'expected_closing'=> 'nullable|date',
+            'sales_user_id'   => 'sometimes|exists:sales_users,id',
+            'notes_kebutuhan' => 'nullable|string',
+            'catatan_internal'=> 'nullable|string',
+            'next_follow_up'  => 'nullable|date',
+            'next_follow_up_notes' => 'nullable|string',
         ]);
+
         $lead->update($validated);
+
+        // Support JSON response untuk drag-drop AJAX
+        if ($request->expectsJson() || $request->isJson()) {
+            return response()->json(['success' => true, 'stage' => $lead->pipeline_stage]);
+        }
+
         return redirect()->back()->with('success', 'Lead berhasil diupdate.');
     }
 
@@ -70,4 +109,118 @@ class LeadsController extends Controller
         $lead->delete();
         return redirect()->route('leads.index')->with('success', 'Lead dihapus.');
     }
+
+    // ── Add Activity ke Lead ──
+    public function storeActivity(Request $request, Lead $lead)
+    {
+        $validated = $request->validate([
+            'type'           => 'required|in:Call,Visit,Email,Note,Task',
+            'subject'        => 'required|string|max:255',
+            'description'    => 'nullable|string',
+            'activity_at'    => 'required|date',
+            'status'         => 'required|in:Planned,Pending,Done,Overdue',
+            'sales_user_id'  => 'required|exists:sales_users,id',
+            'next_follow_up' => 'nullable|date',
+        ]);
+
+        $validated['lead_id'] = $lead->id;
+        Activity::create($validated);
+
+        return redirect()->route('leads.show', $lead)->with('success', 'Activity berhasil ditambahkan.');
+    }
+
+    // ── Export CSV ──
+    public function export(Request $request)
+    {
+        $leads = Lead::with(['salesUser'])->orderBy('created_at', 'desc')->get();
+
+        $headers = [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="leads_' . date('Ymd_His') . '.csv"',
+        ];
+
+        $callback = function () use ($leads) {
+            $file = fopen('php://output', 'w');
+            // BOM for Excel UTF-8
+            fputs($file, "\xEF\xBB\xBF");
+            // Header row
+            fputcsv($file, [
+                'Lead Code', 'Company Name', 'PIC Name', 'Phone', 'Email',
+                'Pipeline Stage', 'Temperature', 'Service Type', 'Route',
+                'Potensi Revenue', 'Probability %', 'Expected Closing',
+                'Sales PIC', 'Lead Source', 'Created At',
+            ]);
+            foreach ($leads as $lead) {
+                fputcsv($file, [
+                    $lead->lead_code,
+                    $lead->company_name,
+                    $lead->pic_name,
+                    $lead->phone,
+                    $lead->email,
+                    $lead->pipeline_stage,
+                    $lead->temperature,
+                    $lead->service_type,
+                    $lead->route,
+                    $lead->potensi_revenue,
+                    $lead->probability,
+                    $lead->expected_closing?->format('Y-m-d'),
+                    $lead->salesUser?->name,
+                    $lead->lead_source,
+                    $lead->created_at->format('Y-m-d H:i'),
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    // ── Import CSV ──
+    public function import(Request $request)
+    {
+        $request->validate(['file' => 'required|file|mimes:csv,txt|max:2048']);
+
+        $file    = $request->file('file');
+        $handle  = fopen($file->getRealPath(), 'r');
+        $header  = fgetcsv($handle); // skip header
+        $imported = 0;
+        $errors  = [];
+
+        while (($row = fgetcsv($handle)) !== false) {
+            if (count($row) < 5) continue;
+
+            try {
+                // Cari sales user by name
+                $salesUser = SalesUser::where('name', trim($row[12] ?? ''))->first();
+
+                Lead::create([
+                    'lead_code'      => Lead::generateLeadCode(),
+                    'company_name'   => trim($row[1] ?? ''),
+                    'pic_name'       => trim($row[2] ?? ''),
+                    'phone'          => trim($row[3] ?? ''),
+                    'email'          => trim($row[4] ?? ''),
+                    'pipeline_stage' => in_array(trim($row[5] ?? ''), ['Identifying','Approaching','Follow Up','Closing','Won','Lost']) ? trim($row[5]) : 'Identifying',
+                    'temperature'    => in_array(trim($row[6] ?? ''), ['Hot','Warm','Cold']) ? trim($row[6]) : 'Cold',
+                    'service_type'   => trim($row[7] ?? ''),
+                    'route'          => trim($row[8] ?? ''),
+                    'potensi_revenue'=> is_numeric($row[9] ?? '') ? $row[9] : 0,
+                    'probability'    => is_numeric($row[10] ?? '') ? $row[10] : 0,
+                    'expected_closing'=> !empty($row[11]) ? $row[11] : null,
+                    'sales_user_id'  => $salesUser?->id,
+                    'lead_source'    => trim($row[13] ?? ''),
+                ]);
+                $imported++;
+            } catch (\Exception $e) {
+                $errors[] = 'Baris ' . ($imported + count($errors) + 2) . ': ' . $e->getMessage();
+            }
+        }
+
+        fclose($handle);
+
+        $msg = "Berhasil import {$imported} leads.";
+        if ($errors) $msg .= ' ' . count($errors) . ' baris gagal.';
+
+        return redirect()->route('leads.index')->with('success', $msg);
+    }
 }
+

@@ -2,23 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Setting;
 use Illuminate\Http\Request;
 
 class SettingsController extends Controller
 {
     public function index()
     {
-        // Simulasi config — bisa diganti dengan DB/config table
-        $settings = [
-            'company_name'    => 'PT. Logistic Service Indonesia',
-            'company_email'   => 'info@logisticservice.co.id',
-            'company_phone'   => '+62 21 1234 5678',
-            'company_address' => 'Jl. Raya Logistik No. 88, Jakarta Utara',
-            'currency'        => 'IDR',
-            'timezone'        => 'Asia/Jakarta',
-            'logo'            => null,
-        ];
-
+        $settings = Setting::getAll();
         return view('settings.index', compact('settings'));
     }
 
@@ -26,11 +17,29 @@ class SettingsController extends Controller
     {
         $request->validate([
             'company_name'  => 'required|string|max:255',
-            'company_email' => 'required|email',
+            'company_email' => 'required|email|max:255',
             'company_phone' => 'nullable|string|max:20',
         ]);
 
-        // Di sini logika save ke DB/config — untuk sekarang redirect dengan success
+        $fields = [
+            'company_name', 'company_email', 'company_phone',
+            'company_address', 'company_website', 'currency',
+            'timezone', 'date_format', 'language',
+        ];
+
+        foreach ($fields as $field) {
+            if ($request->has($field)) {
+                Setting::set($field, $request->input($field));
+            }
+        }
+
+        // Notification toggles (checkbox — tidak ada = false)
+        $notifFields = ['notif_overdue','notif_new_lead','notif_deal_won','notif_followup','notif_stage','notif_weekly','notif_target'];
+        foreach ($notifFields as $field) {
+            Setting::set($field, $request->has($field) ? '1' : '0');
+        }
+
         return redirect()->route('settings.index')->with('success', 'Settings berhasil disimpan.');
     }
 }
+

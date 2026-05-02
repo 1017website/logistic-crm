@@ -10,8 +10,12 @@
         <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addLeadModal">
             <i class="fas fa-plus me-1"></i> Add Lead
         </button>
-        <button class="btn btn-outline-secondary btn-sm"><i class="fas fa-upload me-1"></i> Import</button>
-        <button class="btn btn-outline-secondary btn-sm"><i class="fas fa-download me-1"></i> Export</button>
+        <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#importModal">
+            <i class="fas fa-upload me-1"></i> Import
+        </button>
+        <a href="{{ route('leads.export') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-download me-1"></i> Export CSV
+        </a>
     </div>
 </div>
 
@@ -89,7 +93,7 @@
                             <span class="badge-stage badge-{{ $slug }}">{{ $lead->pipeline_stage }}</span>
                         </td>
                         <td><span class="badge-{{ strtolower($lead->temperature) }}">{{ $lead->temperature }}</span></td>
-                        <td style="font-weight:600;color:var(--primary)">Rp {{ number_format($lead->potensi_revenue/1000000, 0) }}M</td>
+                        <td style="font-weight:600;color:var(--primary)">{{ idrm($lead->potensi_revenue) }}</td>
                         <td style="font-size:.78rem">{{ $lead->salesUser?->name }}</td>
                         <td style="font-size:.78rem">
                             @if($lead->next_follow_up)
@@ -187,7 +191,7 @@
                         </div>
                         <div class="col-4">
                             <label class="form-label">Potensi Revenue</label>
-                            <input type="number" name="potensi_revenue" class="form-control" placeholder="0">
+                            <input type="text" name="potensi_revenue" class="form-control idr-input" placeholder="Contoh: 100.000.000">
                         </div>
                         <div class="col-6">
                             <label class="form-label">Sales PIC *</label>
@@ -215,4 +219,44 @@
         </div>
     </div>
 </div>
+
+{{-- Import Modal --}}
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">Import Leads dari CSV</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ route('leads.import') }}" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body">
+                    <div class="mb-3 p-3" style="background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb">
+                        <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">
+                            <i class="fas fa-info-circle text-primary me-1"></i> Format CSV
+                        </div>
+                        <div style="font-size:11px;color:#6b7280;line-height:1.8">
+                            Kolom: <strong>Lead Code, Company Name, PIC Name, Phone, Email, Pipeline Stage, Temperature, Service Type, Route, Potensi Revenue, Probability, Expected Closing, Sales PIC, Lead Source</strong>
+                        </div>
+                        <a href="{{ route('leads.export') }}" class="btn btn-sm btn-outline-primary mt-2" style="font-size:11px">
+                            <i class="fas fa-download me-1"></i> Download Template CSV
+                        </a>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Pilih File CSV <span class="text-danger">*</span></label>
+                        <input type="file" name="file" class="form-control" accept=".csv,.txt" required>
+                        <div class="form-text">Format: .csv, maksimal 2MB</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="fas fa-upload me-1"></i> Import
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @endsection

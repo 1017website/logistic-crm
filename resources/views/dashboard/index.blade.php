@@ -22,7 +22,7 @@ function growthBadge($val, $prev_label) {
             </div>
             <div>
                 <div class="kpi-label">Revenue (Omzet)</div>
-                <div class="kpi-value">Rp {{ number_format($revenue/1000000000,2) }}M</div>
+                <div class="kpi-value">{{ idrm($revenue) }}</div>
                 <div>{!! growthBadge($revenueGrowth, $prevLabel) !!}</div>
             </div>
         </div>

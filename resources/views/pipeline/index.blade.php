@@ -5,6 +5,7 @@
 @section('page-subtitle', 'Visualisasi proses penjualan dari Lead hingga Closing')
 
 @section('content')
+
 {{-- KPI --}}
 <div class="row g-3 mb-4">
     <div class="col">
@@ -12,28 +13,28 @@
             <div class="kpi-icon" style="background:#dbeafe"><i class="fas fa-chart-bar" style="color:#2563eb"></i></div>
             <div>
                 <div class="kpi-label">Total Pipeline Value</div>
-                <div class="kpi-value" style="font-size:1.1rem">Rp {{ number_format($totalValue/1000000000,2) }}M</div>
-                <div><span class="kpi-change up"><i class="fas fa-arrow-up"></i> 18.6%</span> <span class="kpi-vs">vs last month</span></div>
+                <div class="kpi-value" style="font-size:1.1rem">{{ idrm($totalValue) }}</div>
+                <div><span class="kpi-vs">Semua stage aktif</span></div>
             </div>
         </div>
     </div>
     <div class="col">
         <div class="kpi-card">
-            <div class="kpi-icon" style="background:#d1fae5"><i class="fas fa-envelope" style="color:#059669"></i></div>
+            <div class="kpi-icon" style="background:#d1fae5"><i class="fas fa-users" style="color:#059669"></i></div>
             <div>
                 <div class="kpi-label">Total Leads</div>
                 <div class="kpi-value" style="font-size:1.1rem">{{ $totalLeads }}</div>
-                <div><span class="kpi-change up"><i class="fas fa-arrow-up"></i> 12.5%</span> <span class="kpi-vs">vs last month</span></div>
+                <div><span class="kpi-vs">Semua stage</span></div>
             </div>
         </div>
     </div>
     <div class="col">
         <div class="kpi-card">
-            <div class="kpi-icon" style="background:#fef3c7"><i class="fas fa-envelope-open" style="color:#d97706"></i></div>
+            <div class="kpi-icon" style="background:#fef3c7"><i class="fas fa-fire" style="color:#d97706"></i></div>
             <div>
                 <div class="kpi-label">Potential Deals</div>
                 <div class="kpi-value" style="font-size:1.1rem">{{ $potentialDeals }}</div>
-                <div><span class="kpi-change up"><i class="fas fa-arrow-up"></i> 10.3%</span> <span class="kpi-vs">vs last month</span></div>
+                <div><span class="kpi-vs">Follow Up + Closing</span></div>
             </div>
         </div>
     </div>
@@ -41,9 +42,9 @@
         <div class="kpi-card">
             <div class="kpi-icon" style="background:#ede9fe"><i class="fas fa-handshake" style="color:#7c3aed"></i></div>
             <div>
-                <div class="kpi-label">Win Rate (Closing)</div>
+                <div class="kpi-label">Win Rate</div>
                 <div class="kpi-value" style="font-size:1.1rem">{{ $winRate }}%</div>
-                <div><span class="kpi-change up"><i class="fas fa-arrow-up"></i> 5.2%</span> <span class="kpi-vs">vs last month</span></div>
+                <div><span class="kpi-vs">vs total leads</span></div>
             </div>
         </div>
     </div>
@@ -51,18 +52,39 @@
         <div class="kpi-card">
             <div class="kpi-icon" style="background:#ccfbf1"><i class="fas fa-trophy" style="color:#0d9488"></i></div>
             <div>
-                <div class="kpi-label">Expected Revenue</div>
-                <div class="kpi-value" style="font-size:1.1rem">Rp {{ number_format($expectedRevenue/1000000000,2) }}M</div>
-                <div><span class="kpi-change up"><i class="fas fa-arrow-up"></i> 15.7%</span> <span class="kpi-vs">vs last month</span></div>
+                <div class="kpi-label">Won Revenue</div>
+                <div class="kpi-value" style="font-size:1.1rem">{{ idrm($expectedRevenue) }}</div>
+                <div><span class="kpi-vs">Total deal closed</span></div>
             </div>
         </div>
     </div>
 </div>
 
+{{-- Filter bar --}}
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <div class="d-flex gap-2 align-items-center">
+        <select class="form-select form-select-sm no-select2" style="width:160px;font-size:13px" onchange="filterSales(this.value)">
+            <option value="">Semua Sales</option>
+            @foreach(\App\Models\SalesUser::orderBy('name')->get() as $su)
+            <option value="{{ $su->id }}">{{ $su->name }}</option>
+            @endforeach
+        </select>
+        <select class="form-select form-select-sm no-select2" style="width:160px;font-size:13px" onchange="filterTemp(this.value)">
+            <option value="">Semua Temperature</option>
+            <option value="Hot">🔥 Hot</option>
+            <option value="Warm">🌤 Warm</option>
+            <option value="Cold">❄️ Cold</option>
+        </select>
+    </div>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addLeadPipelineModal">
+        <i class="fas fa-plus me-1"></i> Add Lead
+    </button>
+</div>
+
 {{-- Kanban Board --}}
 <div class="card mb-4">
     <div class="card-body p-3">
-        <div class="row g-2">
+        <div class="row g-2" id="kanbanBoard">
             @php
             $stageConfig = [
                 'Identifying' => ['slug'=>'identifying','num'=>'01','desc'=>'Mencari informasi'],
@@ -82,28 +104,53 @@
                     </div>
                     <span class="badge" style="background:rgba(0,0,0,.15);font-size:.65rem">{{ $leads->count() }}</span>
                 </div>
-                <div class="kanban-body" style="min-height:300px">
+                <div class="kanban-body kanban-drop-zone" id="zone-{{ Str::slug($stageName) }}" data-stage="{{ $stageName }}" style="min-height:300px">
                     @php $stageValue = $leads->sum('potensi_revenue'); @endphp
-                    <div style="font-size:.75rem;font-weight:700;color:#374151;margin-bottom:8px">Rp {{ number_format($stageValue/1000000,0) }}M · {{ $leads->count() }} Leads</div>
+                    <div style="font-size:.72rem;font-weight:700;color:#374151;margin-bottom:8px;padding:4px 0;border-bottom:1px solid #f0f0f0">
+                        {{ idrm($stageValue) }} · {{ $leads->count() }} leads
+                    </div>
 
                     @foreach($leads as $lead)
-                    <div class="kanban-card" onclick="window.location='{{ route('leads.show', $lead) }}'">
-                        <div class="kc-company">{{ $lead->company_name }}</div>
-                        <div class="kc-pic" style="font-size:.72rem">{{ $lead->pic_name }}</div>
-                        <div class="kc-service">{{ $lead->service_type }}</div>
-                        <div class="kc-footer">
-                            <span class="badge-{{ strtolower($lead->temperature) }}">{{ $lead->temperature }}</span>
+                    <div class="kanban-card" draggable="true"
+                        data-id="{{ $lead->id }}"
+                        data-stage="{{ $lead->pipeline_stage }}"
+                        data-sales="{{ $lead->sales_user_id }}"
+                        data-temp="{{ $lead->temperature }}"
+                        onclick="window.location='{{ route('leads.show', $lead) }}'">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <div class="kc-company">{{ $lead->company_name }}</div>
+                            <span class="badge-{{ strtolower($lead->temperature) }}" style="font-size:.6rem;flex-shrink:0">{{ $lead->temperature }}</span>
+                        </div>
+                        <div class="kc-pic" style="font-size:.7rem">
+                            <i class="fas fa-user me-1" style="font-size:.6rem"></i>{{ $lead->pic_name }}
+                        </div>
+                        @if($lead->service_type)
+                        <div class="kc-service">
+                            <i class="fas fa-ship me-1" style="font-size:.6rem"></i>{{ $lead->service_type }}
+                            @if($lead->route) · {{ $lead->route }} @endif
+                        </div>
+                        @endif
+                        <div class="kc-footer mt-2">
+                            <div style="font-size:.65rem;color:var(--text-muted)">
+                                <i class="fas fa-user-tie me-1"></i>{{ $lead->salesUser?->name ?? '-' }}
+                            </div>
                             <div class="text-end">
-                                <div class="kc-amount">Rp {{ number_format($lead->potensi_revenue/1000000,0) }}M</div>
-                                <div style="font-size:.67rem;color:var(--text-muted)">{{ $lead->updated_at->format('d M Y') }}</div>
+                                <div class="kc-amount">{{ idrm($lead->potensi_revenue) }}</div>
+                                @if($lead->expected_closing)
+                                <div style="font-size:.6rem;color:var(--text-muted)">
+                                    <i class="fas fa-calendar me-1"></i>{{ $lead->expected_closing->format('d M') }}
+                                </div>
+                                @endif
                             </div>
                         </div>
                     </div>
                     @endforeach
 
-                    <a href="{{ route('leads.index', ['stage'=>$stageName]) }}" class="d-block text-center mt-2 py-1" style="font-size:.72rem;color:var(--primary);border:1px dashed #dbeafe;border-radius:6px;text-decoration:none">
+                    <button class="d-block w-100 text-center mt-2 py-1"
+                        style="font-size:.72rem;color:var(--primary);border:1px dashed #dbeafe;border-radius:6px;background:transparent;cursor:pointer"
+                        onclick="event.stopPropagation(); openAddLead('{{ $stageName }}')">
                         <i class="fas fa-plus me-1"></i> Add Lead
-                    </a>
+                    </button>
                 </div>
             </div>
             @endforeach
@@ -117,98 +164,263 @@
         <div class="card">
             <div class="card-header">Pipeline Summary</div>
             <div class="card-body p-3">
-                <canvas id="pipelinePie" height="160"></canvas>
+                <canvas id="pipelinePie" height="150"></canvas>
                 <div class="mt-3">
                     @foreach($pipeline as $sn => $leads)
-                    @php
-                    $colors = ['Identifying'=>'#3b82f6','Approaching'=>'#10b981','Follow Up'=>'#f59e0b','Closing'=>'#ef4444','Won'=>'#8b5cf6'];
-                    @endphp
-                    <div class="d-flex align-items-center justify-content-between py-1">
+                    @php $colors = ['Identifying'=>'#3b82f6','Approaching'=>'#10b981','Follow Up'=>'#f59e0b','Closing'=>'#ef4444','Won'=>'#8b5cf6']; @endphp
+                    <div class="d-flex align-items-center justify-content-between py-1" style="border-bottom:1px solid #f9fafb">
                         <div class="d-flex align-items-center gap-2">
-                            <div style="width:10px;height:10px;border-radius:2px;background:{{ $colors[$sn] ?? '#999' }}"></div>
+                            <div style="width:8px;height:8px;border-radius:2px;background:{{ $colors[$sn] ?? '#999' }}"></div>
                             <span style="font-size:.75rem">{{ $sn }} ({{ $leads->count() }})</span>
                         </div>
-                        <span style="font-size:.75rem;font-weight:600">Rp {{ number_format($leads->sum('potensi_revenue')/1000000,0) }}M</span>
+                        <span style="font-size:.75rem;font-weight:600">{{ idrm($leads->sum('potensi_revenue')) }}</span>
                     </div>
                     @endforeach
                 </div>
             </div>
         </div>
     </div>
+
     <div class="col-lg-5">
         <div class="card">
-            <div class="card-header">Pipeline Trend (Expected Revenue)</div>
+            <div class="card-header">Pipeline Trend (Expected Revenue per Bulan)</div>
             <div class="card-body p-3">
                 <canvas id="pipelineTrend" height="180"></canvas>
             </div>
         </div>
     </div>
+
     <div class="col-lg-3">
         <div class="card">
-            <div class="card-header">Top Sales (By Expected Revenue)</div>
+            <div class="card-header">Top Sales (Deal Closed)</div>
             <div class="card-body p-3">
-                @foreach($topSales->take(5) as $s)
+                @forelse($topSales->take(5) as $s)
+                @php
+                $maxDeals = $topSales->max('deals_closed') ?: 1;
+                $pct = $maxDeals > 0 ? min(($s->deals_closed / $maxDeals) * 100, 100) : 0;
+                @endphp
                 <div class="d-flex align-items-center gap-2 mb-3">
                     <div class="user-avatar" style="width:28px;height:28px;font-size:.65rem">{{ substr($s->name,0,2) }}</div>
-                    <div class="flex-1">
+                    <div style="flex:1;min-width:0">
                         <div style="font-size:.78rem;font-weight:600">{{ $s->name }}</div>
                         <div style="background:#e5e7eb;border-radius:20px;height:4px;margin-top:3px">
-                            <div style="width:{{ min(($s->deals_closed * 10), 100) }}%;background:var(--primary);height:4px;border-radius:20px"></div>
+                            <div style="width:{{ $pct }}%;background:var(--primary);height:4px;border-radius:20px"></div>
                         </div>
                     </div>
-                    <span style="font-size:.75rem;font-weight:600;color:var(--primary)">Rp {{ number_format($s->deals_closed * 50, 0) }}M</span>
+                    <span style="font-size:.72rem;font-weight:600;color:var(--primary)">{{ $s->deals_closed }} deals</span>
                 </div>
-                @endforeach
+                @empty
+                <div class="text-center py-3" style="color:var(--text-muted);font-size:.8rem">Belum ada data</div>
+                @endforelse
             </div>
         </div>
     </div>
 </div>
+
+{{-- Add Lead Modal --}}
+<div class="modal fade" id="addLeadPipelineModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">Add Lead Baru</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ route('leads.store') }}">
+                @csrf
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Company Name <span class="text-danger">*</span></label>
+                            <input type="text" name="company_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">PIC Name <span class="text-danger">*</span></label>
+                            <input type="text" name="pic_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="phone" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Service Type</label>
+                            <select name="service_type" class="form-select">
+                                <option value="">- Pilih -</option>
+                                @foreach(['Sea Freight Import','Sea Freight Export','Air Freight Import','Air Freight Export','Trucking Domestic','Custom Clearance'] as $svc)
+                                <option value="{{ $svc }}">{{ $svc }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Pipeline Stage <span class="text-danger">*</span></label>
+                            <select name="pipeline_stage" class="form-select" id="modalPipelineStage">
+                                @foreach(['Identifying','Approaching','Follow Up','Closing'] as $s)
+                                <option value="{{ $s }}">{{ $s }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Temperature <span class="text-danger">*</span></label>
+                            <select name="temperature" class="form-select">
+                                <option value="Warm">Warm</option>
+                                <option value="Hot">Hot</option>
+                                <option value="Cold">Cold</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Potensi Revenue</label>
+                            <input type="text" name="potensi_revenue" class="form-control idr-input" placeholder="100.000.000">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Sales PIC <span class="text-danger">*</span></label>
+                            <select name="sales_user_id" class="form-select" required>
+                                @foreach(\App\Models\SalesUser::orderBy('name')->get() as $su)
+                                <option value="{{ $su->id }}">{{ $su->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Lead Source</label>
+                            <select name="lead_source" class="form-select">
+                                <option value="">- Pilih -</option>
+                                @foreach(['Referral','Website','Cold Call','Email Campaign','Social Media','Exhibition','Lainnya'] as $src)
+                                <option value="{{ $src }}">{{ $src }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Simpan Lead</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('scripts')
-<script>
-const pipelineLabels = {!! json_encode(array_keys($pipeline)) !!};
-const pipelineValues = {!! json_encode(array_map(fn($leads) => $leads->sum('potensi_revenue')/1000000, $pipeline)) !!};
+@php
+$chartLabels = array_keys($pipeline);
+$chartValues = array_values(array_map(fn($l) => (float)($l->sum('potensi_revenue') / 1000000), $pipeline));
 
+// Trend: expected revenue per bulan (6 bulan terakhir) dari DB
+$trendLabels = [];
+$trendData   = [];
+for ($i = 5; $i >= 0; $i--) {
+    $month = now()->subMonths($i);
+    $trendLabels[] = $month->format('M Y');
+    $trendData[]   = (float)(\App\Models\Lead::whereYear('created_at', $month->year)
+        ->whereMonth('created_at', $month->month)
+        ->sum('potensi_revenue') / 1000000);
+}
+@endphp
+<script>
+// ── Pipeline Pie ──
 new Chart(document.getElementById('pipelinePie'), {
     type: 'doughnut',
     data: {
-        labels: pipelineLabels,
-        datasets: [{ data: pipelineValues, backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'], borderWidth: 0 }]
+        labels: {!! json_encode($chartLabels) !!},
+        datasets: [{
+            data: {!! json_encode($chartValues) !!},
+            backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'],
+            borderWidth: 0, hoverOffset: 4
+        }]
     },
     options: {
         plugins: {
             legend: { display: false },
-            tooltip: { callbacks: { label: ctx => ` Rp ${ctx.parsed.toFixed(0)}M` } }
+            tooltip: { callbacks: { label: ctx => ` ${ctx.label}: Rp ${ctx.parsed.toFixed(1)}M` } }
         },
         cutout: '65%'
     }
 });
 
-const months = ['Jan','Feb','Mar','Apr','May','Jun'];
+// ── Pipeline Trend (data real dari DB) ──
 new Chart(document.getElementById('pipelineTrend'), {
     type: 'line',
     data: {
-        labels: months,
+        labels: {!! json_encode($trendLabels) !!},
         datasets: [{
-            label: 'Expected Revenue (M)',
-            data: [420,480,520,660,784,900],
+            label: 'Expected Revenue (Jt)',
+            data: {!! json_encode($trendData) !!},
             borderColor: '#2563eb',
             backgroundColor: 'rgba(37,99,235,.1)',
-            fill: true,
-            tension: .4,
-            borderWidth: 2,
-            pointRadius: 4,
-            pointBackgroundColor: '#2563eb',
+            fill: true, tension: .4, borderWidth: 2,
+            pointRadius: 4, pointBackgroundColor: '#2563eb',
         }]
     },
     options: {
         plugins: { legend: { display: false } },
         scales: {
             x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-            y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, callback: v => v + 'M' } }
+            y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, callback: v => v + ' Jt' } }
         }
     }
 });
+
+// ── Drag & Drop pindah stage ──
+let dragId = null;
+document.querySelectorAll('.kanban-card').forEach(card => {
+    card.addEventListener('dragstart', e => {
+        dragId = card.dataset.id;
+        card.style.opacity = '.4';
+        e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => card.style.opacity = '1');
+});
+
+document.querySelectorAll('.kanban-drop-zone').forEach(zone => {
+    zone.addEventListener('dragover', e => {
+        e.preventDefault();
+        zone.style.background = '#eff6ff';
+        e.dataTransfer.dropEffect = 'move';
+    });
+    zone.addEventListener('dragleave', () => zone.style.background = '');
+    zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.style.background = '';
+        const newStage = zone.dataset.stage;
+        if (!dragId || !newStage) return;
+        updateLeadStage(dragId, newStage);
+    });
+});
+
+function updateLeadStage(leadId, newStage) {
+    fetch(`/leads/${leadId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+            'X-HTTP-Method-Override': 'PUT',
+        },
+        body: JSON.stringify({ pipeline_stage: newStage })
+    })
+    .then(r => { if (r.ok || r.redirected) location.reload(); })
+    .catch(() => location.reload());
+}
+
+// ── Filter client-side ──
+let filterSalesId = '', filterTempVal = '';
+function filterSales(val) { filterSalesId = val; applyFilter(); }
+function filterTemp(val)  { filterTempVal = val; applyFilter(); }
+function applyFilter() {
+    document.querySelectorAll('.kanban-card').forEach(card => {
+        const matchSales = !filterSalesId || card.dataset.sales == filterSalesId;
+        const matchTemp  = !filterTempVal || card.dataset.temp == filterTempVal;
+        card.style.display = (matchSales && matchTemp) ? '' : 'none';
+    });
+}
+
+// ── Open Add Lead modal dengan stage preset ──
+function openAddLead(stage) {
+    document.getElementById('modalPipelineStage').value = stage;
+    new bootstrap.Modal(document.getElementById('addLeadPipelineModal')).show();
+}
 </script>
 @endpush

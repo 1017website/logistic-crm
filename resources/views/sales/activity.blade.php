@@ -202,7 +202,7 @@
                 <div class="d-flex align-items-center justify-content-between py-2" style="border-bottom:1px solid #f3f4f6">
                     <a href="{{ route('leads.index', ['stage'=>$stage]) }}" style="font-size:.8rem;color:{{ $colors[$stage] ?? '#333' }};font-weight:600;text-decoration:none">{{ $stage }}</a>
                     <span style="font-size:.75rem;color:var(--text-muted)">{{ $data['count'] }} Leads</span>
-                    <span style="font-size:.75rem;font-weight:600">Rp {{ number_format($data['value']/1000000000,2) }}M</span>
+                    <span style="font-size:.75rem;font-weight:600">{{ idrm($data['value']) }}</span>
                 </div>
                 @endforeach
                 <div class="d-flex justify-content-between pt-2">
