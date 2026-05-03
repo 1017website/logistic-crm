@@ -27,7 +27,7 @@ class CalendarController extends Controller
             'status'      => $a->status,
             'customer'    => $a->customer?->company_name ?? ($a->lead?->company_name ?? '-'),
             'sales'       => $a->salesUser?->name ?? '-',
-            'sales_id'    => $a->sales_user_id,
+            'sales_id'    => $a->user_id,
             'description' => $a->description,
         ]);
 

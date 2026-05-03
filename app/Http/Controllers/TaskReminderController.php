@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Activity;
 use App\Models\Lead;
-use App\Models\SalesUser;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class TaskReminderController extends Controller
@@ -12,12 +12,12 @@ class TaskReminderController extends Controller
     public function index(Request $request)
     {
         $filter   = $request->get('filter', 'all');   // all | today | overdue | upcoming
-        $salesId  = $request->get('sales_user_id');
+        $salesId  = $request->get('user_id');
         $type     = $request->get('type');
 
         $query = Activity::with(['lead', 'customer', 'salesUser']);
 
-        if ($salesId) $query->where('sales_user_id', $salesId);
+        if ($salesId) $query->where('user_id', $salesId);
         if ($type)    $query->where('type', $type);
 
         match($filter) {
@@ -35,7 +35,7 @@ class TaskReminderController extends Controller
         $totalUpcoming = Activity::where('activity_at', '>=', now())->where('activity_at', '<=', now()->addDays(7))->where('status', '!=', 'Done')->count();
         $totalDone     = Activity::where('status', 'Done')->count();
 
-        $salesUsers = SalesUser::all();
+        $salesUsers = User::orderBy('name')->get();
 
         return view('tasks.index', compact(
             'tasks', 'filter', 'salesId', 'type',
@@ -49,7 +49,7 @@ class TaskReminderController extends Controller
         $validated = $request->validate([
             'lead_id'        => 'nullable|exists:leads,id',
             'customer_id'    => 'nullable|exists:customers,id',
-            'sales_user_id'  => 'required|exists:sales_users,id',
+            'user_id'  => 'required|exists:sales_users,id',
             'type'           => 'required|in:Call,Visit,Email,Note,Task',
             'subject'        => 'required|string|max:255',
             'description'    => 'nullable|string',
@@ -58,6 +58,9 @@ class TaskReminderController extends Controller
             'next_follow_up' => 'nullable|date',
         ]);
 
+        if (auth()->user()->isSalesExecutive()) {
+            $validated['user_id'] = auth()->id();
+        }
         Activity::create($validated);
         return redirect()->route('tasks.index')->with('success', 'Task berhasil ditambahkan.');
     }

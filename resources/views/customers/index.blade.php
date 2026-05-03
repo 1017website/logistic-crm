@@ -59,7 +59,7 @@
                             </select>
                         </div>
                         <div class="col-auto">
-                            <select name="sales_user_id" class="form-select form-select-sm">
+                            <select name="user_id" class="form-select form-select-sm">
                                 <option value="">All Sales</option>
                                 @foreach($salesUsers as $su)
                                 <option value="{{ $su->id }}" @selected($salesId==$su->id)>{{ $su->name }}</option>
@@ -308,10 +308,7 @@
                 <div class="col-12"><label class="form-label">Alamat</label><textarea name="address" class="form-control" rows="2"></textarea></div>
                 <div class="col-md-6"><label class="form-label">Status <span class="text-danger">*</span></label>
                     <select name="status" class="form-select" required><option value="Potential">Potential</option><option value="Existing">Existing</option></select></div>
-                <div class="col-md-6"><label class="form-label">Sales PIC <span class="text-danger">*</span></label>
-                    <select name="sales_user_id" class="form-select" required>
-                        @foreach($salesUsers as $su)<option value="{{ $su->id }}">{{ $su->name }}</option>@endforeach
-                    </select></div>
+                <div class="col-md-6">@include('components.sales-pic-field')</div>
             </div></div>
             <div class="modal-footer"><button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary btn-sm">Simpan</button></div>
         </form>
@@ -331,10 +328,7 @@
                 <div class="col-md-4"><label class="form-label">Location</label><input type="text" name="location" id="editLocation" class="form-control"></div>
                 <div class="col-md-4"><label class="form-label">Status</label>
                     <select name="status" id="editStatus" class="form-select"><option value="Potential">Potential</option><option value="Existing">Existing</option></select></div>
-                <div class="col-md-4"><label class="form-label">Sales PIC</label>
-                    <select name="sales_user_id" id="editSalesPIC" class="form-select">
-                        @foreach($salesUsers as $su)<option value="{{ $su->id }}">{{ $su->name }}</option>@endforeach
-                    </select></div>
+                <div class="col-md-4">@include('components.sales-pic-field', ['fieldId' => 'editSalesPIC'])</div>
             </div></div>
             <div class="modal-footer"><button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary btn-sm">Simpan</button></div>
         </form>
@@ -371,7 +365,7 @@
                 <div class="col-12"><label class="form-label">Subject <span class="text-danger">*</span></label><input type="text" name="subject" class="form-control" required></div>
                 <div class="col-6"><label class="form-label">Tanggal & Waktu</label><input type="datetime-local" name="activity_at" class="form-control" value="{{ now()->format('Y-m-d\TH:i') }}"></div>
                 <div class="col-6"><label class="form-label">Sales PIC</label>
-                    <select name="sales_user_id" class="form-select" required>
+                    <select name="user_id" class="form-select" required>
                         @foreach($salesUsers as $su)<option value="{{ $su->id }}" {{ $selectedCustomer->sales_user_id==$su->id?'selected':'' }}>{{ $su->name }}</option>@endforeach
                     </select></div>
                 <div class="col-12"><label class="form-label">Keterangan</label><textarea name="description" class="form-control" rows="2"></textarea></div>

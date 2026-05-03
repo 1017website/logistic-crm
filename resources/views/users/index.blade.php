@@ -154,8 +154,10 @@
         <form action="{{ route('users.store') }}" method="POST">@csrf
             <div class="modal-body"><div class="row g-3">
                 <div class="col-12"><label class="form-label">Nama Lengkap <span class="text-danger">*</span></label><input type="text" name="name" class="form-control" required></div>
-                <div class="col-md-6"><label class="form-label">Email</label><input type="email" name="email" class="form-control"></div>
+                <div class="col-md-6"><label class="form-label">Email <span class="text-danger">*</span></label><input type="email" name="email" class="form-control" required></div>
                 <div class="col-md-6"><label class="form-label">No. HP</label><input type="text" name="phone" class="form-control"></div>
+                <div class="col-md-6"><label class="form-label">Password <span class="text-danger">*</span></label><input type="password" name="password" class="form-control" required placeholder="Min. 6 karakter"></div>
+                <div class="col-md-6"><label class="form-label">Konfirmasi Password <span class="text-danger">*</span></label><input type="password" name="password_confirmation" class="form-control" required></div>
                 <div class="col-12"><label class="form-label">Jabatan / Position</label><input type="text" name="position" class="form-control" placeholder="Contoh: Senior Sales Executive"></div>
                 <div class="col-md-6"><label class="form-label">Role <span class="text-danger">*</span></label>
                     <select name="role" class="form-select" required>
@@ -202,6 +204,16 @@
                 </div>
                 <div class="col-12"><label class="form-label">Target Bulanan (IDR)</label>
                     <input type="text" name="target" id="euTarget" class="form-control idr-input">
+                </div>
+                <div class="col-12">
+                    <div style="background:#f9fafb;border-radius:8px;padding:12px;border:1px solid #e5e7eb">
+                        <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px"><i class="fas fa-key me-1 text-warning"></i> Reset Password (opsional)</div>
+                        <div class="row g-2">
+                            <div class="col-6"><input type="password" name="new_password" class="form-control form-control-sm" placeholder="Password baru (min. 6)"></div>
+                            <div class="col-6"><input type="password" name="new_password_confirmation" class="form-control form-control-sm" placeholder="Konfirmasi password"></div>
+                        </div>
+                        <div style="font-size:11px;color:#9ca3af;margin-top:4px">Kosongkan jika tidak ingin mengubah password</div>
+                    </div>
                 </div>
             </div></div>
             <div class="modal-footer"><button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary btn-sm">Simpan</button></div>

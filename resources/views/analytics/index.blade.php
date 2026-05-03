@@ -38,7 +38,7 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label" style="font-size:12px;font-weight:600">Sales PIC</label>
-                    <select name="sales_user_id" class="form-select form-select-sm">
+                    <select name="user_id" class="form-select form-select-sm">
                         <option value="">Semua Sales</option>
                         @foreach($salesUsers as $su)
                         <option value="{{ $su->id }}" @selected($salesId==$su->id)>{{ $su->name }}</option>

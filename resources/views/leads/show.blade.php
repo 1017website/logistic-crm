@@ -400,12 +400,7 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Sales PIC</label>
-                            <select name="sales_user_id" class="form-select">
-                                @foreach($salesUsers as $su)
-                                <option value="{{ $su->id }}" {{ $lead->sales_user_id == $su->id ? 'selected' : '' }}>{{ $su->name }}</option>
-                                @endforeach
-                            </select>
+                            @include('components.sales-pic-field', ['selectedId' => $lead->user_id])
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Competitor</label>
@@ -459,12 +454,7 @@
                             <input type="datetime-local" name="activity_at" class="form-control" value="{{ now()->format('Y-m-d\TH:i') }}" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Sales PIC <span class="text-danger">*</span></label>
-                            <select name="sales_user_id" class="form-select" required>
-                                @foreach($salesUsers as $su)
-                                <option value="{{ $su->id }}" {{ $lead->sales_user_id == $su->id ? 'selected' : '' }}>{{ $su->name }}</option>
-                                @endforeach
-                            </select>
+                            @include('components.sales-pic-field', ['selectedId' => $lead->user_id])
                         </div>
                         <div class="col-12">
                             <label class="form-label">Keterangan</label>

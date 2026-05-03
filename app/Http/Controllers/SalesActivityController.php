@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\Activity;
 use App\Models\Lead;
 use App\Models\Customer;
-use App\Models\SalesUser;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -13,14 +13,14 @@ class SalesActivityController extends Controller
     public function index(Request $request)
     {
         $date = $request->get('date', today()->toDateString());
-        $salesId = $request->get('sales_user_id');
+        $salesId = $request->get('user_id');
         $type = $request->get('activity_type');
 
         $query = Activity::with(['lead', 'customer', 'salesUser'])
             ->whereDate('activity_at', $date);
 
         if ($salesId && $salesId !== 'all') {
-            $query->where('sales_user_id', $salesId);
+            $query->where('user_id', $salesId);
         }
         if ($type && $type !== 'all') {
             $query->where('type', $type);
@@ -40,7 +40,7 @@ class SalesActivityController extends Controller
         $recentNotes = Activity::where('type', 'Note')->with(['lead', 'customer'])
             ->orderBy('activity_at', 'desc')->limit(4)->get();
 
-        $salesUsers = SalesUser::all();
+        $salesUsers = User::orderBy('name')->get();
 
         // Pipeline summary for sidebar
         $pipelineSummary = [
@@ -61,7 +61,7 @@ class SalesActivityController extends Controller
         $validated = $request->validate([
             'lead_id'        => 'nullable|exists:leads,id',
             'customer_id'    => 'nullable|exists:customers,id',
-            'sales_user_id'  => 'required|exists:sales_users,id',
+            'user_id'  => 'required|exists:sales_users,id',
             'type'           => 'required|in:Call,Visit,Email,Note,Others',
             'subject'        => 'required|string|max:255',
             'description'    => 'nullable|string',

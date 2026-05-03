@@ -11,7 +11,7 @@ class Lead extends Model
         'address','industry','pipeline_stage','temperature','service_type','route',
         'commodity','volume_estimate','timeline','notes_kebutuhan','catatan_internal',
         'potensi_revenue','probability','lead_score','lead_source','competitor',
-        'expected_closing','sales_user_id','next_follow_up','next_follow_up_time','next_follow_up_notes'
+        'expected_closing','user_id','sales_user_id','next_follow_up','next_follow_up_time','next_follow_up_notes'
     ];
 
     protected $casts = [
@@ -20,10 +20,11 @@ class Lead extends Model
         'potensi_revenue' => 'decimal:0',
     ];
 
-    public function customer(): BelongsTo { return $this->belongsTo(Customer::class); }
-    public function salesUser(): BelongsTo { return $this->belongsTo(SalesUser::class); }
-    public function activities(): HasMany { return $this->hasMany(Activity::class); }
-    public function quotations(): HasMany { return $this->hasMany(Quotation::class); }
+    public function customer(): BelongsTo  { return $this->belongsTo(Customer::class); }
+    public function user(): BelongsTo      { return $this->belongsTo(User::class, 'user_id'); }
+    public function salesUser(): BelongsTo { return $this->belongsTo(User::class, 'user_id'); } // backward compat
+    public function activities(): HasMany  { return $this->hasMany(Activity::class); }
+    public function quotations(): HasMany  { return $this->hasMany(Quotation::class); }
 
     public function getTemperatureColorAttribute(): string
     {

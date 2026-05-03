@@ -33,7 +33,7 @@
                             <input type="date" name="date" value="{{ $date }}" class="form-control form-control-sm">
                         </div>
                         <div class="col-auto">
-                            <select name="sales_user_id" class="form-select form-select-sm">
+                            <select name="user_id" class="form-select form-select-sm">
                                 <option value="all">All Sales</option>
                                 @foreach($salesUsers as $su)
                                     <option value="{{ $su->id }}" @selected($salesId == $su->id)>{{ $su->name }}</option>
@@ -273,7 +273,7 @@
                             </select>
                         </div>
                     </div>
-                    <input type="hidden" name="sales_user_id" value="1">
+                    <input type="hidden" name="user_id" value="1">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>

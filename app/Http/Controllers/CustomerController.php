@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
-use App\Models\SalesUser;
+use App\Models\User;
 use App\Models\Activity;
 use Illuminate\Http\Request;
 
@@ -14,12 +14,12 @@ class CustomerController extends Controller
         $status   = $request->get('status');
         $industry = $request->get('industry');
         $search   = $request->get('search');
-        $salesId  = $request->get('sales_user_id');
+        $salesId  = $request->get('user_id');
 
         $query = Customer::with(['salesUser', 'deliveryOrders', 'activities']);
         if ($status && $status !== 'all')     $query->where('status', $status);
         if ($industry && $industry !== 'all') $query->where('industry', $industry);
-        if ($salesId)  $query->where('sales_user_id', $salesId);
+        if ($salesId)  $query->where('user_id', $salesId);
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('company_name', 'like', "%$search%")
@@ -33,7 +33,7 @@ class CustomerController extends Controller
         $potentialCustomer = Customer::where('status', 'Potential')->count();
         $existingCustomer  = Customer::where('status', 'Existing')->count();
         $industries        = Customer::whereNotNull('industry')->distinct()->pluck('industry')->filter()->sort()->values();
-        $salesUsers        = SalesUser::orderBy('name')->get();
+        $salesUsers        = User::orderBy('name')->get();
 
         $selectedCustomer = $request->get('selected_id')
             ? Customer::with(['salesUser','deliveryOrders','activities.salesUser','leads'])->find($request->get('selected_id'))
@@ -57,10 +57,13 @@ class CustomerController extends Controller
             'location'       => 'nullable|string|max:255',
             'address'        => 'nullable|string',
             'status'         => 'required|in:Existing,Potential',
-            'sales_user_id'  => 'required|exists:sales_users,id',
+            'user_id'  => 'required|exists:sales_users,id',
             'customer_since' => 'nullable|date',
             'notes'          => 'nullable|string',
         ]);
+        if (auth()->user()->isSalesExecutive()) {
+            $validated['user_id'] = auth()->id();
+        }
         Customer::create($validated);
         return redirect()->route('customers.index')->with('success', 'Customer berhasil ditambahkan.');
     }
@@ -77,7 +80,7 @@ class CustomerController extends Controller
             'location'       => 'nullable|string|max:255',
             'address'        => 'nullable|string',
             'status'         => 'sometimes|in:Existing,Potential',
-            'sales_user_id'  => 'sometimes|exists:sales_users,id',
+            'user_id'  => 'sometimes|exists:sales_users,id',
             'customer_since' => 'nullable|date',
             'notes'          => 'nullable|string',
         ]);
@@ -124,7 +127,7 @@ class CustomerController extends Controller
 
         while (($row = fgetcsv($handle)) !== false) {
             if (count($row) < 3 || empty(trim($row[0]))) continue;
-            $salesUser = SalesUser::where('name', trim($row[8] ?? ''))->first();
+            $salesUser = User::where('name', trim($row[8] ?? ''))->first();
             Customer::create([
                 'company_name'   => trim($row[0]),
                 'pic_name'       => trim($row[1]),
@@ -134,7 +137,7 @@ class CustomerController extends Controller
                 'industry'       => trim($row[5] ?? ''),
                 'location'       => trim($row[6] ?? ''),
                 'status'         => in_array(trim($row[7] ?? ''), ['Existing','Potential']) ? trim($row[7]) : 'Potential',
-                'sales_user_id'  => $salesUser?->id,
+                'user_id'  => $salesUser?->id,
                 'customer_since' => !empty($row[9]) ? $row[9] : null,
             ]);
             $imported++;
@@ -152,9 +155,12 @@ class CustomerController extends Controller
             'description'   => 'nullable|string',
             'activity_at'   => 'required|date',
             'status'        => 'required|in:Planned,Pending,Done,Overdue',
-            'sales_user_id' => 'required|exists:sales_users,id',
+            'user_id' => 'required|exists:sales_users,id',
         ]);
         $validated['customer_id'] = $customer->id;
+        if (auth()->user()->isSalesExecutive()) {
+            $validated['user_id'] = auth()->id();
+        }
         Activity::create($validated);
         return redirect()->back()->with('success', 'Activity ditambahkan.');
     }

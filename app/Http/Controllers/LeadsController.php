@@ -2,7 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Lead;
-use App\Models\SalesUser;
+use App\Models\User;
 use App\Models\Activity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -18,12 +18,17 @@ class LeadsController extends Controller
         $query = Lead::with(['salesUser', 'activities'])
             ->whereNotIn('pipeline_stage', ['Won', 'Lost']);
 
+        // Sales Executive hanya lihat leads miliknya sendiri
+        if (auth()->user()->isSalesExecutive()) {
+            $query->where('user_id', auth()->id());
+        }
+
         if ($stage)       $query->where('pipeline_stage', $stage);
         if ($temperature) $query->where('temperature', $temperature);
         if ($search)      $query->where('company_name', 'like', "%$search%");
 
         $leads      = $query->orderBy('updated_at', 'desc')->paginate(15);
-        $salesUsers = SalesUser::orderBy('name')->get();
+        $salesUsers = User::orderBy('name')->get();
 
         return view('leads.index', compact('leads', 'salesUsers', 'stage', 'temperature', 'search'));
     }
@@ -31,7 +36,7 @@ class LeadsController extends Controller
     public function show(Lead $lead)
     {
         $lead->load(['salesUser', 'activities.salesUser', 'quotations']);
-        $salesUsers = SalesUser::orderBy('name')->get();
+        $salesUsers = User::orderBy('name')->get();
         return view('leads.show', compact('lead', 'salesUsers'));
     }
 
@@ -56,11 +61,15 @@ class LeadsController extends Controller
             'lead_source'     => 'nullable|string|max:100',
             'competitor'      => 'nullable|string|max:255',
             'expected_closing'=> 'nullable|date',
-            'sales_user_id'   => 'required|exists:sales_users,id',
+            'user_id'   => 'required|exists:sales_users,id',
             'notes_kebutuhan' => 'nullable|string',
         ]);
 
         $validated['lead_code'] = Lead::generateLeadCode();
+        // Kalau Sales Executive, paksa user_id ke diri sendiri
+        if (auth()->user()->isSalesExecutive()) {
+            $validated['user_id'] = auth()->id();
+        }
         $lead = Lead::create($validated);
 
         return redirect()->route('leads.show', $lead)->with('success', 'Lead berhasil ditambahkan.');
@@ -87,7 +96,7 @@ class LeadsController extends Controller
             'lead_source'     => 'nullable|string|max:100',
             'competitor'      => 'nullable|string|max:255',
             'expected_closing'=> 'nullable|date',
-            'sales_user_id'   => 'sometimes|exists:sales_users,id',
+            'user_id'   => 'sometimes|exists:sales_users,id',
             'notes_kebutuhan' => 'nullable|string',
             'catatan_internal'=> 'nullable|string',
             'next_follow_up'  => 'nullable|date',
@@ -119,11 +128,14 @@ class LeadsController extends Controller
             'description'    => 'nullable|string',
             'activity_at'    => 'required|date',
             'status'         => 'required|in:Planned,Pending,Done,Overdue',
-            'sales_user_id'  => 'required|exists:sales_users,id',
+            'user_id'  => 'required|exists:sales_users,id',
             'next_follow_up' => 'nullable|date',
         ]);
 
         $validated['lead_id'] = $lead->id;
+        if (auth()->user()->isSalesExecutive()) {
+            $validated['user_id'] = auth()->id();
+        }
         Activity::create($validated);
 
         return redirect()->route('leads.show', $lead)->with('success', 'Activity berhasil ditambahkan.');
@@ -191,7 +203,7 @@ class LeadsController extends Controller
 
             try {
                 // Cari sales user by name
-                $salesUser = SalesUser::where('name', trim($row[12] ?? ''))->first();
+                $salesUser = User::where('name', trim($row[12] ?? ''))->first();
 
                 Lead::create([
                     'lead_code'      => Lead::generateLeadCode(),
@@ -206,7 +218,7 @@ class LeadsController extends Controller
                     'potensi_revenue'=> is_numeric($row[9] ?? '') ? $row[9] : 0,
                     'probability'    => is_numeric($row[10] ?? '') ? $row[10] : 0,
                     'expected_closing'=> !empty($row[11]) ? $row[11] : null,
-                    'sales_user_id'  => $salesUser?->id,
+                    'user_id'  => $salesUser?->id,
                     'lead_source'    => trim($row[13] ?? ''),
                 ]);
                 $imported++;

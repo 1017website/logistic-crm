@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\SalesUser;
+use App\Models\User;
 use App\Models\Lead;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
@@ -14,7 +15,7 @@ class UserController extends Controller
         $role   = $request->get('role');
         $status = $request->get('status');
 
-        $query = SalesUser::withCount([
+        $query = User::withCount([
             'leads',
             'leads as deals_won' => fn($q) => $q->where('pipeline_stage', 'Won'),
         ]);
@@ -25,17 +26,16 @@ class UserController extends Controller
 
         $users = $query->orderBy('name')->paginate(15)->withQueryString();
 
-        // Hitung achieved revenue per user (eager — satu query)
-        $userIds   = $users->pluck('id');
-        $revenues  = Lead::whereIn('sales_user_id', $userIds)->where('pipeline_stage', 'Won')
-            ->selectRaw('sales_user_id, SUM(potensi_revenue) as total')
-            ->groupBy('sales_user_id')->pluck('total', 'sales_user_id');
+        $userIds  = $users->pluck('id');
+        $revenues = Lead::whereIn('user_id', $userIds)->where('pipeline_stage', 'Won')
+            ->selectRaw('user_id, SUM(potensi_revenue) as total')
+            ->groupBy('user_id')->pluck('total', 'user_id');
 
-        $totalUsers   = SalesUser::count();
-        $activeUsers  = SalesUser::where('status', 'Active')->count();
-        $totalSales   = SalesUser::where('role', 'Sales Executive')->count();
-        $totalManager = SalesUser::where('role', 'Sales Manager')->count();
-        $roles        = SalesUser::distinct()->whereNotNull('role')->pluck('role')->sort()->values();
+        $totalUsers   = User::count();
+        $activeUsers  = User::where('status', 'Active')->count();
+        $totalSales   = User::where('role', 'Sales Executive')->count();
+        $totalManager = User::where('role', 'Sales Manager')->count();
+        $roles        = User::distinct()->whereNotNull('role')->pluck('role')->sort()->values();
 
         return view('users.index', compact(
             'users', 'revenues', 'totalUsers', 'activeUsers', 'totalSales', 'totalManager',
@@ -46,37 +46,47 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'nullable|email|unique:sales_users,email',
-            'phone'    => 'nullable|string|max:20',
-            'position' => 'nullable|string|max:100',
-            'role'     => 'required|string|max:100',
-            'status'   => 'required|in:Active,Non-Active',
-            'target'   => 'nullable|numeric|min:0',
+            'name'              => 'required|string|max:255',
+            'email'             => 'required|email|unique:users,email',
+            'password'          => 'required|string|min:6|confirmed',
+            'phone'             => 'nullable|string|max:20',
+            'position'          => 'nullable|string|max:100',
+            'role'              => 'required|string|max:100',
+            'status'            => 'required|in:Active,Non-Active',
+            'target'            => 'nullable|numeric|min:0',
         ]);
-        SalesUser::create($validated);
-        return redirect()->route('users.index')->with('success', 'User berhasil ditambahkan.');
+        $validated['password'] = Hash::make($validated['password']);
+        User::create($validated);
+        return redirect()->route('users.index')->with('success', 'User berhasil ditambahkan. Akun siap digunakan untuk login.');
     }
 
-    public function update(Request $request, SalesUser $user)
+    public function update(Request $request, User $user)
     {
         $validated = $request->validate([
             'name'     => 'sometimes|string|max:255',
-            'email'    => 'nullable|email|unique:sales_users,email,' . $user->id,
+            'email'    => 'nullable|email|unique:users,email,' . $user->id,
             'phone'    => 'nullable|string|max:20',
             'position' => 'nullable|string|max:100',
             'role'     => 'sometimes|string|max:100',
             'status'   => 'sometimes|in:Active,Non-Active',
             'target'   => 'nullable|numeric|min:0',
         ]);
+
+        if ($request->filled('new_password')) {
+            $request->validate(['new_password' => 'min:6|confirmed']);
+            $validated['password'] = Hash::make($request->new_password);
+        }
+
         $user->update($validated);
         return redirect()->back()->with('success', 'User diupdate.');
     }
 
-    public function destroy(SalesUser $user)
+    public function destroy(User $user)
     {
+        if ($user->id === auth()->id()) {
+            return redirect()->back()->with('error', 'Tidak bisa menghapus akun sendiri.');
+        }
         $user->delete();
         return redirect()->route('users.index')->with('success', 'User dihapus.');
     }
 }
-

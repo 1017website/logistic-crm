@@ -194,12 +194,7 @@
                             <input type="text" name="potensi_revenue" class="form-control idr-input" placeholder="Contoh: 100.000.000">
                         </div>
                         <div class="col-6">
-                            <label class="form-label">Sales PIC *</label>
-                            <select name="sales_user_id" class="form-select" required>
-                                @foreach($salesUsers as $su)
-                                <option value="{{ $su->id }}">{{ $su->name }}</option>
-                                @endforeach
-                            </select>
+                            @include('components.sales-pic-field')
                         </div>
                         <div class="col-6">
                             <label class="form-label">Lead Source</label>

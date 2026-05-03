@@ -8,12 +8,13 @@ class Customer extends Model
 {
     protected $fillable = [
         'company_name','pic_name','pic_position','phone','email','address',
-        'industry','location','status','value_tag','sales_user_id','customer_since','logo'
+        'industry','location','status','value_tag','user_id','sales_user_id','customer_since','logo','notes'
     ];
 
     protected $casts = ['customer_since' => 'date'];
 
-    public function salesUser(): BelongsTo { return $this->belongsTo(SalesUser::class); }
+    public function user(): BelongsTo      { return $this->belongsTo(User::class, 'user_id'); }
+    public function salesUser(): BelongsTo { return $this->belongsTo(User::class, 'user_id'); } // backward compat
     public function leads(): HasMany { return $this->hasMany(Lead::class); }
     public function activities(): HasMany { return $this->hasMany(Activity::class); }
     public function deliveryOrders(): HasMany { return $this->hasMany(DeliveryOrder::class); }

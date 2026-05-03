@@ -5,7 +5,7 @@ use App\Models\Lead;
 use App\Models\Customer;
 use App\Models\Activity;
 use App\Models\DeliveryOrder;
-use App\Models\SalesUser;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -67,7 +67,7 @@ class DashboardController extends Controller
             ->get();
 
         // ── Top sales ──
-        $topSales = SalesUser::withCount(['leads as deals_closed' => fn($q) => $q->where('pipeline_stage','Won')])
+        $topSales = User::withCount(['leads as deals_closed' => fn($q) => $q->where('pipeline_stage','Won')])
             ->get()->sortByDesc('deals_closed')->take(5);
 
         // ── Revenue chart (30 hari terakhir, dari DB) ──

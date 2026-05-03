@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Lead;
 use App\Models\Customer;
-use App\Models\SalesUser;
+use App\Models\User;
 use App\Models\DeliveryOrder;
 use App\Models\Activity;
 use Illuminate\Http\Request;
@@ -16,18 +16,18 @@ class AnalyticsController extends Controller
     {
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate   = $request->get('end_date', now()->endOfMonth()->toDateString());
-        $salesId   = $request->get('sales_user_id');
+        $salesId   = $request->get('user_id');
 
         // ── KPI Utama ──
         $doQuery = DeliveryOrder::whereBetween('order_date', [$startDate, $endDate])->where('currency', 'IDR');
-        if ($salesId) $doQuery->whereHas('lead', fn($q) => $q->where('sales_user_id', $salesId));
+        if ($salesId) $doQuery->whereHas('lead', fn($q) => $q->where('user_id', $salesId));
 
         $revenue     = (clone $doQuery)->sum('amount');
         $grossProfit = $revenue * 0.32;
         $nettProfit  = $revenue * 0.19;
 
         $leadsQuery = Lead::query();
-        if ($salesId) $leadsQuery->where('sales_user_id', $salesId);
+        if ($salesId) $leadsQuery->where('user_id', $salesId);
 
         $dealsClosed    = (clone $leadsQuery)->where('pipeline_stage', 'Won')->whereBetween('updated_at', [$startDate, $endDate])->count();
         $totalLeads     = (clone $leadsQuery)->whereBetween('created_at', [$startDate, $endDate])->count();
@@ -60,11 +60,11 @@ class AnalyticsController extends Controller
             ->mapWithKeys(fn($s) => [$s => (clone $leadsQuery)->where('pipeline_stage', $s)->count()]);
 
         // ── Sales performance ──
-        $salesPerformance = SalesUser::all()->map(function ($s) use ($startDate, $endDate) {
-            $total   = Lead::where('sales_user_id', $s->id)->count();
-            $won     = Lead::where('sales_user_id', $s->id)->where('pipeline_stage', 'Won')
+        $salesPerformance = User::orderBy('name')->get()->map(function ($s) use ($startDate, $endDate) {
+            $total   = Lead::where('user_id', $s->id)->count();
+            $won     = Lead::where('user_id', $s->id)->where('pipeline_stage', 'Won')
                 ->whereBetween('updated_at', [$startDate, $endDate])->count();
-            $revenue = Lead::where('sales_user_id', $s->id)->where('pipeline_stage', 'Won')->sum('potensi_revenue');
+            $revenue = Lead::where('user_id', $s->id)->where('pipeline_stage', 'Won')->sum('potensi_revenue');
             $s->deals_closed = $won;
             $s->revenue      = $revenue;
             $s->conversion   = $total > 0 ? round(($won / $total) * 100, 1) : 0;
@@ -104,7 +104,7 @@ class AnalyticsController extends Controller
             ];
         }
 
-        $salesUsers = SalesUser::orderBy('name')->get();
+        $salesUsers = User::orderBy('name')->get();
 
         return view('analytics.index', compact(
             'revenue', 'grossProfit', 'nettProfit', 'dealsClosed', 'conversionRate',

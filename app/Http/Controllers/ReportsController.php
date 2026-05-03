@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Lead;
 use App\Models\Customer;
-use App\Models\SalesUser;
+use App\Models\User;
 use App\Models\DeliveryOrder;
 use App\Models\Activity;
 use Illuminate\Http\Request;
@@ -16,7 +16,7 @@ class ReportsController extends Controller
         $startDate  = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate    = $request->get('end_date', now()->endOfMonth()->toDateString());
         $reportType = $request->get('report_type', 'sales');
-        $salesId    = $request->get('sales_user_id');
+        $salesId    = $request->get('user_id');
         $status     = $request->get('status');
         $search     = $request->get('search');
 
@@ -35,7 +35,7 @@ class ReportsController extends Controller
         switch ($reportType) {
             case 'sales':
                 $q = Lead::with(['salesUser'])->whereBetween('created_at', [$startDate, $endDate]);
-                if ($salesId) $q->where('sales_user_id', $salesId);
+                if ($salesId) $q->where('user_id', $salesId);
                 if ($status)  $q->where('pipeline_stage', $status);
                 if ($search)  $q->where('company_name', 'like', "%$search%");
                 $reportData = $q->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
@@ -43,24 +43,24 @@ class ReportsController extends Controller
 
             case 'customer':
                 $q = Customer::with(['salesUser'])->whereBetween('created_at', [$startDate, $endDate]);
-                if ($salesId) $q->where('sales_user_id', $salesId);
+                if ($salesId) $q->where('user_id', $salesId);
                 if ($search)  $q->where('company_name', 'like', "%$search%");
                 $reportData = $q->orderBy('company_name')->paginate(15)->withQueryString();
                 break;
 
             case 'pipeline':
                 $q = Lead::with(['salesUser'])->whereNotIn('pipeline_stage', ['Won', 'Lost']);
-                if ($salesId) $q->where('sales_user_id', $salesId);
+                if ($salesId) $q->where('user_id', $salesId);
                 if ($status)  $q->where('pipeline_stage', $status);
                 if ($search)  $q->where('company_name', 'like', "%$search%");
                 $reportData = $q->orderBy('updated_at', 'desc')->paginate(15)->withQueryString();
                 break;
 
             case 'performance':
-                $reportData = SalesUser::all()->map(function ($s) use ($startDate, $endDate) {
-                    $total   = Lead::where('sales_user_id', $s->id)->count();
-                    $won     = Lead::where('sales_user_id', $s->id)->where('pipeline_stage', 'Won')->whereBetween('updated_at', [$startDate, $endDate])->count();
-                    $revenue = Lead::where('sales_user_id', $s->id)->where('pipeline_stage', 'Won')->sum('potensi_revenue');
+                $reportData = User::orderBy('name')->get()->map(function ($s) use ($startDate, $endDate) {
+                    $total   = Lead::where('user_id', $s->id)->count();
+                    $won     = Lead::where('user_id', $s->id)->where('pipeline_stage', 'Won')->whereBetween('updated_at', [$startDate, $endDate])->count();
+                    $revenue = Lead::where('user_id', $s->id)->where('pipeline_stage', 'Won')->sum('potensi_revenue');
                     return [
                         'sales'      => $s,
                         'total'      => $total,
@@ -79,7 +79,7 @@ class ReportsController extends Controller
                 break;
         }
 
-        $salesUsers = SalesUser::orderBy('name')->get();
+        $salesUsers = User::orderBy('name')->get();
 
         return view('reports.index', compact(
             'reportData', 'revenue', 'totalDeals', 'avgDealValue', 'conversionRate', 'winRate',
@@ -92,7 +92,7 @@ class ReportsController extends Controller
         $startDate  = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate    = $request->get('end_date', now()->endOfMonth()->toDateString());
         $reportType = $request->get('report_type', 'sales');
-        $salesId    = $request->get('sales_user_id');
+        $salesId    = $request->get('user_id');
 
         $headers = [
             'Content-Type'        => 'text/csv',
@@ -107,7 +107,7 @@ class ReportsController extends Controller
                 case 'sales':
                     fputcsv($f, ['Lead Code', 'Company', 'PIC', 'Service', 'Route', 'Stage', 'Temperature', 'Potensi Revenue', 'Probability', 'Expected Closing', 'Sales PIC', 'Created At']);
                     $leads = Lead::with(['salesUser'])->whereBetween('created_at', [$startDate, $endDate]);
-                    if ($salesId) $leads->where('sales_user_id', $salesId);
+                    if ($salesId) $leads->where('user_id', $salesId);
                     foreach ($leads->get() as $l) {
                         fputcsv($f, [$l->lead_code, $l->company_name, $l->pic_name, $l->service_type, $l->route, $l->pipeline_stage, $l->temperature, $l->potensi_revenue, $l->probability, $l->expected_closing?->format('Y-m-d'), $l->salesUser?->name, $l->created_at->format('Y-m-d H:i')]);
                     }

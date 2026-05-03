@@ -216,12 +216,7 @@
                             <input type="datetime-local" name="activity_at" class="form-control" required>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Sales PIC</label>
-                            <select name="sales_user_id" class="form-select" required>
-                                @foreach($salesUsers as $su)
-                                <option value="{{ $su->id }}">{{ $su->name }}</option>
-                                @endforeach
-                            </select>
+                            @include('components.sales-pic-field')
                         </div>
                         <div class="col-12">
                             <label class="form-label">Keterangan (Opsional)</label>

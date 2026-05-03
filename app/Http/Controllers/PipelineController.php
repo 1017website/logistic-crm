@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Lead;
-use App\Models\SalesUser;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class PipelineController extends Controller
@@ -27,7 +27,7 @@ class PipelineController extends Controller
             : 0;
         $expectedRevenue = Lead::where('pipeline_stage', 'Won')->sum('potensi_revenue');
 
-        $topSales = SalesUser::withCount(['leads as expected_revenue' => function ($q) {
+        $topSales = User::withCount(['leads as expected_revenue' => function ($q) {
             $q->selectRaw('sum(potensi_revenue)');
         }])->get()->sortByDesc('expected_revenue')->take(5);
 
