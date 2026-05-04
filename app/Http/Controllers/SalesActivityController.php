@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Activity;
@@ -51,8 +52,16 @@ class SalesActivityController extends Controller
         ];
 
         return view('sales.activity', compact(
-            'activities', 'todayReminders', 'overdueActivities', 'upcomingActivities',
-            'recentNotes', 'salesUsers', 'pipelineSummary', 'date', 'salesId', 'type'
+            'activities',
+            'todayReminders',
+            'overdueActivities',
+            'upcomingActivities',
+            'recentNotes',
+            'salesUsers',
+            'pipelineSummary',
+            'date',
+            'salesId',
+            'type'
         ));
     }
 
@@ -87,6 +96,5 @@ class SalesActivityController extends Controller
 
         Activity::create($validated);
         return redirect()->back()->with('success', 'Aktivitas berhasil disimpan.');
-    }
     }
 }
