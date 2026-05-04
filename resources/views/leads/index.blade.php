@@ -236,7 +236,7 @@
 @push('scripts')
 <script>
     // Auto-reopen modal Add Lead jika ada error validasi
-    @if($errors - > any())
+    @if($errors->any())
     document.addEventListener('DOMContentLoaded', function() {
         var modal = new bootstrap.Modal(document.getElementById('addLeadModal'));
         modal.show();
