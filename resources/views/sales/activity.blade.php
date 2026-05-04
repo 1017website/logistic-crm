@@ -292,14 +292,19 @@
                         </div>
                     </div>
 
-                    {{-- Foto Upload — muncul hanya saat Visit --}}
+                    {{-- Foto Upload --}}
                     <div class="mb-3" id="photoWrap" style="display:none">
                         <label class="form-label">Foto Kunjungan</label>
-                        <input type="file" name="photo" class="form-control" accept="image/jpg,image/jpeg,image/png,image/webp"
+                        <input type="file" name="photo" id="photoFileInput" class="form-control"
+                            accept="image/jpg,image/jpeg,image/png,image/webp"
                             onchange="previewPhoto(this)">
                         <div class="form-text">JPG/PNG/WebP, maks 3MB</div>
                         <div id="photoPreview" class="mt-2" style="display:none">
-                            <img id="previewImg" src="" alt="Preview" style="max-width:100%;max-height:180px;border-radius:8px;border:1px solid #e5e7eb">
+                            <img id="previewImg" src="" alt="Preview"
+                                style="max-width:100%;max-height:180px;border-radius:8px;border:1px solid #e5e7eb">
+                            <div style="font-size:.7rem;color:#059669;margin-top:4px">
+                                <i class="fas fa-check-circle me-1"></i>Foto siap diupload
+                            </div>
                         </div>
                     </div>
 

@@ -30,7 +30,7 @@ class SalesActivityController extends Controller
             $query->where('type', $type);
         }
 
-        $activities = $query->orderBy('activity_at', 'desc')->paginate(20);
+        $activities = $query->orderBy('activity_at', 'desc')->paginate(10)->withQueryString();
 
         $todayReminders = Activity::with(['lead', 'customer'])
             ->whereDate('activity_at', today())->orderBy('activity_at')->get();
@@ -81,15 +81,11 @@ class SalesActivityController extends Controller
         // Selalu pakai auth user
         $validated['user_id'] = auth()->id();
 
-        // Upload foto — hapus dari validated dulu (berisi null dari validate)
-        // lalu assign ulang dengan path hasil store()
+        // Foto: file upload tidak masuk $validated secara otomatis di Laravel
+        // harus di-handle manual setelah validate()
         unset($validated['photo']);
-        if ($request->hasFile('photo')) {
-            try {
-                $validated['photo'] = $request->file('photo')->store('activity-photos', 'public');
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Foto upload gagal: ' . $e->getMessage());
-            }
+        if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
+            $validated['photo'] = $request->file('photo')->store('activity-photos', 'public');
         }
 
         // Update pipeline_stage lead jika dikirim
