@@ -81,10 +81,15 @@ class SalesActivityController extends Controller
         // Selalu pakai auth user
         $validated['user_id'] = auth()->id();
 
-        // Upload foto — file tidak masuk $validated otomatis, harus eksplisit
-        unset($validated['photo']); // hapus entry null dari validated
-        if ($request->hasFile('photo') && $request->input('type') === 'Visit') {
-            $validated['photo'] = $request->file('photo')->store('activity-photos', 'public');
+        // Upload foto — hapus dari validated dulu (berisi null dari validate)
+        // lalu assign ulang dengan path hasil store()
+        unset($validated['photo']);
+        if ($request->hasFile('photo')) {
+            try {
+                $validated['photo'] = $request->file('photo')->store('activity-photos', 'public');
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Foto upload gagal: ' . $e->getMessage());
+            }
         }
 
         // Update pipeline_stage lead jika dikirim
