@@ -123,4 +123,6 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    'artisan_secret' => env('ARTISAN_SECRET', ''),
+
 ];
