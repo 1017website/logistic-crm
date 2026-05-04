@@ -30,7 +30,13 @@
                 <div class="card-body p-3">
                     <div class="row g-2 align-items-center">
                         <div class="col-auto">
-                            <input type="date" name="date" value="{{ $date }}" class="form-control form-control-sm">
+                            <input type="date" name="date" value="{{ $date ?? '' }}" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                onclick="document.querySelector('[name=date]').value=''; this.closest('form').submit()">
+                                Semua Tanggal
+                            </button>
                         </div>
                         <div class="col-auto">
                             <select name="user_id" class="form-select form-select-sm">
@@ -47,9 +53,6 @@
                                 <option value="{{ $t }}" @selected($type==$t)>{{ $t }}</option>
                                 @endforeach
                             </select>
-                        </div>
-                        <div class="col-auto">
-                            <input type="text" name="search" class="form-control form-control-sm" placeholder="Search activity / client..." value="{{ request('search') }}">
                         </div>
                         <div class="col-auto">
                             <button type="submit" class="btn btn-sm btn-primary">Filter</button>

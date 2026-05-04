@@ -13,12 +13,15 @@ class SalesActivityController extends Controller
 {
     public function index(Request $request)
     {
-        $date = $request->get('date', today()->toDateString());
+        $date    = $request->get('date'); // kosong = semua tanggal
         $salesId = $request->get('user_id');
-        $type = $request->get('activity_type');
+        $type    = $request->get('activity_type');
 
-        $query = Activity::with(['lead', 'customer', 'salesUser'])
-            ->whereDate('activity_at', $date);
+        $query = Activity::with(['lead', 'customer', 'salesUser']);
+
+        if ($date) {
+            $query->whereDate('activity_at', $date);
+        }
 
         if ($salesId && $salesId !== 'all') {
             $query->where('user_id', $salesId);
@@ -27,7 +30,7 @@ class SalesActivityController extends Controller
             $query->where('type', $type);
         }
 
-        $activities = $query->orderBy('activity_at')->paginate(20);
+        $activities = $query->orderBy('activity_at', 'desc')->paginate(20);
 
         $todayReminders = Activity::with(['lead', 'customer'])
             ->whereDate('activity_at', today())->orderBy('activity_at')->get();
@@ -37,9 +40,6 @@ class SalesActivityController extends Controller
 
         $upcomingActivities = Activity::whereDate('activity_at', '>', today())
             ->with(['lead', 'customer'])->orderBy('activity_at')->limit(5)->get();
-
-        $recentNotes = Activity::where('type', 'Note')->with(['lead', 'customer'])
-            ->orderBy('activity_at', 'desc')->limit(4)->get();
 
         $salesUsers = User::orderBy('name')->get();
 
@@ -56,7 +56,6 @@ class SalesActivityController extends Controller
             'todayReminders',
             'overdueActivities',
             'upcomingActivities',
-            'recentNotes',
             'salesUsers',
             'pipelineSummary',
             'date',
@@ -79,13 +78,13 @@ class SalesActivityController extends Controller
             'photo'          => 'nullable|image|mimes:jpg,jpeg,png,webp|max:3072',
         ]);
 
-        // Selalu pakai auth user — tidak bergantung pada input form
+        // Selalu pakai auth user
         $validated['user_id'] = auth()->id();
 
-        // Upload foto jika ada dan tipe Visit
+        // Upload foto — file tidak masuk $validated otomatis, harus eksplisit
+        unset($validated['photo']); // hapus entry null dari validated
         if ($request->hasFile('photo') && $request->input('type') === 'Visit') {
-            $path = $request->file('photo')->store('activity-photos', 'public');
-            $validated['photo'] = $path;
+            $validated['photo'] = $request->file('photo')->store('activity-photos', 'public');
         }
 
         // Update pipeline_stage lead jika dikirim
