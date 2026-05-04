@@ -13,9 +13,9 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Select2 (local) -->
-    <link href="{{ asset('vendor/select2/select2.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('vendor/select2/css/select2.min.css') }}" rel="stylesheet">
     <!-- Flatpickr (local) -->
-    <link href="{{ asset('vendor/flatpickr/flatpickr.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('vendor/flatpickr/css/flatpickr.min.css') }}" rel="stylesheet">
 
     <style>
         /* ── Select2 Custom Theme ── */
@@ -693,18 +693,27 @@
             </div>
 
             {{-- ── NOTIFICATION ── --}}
-            @php
-            $notifCount = \App\Models\Activity::where('status','Overdue')
-                ->orWhere(function($q){ $q->whereDate('activity_at', today())->where('status','!=','Done'); })
-                ->count();
-            @endphp
             <div style="position:relative" id="notifWrap">
-                <div class="notif-btn" onclick="toggleNotif()">
+                <div class="notif-btn" onclick="toggleNotif()" id="notifBtnEl">
                     <i class="fas fa-bell" style="font-size:.85rem"></i>
-                    @if($notifCount > 0)
-                    <span class="notif-badge" id="notifCount">{{ $notifCount > 9 ? '9+' : $notifCount }}</span>
-                    @endif
+                    <span class="notif-badge" id="notifCount" style="display:none">0</span>
                 </div>
+                <div id="notifDrop" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:340px;background:#fff;border-radius:10px;border:1px solid #e5e7eb;box-shadow:0 4px 20px rgba(0,0,0,.12);z-index:999;overflow:hidden">
+                    <div style="padding:14px 16px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between">
+                        <span style="font-size:13px;font-weight:700;color:#0f1d35">Notifications</span>
+                        <button onclick="markAllRead()" style="font-size:11px;color:#3b82f6;background:none;border:none;cursor:pointer;padding:0">Mark all read</button>
+                    </div>
+                    <div style="max-height:360px;overflow-y:auto" id="notifList">
+                        <div style="padding:20px;text-align:center;color:#9ca3af;font-size:12px">
+                            <i class="fas fa-spinner fa-spin" style="font-size:18px;display:block;margin-bottom:6px"></i>
+                            Memuat...
+                        </div>
+                    </div>
+                    <a href="{{ route('tasks.index') }}" style="display:block;text-align:center;padding:12px;font-size:12px;color:#3b82f6;text-decoration:none;border-top:1px solid #f0f0f0">
+                        Lihat semua tasks →
+                    </a>
+                </div>
+            </div>
                 {{-- Notification dropdown --}}
                 <div id="notifDrop" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:320px;background:#fff;border-radius:10px;border:1px solid #e5e7eb;box-shadow:0 4px 20px rgba(0,0,0,.12);z-index:999;overflow:hidden">
                     <div style="padding:14px 16px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between">
@@ -862,9 +871,9 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <!-- Select2 (local) -->
-<script src="{{ asset('vendor/select2/select2.min.js') }}"></script>
+<script src="{{ asset('vendor/select2/js/select2.min.js') }}"></script>
 <!-- Flatpickr (local) -->
-<script src="{{ asset('vendor/flatpickr/flatpickr.min.js') }}"></script>
+<script src="{{ asset('vendor/flatpickr/js/flatpickr.min.js') }}"></script>
 
 <script>
 function toggleSidebar() {
@@ -884,22 +893,105 @@ document.addEventListener('click', function(e) {
 });
 
 // ── Notification ──
+let notifLoaded = false;
+
 function toggleNotif() {
     const d = document.getElementById('notifDrop');
     const u = document.getElementById('userDrop');
     const s = document.getElementById('searchDrop');
     u.style.display = 'none'; s.style.display = 'none';
-    d.style.display = d.style.display === 'none' ? 'block' : 'none';
+    const isOpen = d.style.display !== 'none';
+    d.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) loadNotifications();
 }
-function markAllRead() {
-    document.querySelectorAll('.notif-item.unread').forEach(el => {
-        el.classList.remove('unread');
-        el.style.background = '#fff';
-        const dot = el.querySelector('div[style*="border-radius:50%;background:#3b82f6"]');
-        if (dot) dot.remove();
+
+function loadNotifications() {
+    fetch('/notifications', {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        renderNotifications(data.notifications);
+        updateNotifBadge(data.unread_count);
+        notifLoaded = true;
+    })
+    .catch(() => {
+        document.getElementById('notifList').innerHTML =
+            '<div style="padding:16px;text-align:center;color:#9ca3af;font-size:12px">Gagal memuat notifikasi</div>';
     });
-    document.getElementById('notifCount').style.display = 'none';
 }
+
+function renderNotifications(items) {
+    const list = document.getElementById('notifList');
+    if (!items || items.length === 0) {
+        list.innerHTML = '<div style="padding:24px;text-align:center;color:#9ca3af;font-size:12px"><i class="fas fa-bell-slash" style="font-size:24px;display:block;margin-bottom:8px;opacity:.3"></i>Tidak ada notifikasi</div>';
+        return;
+    }
+    list.innerHTML = items.map(n => `
+        <div class="notif-item${n.is_read ? '' : ' unread'}" onclick="clickNotif(${n.id}, '${n.url || ''}')"
+            style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid #f9fafb;cursor:pointer;background:${n.is_read ? '#fff' : '#fafbff'}"
+            onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='${n.is_read ? '#fff' : '#fafbff'}'">
+            <div style="width:34px;height:34px;border-radius:50%;background:${n.icon_color}20;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <i class="fas fa-${n.icon}" style="font-size:13px;color:${n.icon_color}"></i>
+            </div>
+            <div style="flex:1;min-width:0">
+                <div style="font-size:12px;font-weight:${n.is_read ? '500' : '600'};color:#0f1d35">${n.title}</div>
+                <div style="font-size:11px;color:#6b7280;margin-top:2px;line-height:1.4">${n.message}</div>
+                <div style="font-size:10px;color:#9ca3af;margin-top:3px">${n.time}</div>
+            </div>
+            ${!n.is_read ? '<div style="width:7px;height:7px;border-radius:50%;background:#3b82f6;flex-shrink:0;margin-top:4px"></div>' : ''}
+        </div>
+    `).join('');
+}
+
+function clickNotif(id, url) {
+    // Mark as read
+    fetch(`/notifications/${id}/read`, {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json' }
+    }).then(() => {
+        if (url) window.location.href = url;
+        else loadNotifications();
+    });
+}
+
+function markAllRead() {
+    fetch('/notifications/mark-all-read', {
+        method: 'POST',
+        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(() => {
+        updateNotifBadge(0);
+        loadNotifications();
+    });
+}
+
+function updateNotifBadge(count) {
+    const badge = document.getElementById('notifCount');
+    if (count > 0) {
+        badge.style.display = 'flex';
+        badge.textContent = count > 99 ? '99+' : count;
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+// Polling setiap 60 detik untuk update badge
+function pollNotifCount() {
+    fetch('/notifications/unread-count', {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => updateNotifBadge(data.unread_count))
+    .catch(() => {});
+}
+
+// Init: load badge saat halaman dibuka, poll setiap 60 detik
+document.addEventListener('DOMContentLoaded', function() {
+    pollNotifCount();
+    setInterval(pollNotifCount, 60000);
+});
 
 // ── User dropdown ──
 function toggleUserDrop() {
@@ -1044,30 +1136,18 @@ $(document).ready(function() {
         initFlatpickr(this);
     });
 
-    // ── Format input IDR ──
-    $(document).on('input', '.idr-input', function() {
-        let pos = this.selectionStart;
+    // ── Format input IDR — separator real-time saat ketik ──
+    $(document).on('keyup input', '.idr-input', function() {
         let raw = $(this).val().replace(/\D/g, '');
         if (raw === '') { $(this).val(''); return; }
         let formatted = parseInt(raw, 10).toLocaleString('id-ID');
         $(this).val(formatted);
     });
-    $(document).on('focus', '.idr-input', function() {
-        // Saat focus, strip format untuk mudah edit
-        let raw = $(this).val().replace(/\D/g, '');
-        $(this).val(raw);
-    });
-    $(document).on('blur', '.idr-input', function() {
-        let raw = $(this).val().replace(/\D/g, '');
-        if (raw === '') return;
-        $(this).val(parseInt(raw, 10).toLocaleString('id-ID'));
-    });
 
-    // Strip separator titik dari .idr-input sebelum form submit
+    // Strip separator sebelum form submit agar validasi numeric lolos
     $(document).on('submit', 'form', function() {
         $(this).find('.idr-input').each(function() {
-            let raw = $(this).val().replace(/\./g, '').replace(/,/g, '');
-            $(this).val(raw);
+            $(this).val($(this).val().replace(/\./g, '').replace(/,/g, ''));
         });
     });
 });

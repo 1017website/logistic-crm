@@ -13,6 +13,7 @@ use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\TaskReminderController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\UserController;
 
@@ -23,13 +24,25 @@ Route::middleware('guest')->group(function () {
 });
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
-Route::get('/', fn() => redirect()->route('dashboard'));
+Route::get('/', function () {
+    return auth()->check()
+        ? redirect()->route('dashboard')
+        : redirect()->route('login');
+});
 
 // ── Semua role (auth) ──────────────────────────────
 Route::middleware('auth')->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/search',    [SearchController::class, 'search'])->name('search');
+
+    // Notifications
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/',              [NotificationController::class, 'index'])->name('index');
+        Route::get('/unread-count',  [NotificationController::class, 'unreadCount'])->name('unread-count');
+        Route::post('/mark-all-read', [NotificationController::class, 'markAllRead'])->name('mark-all-read');
+        Route::post('/{notification}/read', [NotificationController::class, 'markRead'])->name('mark-read');
+    });
 
     // Sales
     Route::prefix('sales')->name('sales.')->group(function () {

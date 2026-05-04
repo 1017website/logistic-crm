@@ -7,6 +7,8 @@ use App\Models\Activity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
+use App\Models\Notification;
+
 class LeadsController extends Controller
 {
     public function index(Request $request)
@@ -72,6 +74,14 @@ class LeadsController extends Controller
         }
         $lead = Lead::create($validated);
 
+        // Notifikasi: Lead Baru → broadcast ke Admin & Manager
+        Notification::broadcast(
+            'new_lead',
+            'Lead Baru: ' . $lead->company_name,
+            $lead->company_name . ' ditambahkan oleh ' . auth()->user()->name,
+            route('leads.show', $lead)
+        );
+
         return redirect()->route('leads.show', $lead)->with('success', 'Lead berhasil ditambahkan.');
     }
 
@@ -104,6 +114,25 @@ class LeadsController extends Controller
         ]);
 
         $lead->update($validated);
+
+        // Notifikasi: Deal Won
+        if (isset($validated['pipeline_stage']) && $validated['pipeline_stage'] === 'Won') {
+            Notification::sendAll(
+                'deal_won',
+                'Deal Won: ' . $lead->company_name,
+                $lead->company_name . ' berhasil di-close oleh ' . auth()->user()->name . ' — ' . idrm($lead->potensi_revenue),
+                route('leads.show', $lead)
+            );
+        }
+        // Notifikasi: Stage Change (bukan Won/Lost)
+        elseif (isset($validated['pipeline_stage']) && !in_array($validated['pipeline_stage'], ['Won', 'Lost'])) {
+            Notification::broadcast(
+                'stage_change',
+                'Stage Berubah: ' . $lead->company_name,
+                $lead->company_name . ' pindah ke stage ' . $validated['pipeline_stage'],
+                route('leads.show', $lead)
+            );
+        }
 
         // Support JSON response untuk drag-drop AJAX
         if ($request->expectsJson() || $request->isJson()) {
