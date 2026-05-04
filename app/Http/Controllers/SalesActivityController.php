@@ -61,15 +61,32 @@ class SalesActivityController extends Controller
         $validated = $request->validate([
             'lead_id'        => 'nullable|exists:leads,id',
             'customer_id'    => 'nullable|exists:customers,id',
-            'user_id'  => 'required|exists:sales_users,id',
             'type'           => 'required|in:Call,Visit,Email,Note,Others',
             'subject'        => 'required|string|max:255',
             'description'    => 'nullable|string',
             'activity_at'    => 'required|date',
             'status'         => 'required|in:Done,Pending,Planned,Overdue',
             'next_follow_up' => 'nullable|date',
+            'photo'          => 'nullable|image|mimes:jpg,jpeg,png,webp|max:3072',
         ]);
+
+        // Selalu pakai auth user — tidak bergantung pada input form
+        $validated['user_id'] = auth()->id();
+
+        // Upload foto jika ada dan tipe Visit
+        if ($request->hasFile('photo') && $request->input('type') === 'Visit') {
+            $path = $request->file('photo')->store('activity-photos', 'public');
+            $validated['photo'] = $path;
+        }
+
+        // Update pipeline_stage lead jika dikirim
+        if (!empty($validated['lead_id']) && $request->filled('pipeline_stage')) {
+            \App\Models\Lead::where('id', $validated['lead_id'])
+                ->update(['pipeline_stage' => $request->pipeline_stage]);
+        }
+
         Activity::create($validated);
         return redirect()->back()->with('success', 'Aktivitas berhasil disimpan.');
+    }
     }
 }

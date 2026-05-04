@@ -69,12 +69,6 @@
             <option value="{{ $su->id }}">{{ $su->name }}</option>
             @endforeach
         </select>
-        <select class="form-select form-select-sm no-select2" style="width:160px;font-size:13px" onchange="filterTemp(this.value)">
-            <option value="">Semua Temperature</option>
-            <option value="Hot">🔥 Hot</option>
-            <option value="Warm">🌤 Warm</option>
-            <option value="Cold">❄️ Cold</option>
-        </select>
     </div>
     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addLeadPipelineModal">
         <i class="fas fa-plus me-1"></i> Add Lead
@@ -87,11 +81,11 @@
         <div class="row g-2" id="kanbanBoard">
             @php
             $stageConfig = [
-                'Identifying' => ['slug'=>'identifying','num'=>'01','desc'=>'Mencari informasi'],
-                'Approaching' => ['slug'=>'approaching','num'=>'02','desc'=>'Menghubungi lead'],
-                'Follow Up'   => ['slug'=>'follow-up','num'=>'03','desc'=>'Follow up & penawaran'],
-                'Closing'     => ['slug'=>'closing','num'=>'04','desc'=>'Negosiasi / Closing'],
-                'Won'         => ['slug'=>'won','num'=>'05','desc'=>'Deal berhasil'],
+            'Identifying' => ['slug'=>'identifying','num'=>'01','desc'=>'Mencari informasi'],
+            'Approaching' => ['slug'=>'approaching','num'=>'02','desc'=>'Menghubungi lead'],
+            'Follow Up' => ['slug'=>'follow-up','num'=>'03','desc'=>'Follow up & penawaran'],
+            'Closing' => ['slug'=>'closing','num'=>'04','desc'=>'Negosiasi / Closing'],
+            'Won' => ['slug'=>'won','num'=>'05','desc'=>'Deal berhasil'],
             ];
             @endphp
             @foreach($pipeline as $stageName => $leads)
@@ -115,14 +109,13 @@
                         data-id="{{ $lead->id }}"
                         data-stage="{{ $lead->pipeline_stage }}"
                         data-sales="{{ $lead->sales_user_id }}"
-                        data-temp="{{ $lead->temperature }}"
                         onclick="window.location='{{ route('leads.show', $lead) }}'">
-                        <div class="d-flex justify-content-between align-items-start mb-1">
-                            <div class="kc-company">{{ $lead->company_name }}</div>
-                            <span class="badge-{{ strtolower($lead->temperature) }}" style="font-size:.6rem;flex-shrink:0">{{ $lead->temperature }}</span>
-                        </div>
+                        <div class="kc-company">{{ $lead->company_name }}</div>
                         <div class="kc-pic" style="font-size:.7rem">
                             <i class="fas fa-user me-1" style="font-size:.6rem"></i>{{ $lead->pic_name }}
+                            @if($lead->pic_position)
+                            <span style="color:var(--text-muted)"> · {{ $lead->pic_position }}</span>
+                            @endif
                         </div>
                         @if($lead->service_type)
                         <div class="kc-service">
@@ -262,15 +255,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Temperature <span class="text-danger">*</span></label>
-                            <select name="temperature" class="form-select">
-                                <option value="Warm">Warm</option>
-                                <option value="Hot">Hot</option>
-                                <option value="Cold">Cold</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
+                        <div class="col-md-6">
                             <label class="form-label">Potensi Revenue</label>
                             <input type="text" name="potensi_revenue" class="form-control idr-input" placeholder="100.000.000">
                         </div>
@@ -306,116 +291,164 @@ $chartValues = array_values(array_map(fn($l) => (float)($l->sum('potensi_revenue
 
 // Trend: expected revenue per bulan (6 bulan terakhir) dari DB
 $trendLabels = [];
-$trendData   = [];
+$trendData = [];
 for ($i = 5; $i >= 0; $i--) {
-    $month = now()->subMonths($i);
-    $trendLabels[] = $month->format('M Y');
-    $trendData[]   = (float)(\App\Models\Lead::whereYear('created_at', $month->year)
-        ->whereMonth('created_at', $month->month)
-        ->sum('potensi_revenue') / 1000000);
+$month = now()->subMonths($i);
+$trendLabels[] = $month->format('M Y');
+$trendData[] = (float)(\App\Models\Lead::whereYear('created_at', $month->year)
+->whereMonth('created_at', $month->month)
+->sum('potensi_revenue') / 1000000);
 }
 @endphp
 <script>
-// ── Pipeline Pie ──
-new Chart(document.getElementById('pipelinePie'), {
-    type: 'doughnut',
-    data: {
-        labels: {!! json_encode($chartLabels) !!},
-        datasets: [{
-            data: {!! json_encode($chartValues) !!},
-            backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'],
-            borderWidth: 0, hoverOffset: 4
-        }]
-    },
-    options: {
-        plugins: {
-            legend: { display: false },
-            tooltip: { callbacks: { label: ctx => ` ${ctx.label}: Rp ${ctx.parsed.toFixed(1)}M` } }
+    // ── Pipeline Pie ──
+    new Chart(document.getElementById('pipelinePie'), {
+        type: 'doughnut',
+        data: {
+            labels: {
+                !!json_encode($chartLabels) !!
+            },
+            datasets: [{
+                data: {
+                    !!json_encode($chartValues) !!
+                },
+                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
         },
-        cutout: '65%'
-    }
-});
-
-// ── Pipeline Trend (data real dari DB) ──
-new Chart(document.getElementById('pipelineTrend'), {
-    type: 'line',
-    data: {
-        labels: {!! json_encode($trendLabels) !!},
-        datasets: [{
-            label: 'Expected Revenue (Jt)',
-            data: {!! json_encode($trendData) !!},
-            borderColor: '#2563eb',
-            backgroundColor: 'rgba(37,99,235,.1)',
-            fill: true, tension: .4, borderWidth: 2,
-            pointRadius: 4, pointBackgroundColor: '#2563eb',
-        }]
-    },
-    options: {
-        plugins: { legend: { display: false } },
-        scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-            y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 }, callback: v => v + ' Jt' } }
+        options: {
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.label}: Rp ${ctx.parsed.toFixed(1)}M`
+                    }
+                }
+            },
+            cutout: '65%'
         }
-    }
-});
-
-// ── Drag & Drop pindah stage ──
-let dragId = null;
-document.querySelectorAll('.kanban-card').forEach(card => {
-    card.addEventListener('dragstart', e => {
-        dragId = card.dataset.id;
-        card.style.opacity = '.4';
-        e.dataTransfer.effectAllowed = 'move';
     });
-    card.addEventListener('dragend', () => card.style.opacity = '1');
-});
 
-document.querySelectorAll('.kanban-drop-zone').forEach(zone => {
-    zone.addEventListener('dragover', e => {
-        e.preventDefault();
-        zone.style.background = '#eff6ff';
-        e.dataTransfer.dropEffect = 'move';
-    });
-    zone.addEventListener('dragleave', () => zone.style.background = '');
-    zone.addEventListener('drop', e => {
-        e.preventDefault();
-        zone.style.background = '';
-        const newStage = zone.dataset.stage;
-        if (!dragId || !newStage) return;
-        updateLeadStage(dragId, newStage);
-    });
-});
-
-function updateLeadStage(leadId, newStage) {
-    fetch(`/leads/${leadId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
-            'X-HTTP-Method-Override': 'PUT',
+    // ── Pipeline Trend (data real dari DB) ──
+    new Chart(document.getElementById('pipelineTrend'), {
+        type: 'line',
+        data: {
+            labels: {
+                !!json_encode($trendLabels) !!
+            },
+            datasets: [{
+                label: 'Expected Revenue (Jt)',
+                data: {
+                    !!json_encode($trendData) !!
+                },
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37,99,235,.1)',
+                fill: true,
+                tension: .4,
+                borderWidth: 2,
+                pointRadius: 4,
+                pointBackgroundColor: '#2563eb',
+            }]
         },
-        body: JSON.stringify({ pipeline_stage: newStage })
-    })
-    .then(r => { if (r.ok || r.redirected) location.reload(); })
-    .catch(() => location.reload());
-}
-
-// ── Filter client-side ──
-let filterSalesId = '', filterTempVal = '';
-function filterSales(val) { filterSalesId = val; applyFilter(); }
-function filterTemp(val)  { filterTempVal = val; applyFilter(); }
-function applyFilter() {
-    document.querySelectorAll('.kanban-card').forEach(card => {
-        const matchSales = !filterSalesId || card.dataset.sales == filterSalesId;
-        const matchTemp  = !filterTempVal || card.dataset.temp == filterTempVal;
-        card.style.display = (matchSales && matchTemp) ? '' : 'none';
+        options: {
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: {
+                            size: 10
+                        }
+                    }
+                },
+                y: {
+                    grid: {
+                        color: '#f3f4f6'
+                    },
+                    ticks: {
+                        font: {
+                            size: 10
+                        },
+                        callback: v => v + ' Jt'
+                    }
+                }
+            }
+        }
     });
-}
 
-// ── Open Add Lead modal dengan stage preset ──
-function openAddLead(stage) {
-    document.getElementById('modalPipelineStage').value = stage;
-    new bootstrap.Modal(document.getElementById('addLeadPipelineModal')).show();
-}
+    // ── Drag & Drop pindah stage ──
+    let dragId = null;
+    document.querySelectorAll('.kanban-card').forEach(card => {
+        card.addEventListener('dragstart', e => {
+            dragId = card.dataset.id;
+            card.style.opacity = '.4';
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        card.addEventListener('dragend', () => card.style.opacity = '1');
+    });
+
+    document.querySelectorAll('.kanban-drop-zone').forEach(zone => {
+        zone.addEventListener('dragover', e => {
+            e.preventDefault();
+            zone.style.background = '#eff6ff';
+            e.dataTransfer.dropEffect = 'move';
+        });
+        zone.addEventListener('dragleave', () => zone.style.background = '');
+        zone.addEventListener('drop', e => {
+            e.preventDefault();
+            zone.style.background = '';
+            const newStage = zone.dataset.stage;
+            if (!dragId || !newStage) return;
+            updateLeadStage(dragId, newStage);
+        });
+    });
+
+    function updateLeadStage(leadId, newStage) {
+        fetch(`/leads/${leadId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                    'X-HTTP-Method-Override': 'PUT',
+                },
+                body: JSON.stringify({
+                    pipeline_stage: newStage
+                })
+            })
+            .then(r => {
+                if (r.ok || r.redirected) location.reload();
+            })
+            .catch(() => location.reload());
+    }
+
+    // ── Filter client-side ──
+    let filterSalesId = '';
+
+    function filterSales(val) {
+        filterSalesId = val;
+        applyFilter();
+    }
+
+    function applyFilter() {
+        document.querySelectorAll('.kanban-card').forEach(card => {
+            const matchSales = !filterSalesId || card.dataset.sales == filterSalesId;
+            card.style.display = matchSales ? '' : 'none';
+        });
+    }
+
+    // ── Open Add Lead modal dengan stage preset ──
+    function openAddLead(stage) {
+        document.getElementById('modalPipelineStage').value = stage;
+        new bootstrap.Modal(document.getElementById('addLeadPipelineModal')).show();
+    }
 </script>
 @endpush

@@ -77,24 +77,46 @@
                             <div class="d-flex align-items-center justify-content-between">
                                 <div>
                                     <span class="activity-subject">{{ $act->subject }}</span>
-                                    <span class="ms-2 badge-{{ strtolower($act->type) }}" style="background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:20px;font-size:.68rem;font-weight:600">{{ $act->type }}</span>
+                                    <span class="ms-2" style="background:#f3f4f6;color:#374151;padding:2px 8px;border-radius:20px;font-size:.68rem;font-weight:600">{{ $act->type }}</span>
                                 </div>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="badge-{{ strtolower($act->status) }}">{{ $act->status }}</span>
-                                    <button class="btn btn-sm p-0" style="color:var(--text-muted)"><i class="fas fa-ellipsis-v"></i></button>
-                                </div>
+                                <span class="badge-{{ strtolower($act->status) }}">{{ $act->status }}</span>
                             </div>
-                            <div class="activity-desc mt-1">{{ $act->description }}</div>
-                            @if($act->photo && $act->type === 'Visit')
-                            <div class="mt-2">
-                                <img src="{{ asset('storage/' . $act->photo) }}" alt="Foto Kunjungan"
-                                    style="max-height:120px;border-radius:8px;border:1px solid #e5e7eb;cursor:pointer"
-                                    onclick="window.open(this.src)">
+
+                            {{-- Client info --}}
+                            @php $client = $act->lead?->company_name ?? $act->customer?->company_name ?? null; @endphp
+                            @if($client)
+                            <div class="mt-1" style="font-size:.75rem;color:#2563eb;font-weight:600">
+                                <i class="fas fa-building me-1" style="font-size:.65rem"></i>{{ $client }}
+                                @if($act->lead)
+                                <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:10px;font-size:.65rem;margin-left:4px">
+                                    {{ $act->lead->pipeline_stage }}
+                                </span>
+                                @endif
                             </div>
                             @endif
+
+                            @if($act->description)
+                            <div class="activity-desc mt-1">{{ $act->description }}</div>
+                            @endif
+
+                            {{-- Foto kunjungan --}}
+                            @if($act->photo && $act->type === 'Visit')
+                            <div class="mt-2">
+                                <a href="{{ asset('storage/' . $act->photo) }}" target="_blank">
+                                    <img src="{{ asset('storage/' . $act->photo) }}" alt="Foto Kunjungan"
+                                        style="max-height:140px;max-width:100%;border-radius:8px;border:1px solid #e5e7eb;cursor:zoom-in">
+                                </a>
+                                <div style="font-size:.68rem;color:var(--text-muted);margin-top:3px">
+                                    <i class="fas fa-image me-1"></i>Foto kunjungan · <a href="{{ asset('storage/' . $act->photo) }}" target="_blank" style="color:var(--primary)">Lihat penuh</a>
+                                </div>
+                            </div>
+                            @endif
+
                             <div class="activity-meta d-flex align-items-center gap-3 mt-1">
-                                <span><i class="fas fa-user me-1"></i>PIC: {{ $act->salesUser?->name }}</span>
-                                <span><i class="fas fa-calendar me-1"></i>{{ $act->activity_at->format('d M Y, H:i') }}</span>
+                                <span><i class="fas fa-user me-1"></i>{{ $act->salesUser?->name ?? 'Unknown' }}</span>
+                                @if($act->next_follow_up)
+                                <span style="color:#d97706"><i class="fas fa-calendar-check me-1"></i>Follow up: {{ $act->next_follow_up->format('d M Y') }}</span>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -109,37 +131,9 @@
                 @if($activities->hasPages())
                 <div class="mt-3">{{ $activities->links() }}</div>
                 @endif
-
-                @if($activities->count() >= 6)
-                <div class="text-center mt-3">
-                    <button class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-chevron-down me-1"></i>Load More Activity
-                    </button>
-                </div>
-                @endif
             </div>
         </div>
 
-        {{-- Recent Notes --}}
-        <div class="card mt-3">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span>Recent Notes</span>
-                <a href="#" style="font-size:.75rem;color:var(--primary)">View All</a>
-            </div>
-            <div class="card-body p-3">
-                <div class="row g-2">
-                    @foreach($recentNotes->take(4) as $note)
-                    <div class="col-6">
-                        <div class="p-3 rounded" style="background:#f9fafb;border:1px solid var(--border-color)">
-                            <div style="font-size:.8rem;font-weight:600;color:#111">{{ $note->lead?->company_name ?? $note->customer?->company_name ?? 'No Client' }}</div>
-                            <div style="font-size:.7rem;color:var(--text-muted);margin:2px 0">{{ $note->activity_at->format('d M Y · H:i') }}</div>
-                            <div style="font-size:.75rem;color:#374151;margin-top:4px">{{ Str::limit($note->description, 80) }}</div>
-                        </div>
-                    </div>
-                    @endforeach
-                </div>
-            </div>
-        </div>
     </div>
 
     {{-- RIGHT Sidebar --}}
@@ -334,7 +328,7 @@
                             </select>
                         </div>
                     </div>
-                    <input type="hidden" name="user_id" value="{{ auth()->id() }}">
+                    <input type="hidden" name="pipeline_stage_hidden" value="">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
