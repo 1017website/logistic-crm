@@ -21,7 +21,6 @@
             <div class="d-flex gap-2 align-items-center flex-wrap">
                 @php $stageMap = ['Identifying'=>'identifying','Approaching'=>'approaching','Follow Up'=>'follow-up','Closing'=>'closing','Won'=>'won','Lost'=>'lost']; @endphp
                 <span class="badge-stage badge-{{ $stageMap[$lead->pipeline_stage] ?? 'identifying' }}">{{ $lead->pipeline_stage }}</span>
-                <span class="badge-{{ strtolower($lead->temperature) }}">{{ $lead->temperature }}</span>
                 <span style="font-size:.75rem;color:var(--text-muted)">{{ $lead->lead_code }}</span>
             </div>
         </div>
@@ -57,29 +56,29 @@
             $currentIdx = array_search($lead->pipeline_stage, $stageOrder);
             @endphp
             @foreach($stages as $sn => $sd)
-            @php $idx = array_search($sn, $stageOrder); $isDone = $idx < $currentIdx; $isCurrent = $sn === $lead->pipeline_stage; @endphp
-            <div class="d-flex align-items-center gap-3" style="flex:1">
-                <form method="POST" action="{{ route('leads.update', $lead) }}" style="display:contents">
-                    @csrf @method('PUT')
-                    <input type="hidden" name="pipeline_stage" value="{{ $sn }}">
-                    <button type="submit" style="background:none;border:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">
-                        <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+            @php $idx = array_search($sn, $stageOrder); $isDone = $idx < $currentIdx; $isCurrent=$sn===$lead->pipeline_stage; @endphp
+                <div class="d-flex align-items-center gap-3" style="flex:1">
+                    <form method="POST" action="{{ route('leads.update', $lead) }}" style="display:contents">
+                        @csrf @method('PUT')
+                        <input type="hidden" name="pipeline_stage" value="{{ $sn }}">
+                        <button type="submit" style="background:none;border:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">
+                            <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
                             background:{{ $isCurrent ? '#f59e0b' : ($isDone ? '#d1fae5' : '#f3f4f6') }};
                             border:2px solid {{ $isCurrent ? '#d97706' : ($isDone ? '#059669' : '#e5e7eb') }};
                             transition:.2s">
-                            @if($isDone)<i class="fas fa-check" style="color:#059669;font-size:.7rem"></i>
-                            @elseif($isCurrent)<i class="fas fa-circle" style="color:#d97706;font-size:.5rem"></i>
-                            @else<i class="fas fa-circle" style="color:#d1d5db;font-size:.4rem"></i>@endif
-                        </div>
-                        <span style="font-size:.75rem;font-weight:{{ $isCurrent ? '700' : '400' }};color:{{ $isCurrent ? '#d97706' : ($isDone ? '#059669' : '#9ca3af') }}">{{ $sn }}</span>
-                        <span style="font-size:.65rem;color:#9ca3af">{{ $sd }}</span>
-                    </button>
-                </form>
-                @if(!$loop->last)
-                <div style="flex:1;height:2px;background:{{ $isDone ? '#10b981' : '#e5e7eb' }};margin-top:-20px"></div>
-                @endif
-            </div>
-            @endforeach
+                                @if($isDone)<i class="fas fa-check" style="color:#059669;font-size:.7rem"></i>
+                                @elseif($isCurrent)<i class="fas fa-circle" style="color:#d97706;font-size:.5rem"></i>
+                                @else<i class="fas fa-circle" style="color:#d1d5db;font-size:.4rem"></i>@endif
+                            </div>
+                            <span style="font-size:.75rem;font-weight:{{ $isCurrent ? '700' : '400' }};color:{{ $isCurrent ? '#d97706' : ($isDone ? '#059669' : '#9ca3af') }}">{{ $sn }}</span>
+                            <span style="font-size:.65rem;color:#9ca3af">{{ $sd }}</span>
+                        </button>
+                    </form>
+                    @if(!$loop->last)
+                    <div style="flex:1;height:2px;background:{{ $isDone ? '#10b981' : '#e5e7eb' }};margin-top:-20px"></div>
+                    @endif
+                </div>
+                @endforeach
         </div>
     </div>
 </div>
@@ -98,15 +97,15 @@
             </div>
             <div class="card-body p-3">
                 @foreach([
-                    ['icon'=>'building','label'=>'Nama Perusahaan','value'=>$lead->company_name],
-                    ['icon'=>'user','label'=>'PIC','value'=>$lead->pic_name],
-                    ['icon'=>'briefcase','label'=>'Jabatan','value'=>$lead->pic_position ?? '-'],
-                    ['icon'=>'phone','label'=>'Phone','value'=>$lead->phone ?? '-'],
-                    ['icon'=>'envelope','label'=>'Email','value'=>$lead->email ?? '-'],
-                    ['icon'=>'industry','label'=>'Industry','value'=>$lead->industry ?? '-'],
-                    ['icon'=>'globe','label'=>'Sumber Lead','value'=>$lead->lead_source ?? '-'],
-                    ['icon'=>'user-tie','label'=>'Sales PIC','value'=>$lead->salesUser?->name ?? '-'],
-                    ['icon'=>'calendar','label'=>'Dibuat','value'=>$lead->created_at->format('d M Y')],
+                ['icon'=>'building','label'=>'Nama Perusahaan','value'=>$lead->company_name],
+                ['icon'=>'user','label'=>'PIC','value'=>$lead->pic_name],
+                ['icon'=>'briefcase','label'=>'Jabatan','value'=>$lead->pic_position ?? '-'],
+                ['icon'=>'phone','label'=>'Phone','value'=>$lead->phone ?? '-'],
+                ['icon'=>'envelope','label'=>'Email','value'=>$lead->email ?? '-'],
+                ['icon'=>'industry','label'=>'Industry','value'=>$lead->industry ?? '-'],
+                ['icon'=>'globe','label'=>'Sumber Lead','value'=>$lead->lead_source ?? '-'],
+                ['icon'=>'user-tie','label'=>'Sales PIC','value'=>$lead->salesUser?->name ?? '-'],
+                ['icon'=>'calendar','label'=>'Dibuat','value'=>$lead->created_at->format('d M Y')],
                 ] as $f)
                 <div class="d-flex gap-2 mb-2">
                     <i class="fas fa-{{ $f['icon'] }}" style="width:16px;color:var(--text-muted);margin-top:2px;font-size:.75rem;flex-shrink:0"></i>
@@ -124,11 +123,11 @@
             <div class="card-header">Kebutuhan & Rute</div>
             <div class="card-body p-3">
                 @foreach([
-                    ['icon'=>'ship','label'=>'Jenis Layanan','value'=>$lead->service_type],
-                    ['icon'=>'route','label'=>'Rute','value'=>$lead->route ?? '-'],
-                    ['icon'=>'box','label'=>'Commodity','value'=>$lead->commodity ?? '-'],
-                    ['icon'=>'chart-bar','label'=>'Volume','value'=>$lead->volume_estimate ?? '-'],
-                    ['icon'=>'clock','label'=>'Timeline','value'=>$lead->timeline ?? '-'],
+                ['icon'=>'ship','label'=>'Jenis Layanan','value'=>$lead->service_type],
+                ['icon'=>'route','label'=>'Rute','value'=>$lead->route ?? '-'],
+                ['icon'=>'box','label'=>'Commodity','value'=>$lead->commodity ?? '-'],
+                ['icon'=>'chart-bar','label'=>'Volume','value'=>$lead->volume_estimate ?? '-'],
+                ['icon'=>'clock','label'=>'Timeline','value'=>$lead->timeline ?? '-'],
                 ] as $f)
                 <div class="d-flex gap-2 mb-2">
                     <i class="fas fa-{{ $f['icon'] }}" style="width:16px;color:var(--text-muted);font-size:.75rem;flex-shrink:0;margin-top:2px"></i>
@@ -206,16 +205,16 @@
             </div>
             <div class="card-body p-3">
                 @if($lead->catatan_internal)
-                    @foreach(explode("\n", $lead->catatan_internal) as $line)
-                    @if(trim($line))
-                    <div class="d-flex gap-2 mb-1">
-                        <i class="fas fa-circle" style="font-size:.35rem;color:var(--primary);margin-top:6px;flex-shrink:0"></i>
-                        <span style="font-size:.8rem">{{ trim($line) }}</span>
-                    </div>
-                    @endif
-                    @endforeach
+                @foreach(explode("\n", $lead->catatan_internal) as $line)
+                @if(trim($line))
+                <div class="d-flex gap-2 mb-1">
+                    <i class="fas fa-circle" style="font-size:.35rem;color:var(--primary);margin-top:6px;flex-shrink:0"></i>
+                    <span style="font-size:.8rem">{{ trim($line) }}</span>
+                </div>
+                @endif
+                @endforeach
                 @else
-                    <p style="font-size:.8rem;color:var(--text-muted)">Belum ada catatan internal.</p>
+                <p style="font-size:.8rem;color:var(--text-muted)">Belum ada catatan internal.</p>
                 @endif
             </div>
         </div>
@@ -263,13 +262,12 @@
             </div>
             <div class="card-body p-3">
                 @foreach([
-                    ['label'=>'Status Lead','value'=>$lead->pipeline_stage],
-                    ['label'=>'Temperature','value'=>$lead->temperature],
-                    ['label'=>'Lead Score','value'=>($lead->lead_score ?? 0) . ' / 100'],
-                    ['label'=>'Potensi Revenue','value'=>idr($lead->potensi_revenue)],
-                    ['label'=>'Probability','value'=>($lead->probability ?? 0) . '%'],
-                    ['label'=>'Expected Closing','value'=>$lead->expected_closing ? $lead->expected_closing->format('M Y') : '-'],
-                    ['label'=>'Competitor','value'=>$lead->competitor ?? '-'],
+                ['label'=>'Status Lead','value'=>$lead->pipeline_stage],
+                ['label'=>'Lead Score','value'=>($lead->lead_score ?? 0) . ' / 100'],
+                ['label'=>'Potensi Revenue','value'=>idr($lead->potensi_revenue)],
+                ['label'=>'Probability','value'=>($lead->probability ?? 0) . '%'],
+                ['label'=>'Expected Closing','value'=>$lead->expected_closing ? $lead->expected_closing->format('M Y') : '-'],
+                ['label'=>'Competitor','value'=>$lead->competitor ?? '-'],
                 ] as $f)
                 <div class="d-flex justify-content-between align-items-center py-1" style="border-bottom:1px solid #f3f4f6;font-size:.78rem">
                     <span style="color:var(--text-muted)">{{ $f['label'] }}</span>
@@ -285,12 +283,12 @@
             <div class="card-body p-3">
                 <div class="row g-2">
                     @foreach([
-                        ['icon'=>'phone','label'=>'Log Call','color'=>'#d1fae5','ico'=>'#059669','action'=>"quickActivity('Call')"],
-                        ['icon'=>'building','label'=>'Log Visit','color'=>'#dbeafe','ico'=>'#2563eb','action'=>"quickActivity('Visit')"],
-                        ['icon'=>'envelope','label'=>'Log Email','color'=>'#fef3c7','ico'=>'#d97706','action'=>"quickActivity('Email')"],
-                        ['icon'=>'sticky-note','label'=>'Add Note','color'=>'#ccfbf1','ico'=>'#0d9488','action'=>"quickActivity('Note')"],
-                        ['icon'=>'bell','label'=>'Set Reminder','color'=>'#fee2e2','ico'=>'#dc2626','action'=>"document.getElementById('actType').value='Task';new bootstrap.Modal(document.getElementById('addActivityModal')).show()"],
-                        ['icon'=>'file-invoice','label'=>'Quotation','color'=>'#ede9fe','ico'=>'#7c3aed','action'=>''],
+                    ['icon'=>'phone','label'=>'Log Call','color'=>'#d1fae5','ico'=>'#059669','action'=>"quickActivity('Call')"],
+                    ['icon'=>'building','label'=>'Log Visit','color'=>'#dbeafe','ico'=>'#2563eb','action'=>"quickActivity('Visit')"],
+                    ['icon'=>'envelope','label'=>'Log Email','color'=>'#fef3c7','ico'=>'#d97706','action'=>"quickActivity('Email')"],
+                    ['icon'=>'sticky-note','label'=>'Add Note','color'=>'#ccfbf1','ico'=>'#0d9488','action'=>"quickActivity('Note')"],
+                    ['icon'=>'bell','label'=>'Set Reminder','color'=>'#fee2e2','ico'=>'#dc2626','action'=>"document.getElementById('actType').value='Task';new bootstrap.Modal(document.getElementById('addActivityModal')).show()"],
+                    ['icon'=>'file-invoice','label'=>'Quotation','color'=>'#ede9fe','ico'=>'#7c3aed','action'=>''],
                     ] as $qa)
                     <div class="col-4">
                         <div class="quick-action-btn" onclick="{{ $qa['action'] }}" style="cursor:pointer">
@@ -388,14 +386,6 @@
                             <select name="pipeline_stage" class="form-select">
                                 @foreach(['Identifying','Approaching','Follow Up','Closing','Won','Lost'] as $s)
                                 <option value="{{ $s }}" {{ $lead->pipeline_stage === $s ? 'selected' : '' }}>{{ $s }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Temperature</label>
-                            <select name="temperature" class="form-select">
-                                @foreach(['Hot','Warm','Cold'] as $t)
-                                <option value="{{ $t }}" {{ $lead->temperature === $t ? 'selected' : '' }}>{{ $t }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -549,14 +539,6 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Temperature</label>
-                            <select name="temperature" class="form-select">
-                                @foreach(['Hot','Warm','Cold'] as $t)
-                                <option value="{{ $t }}" {{ $lead->temperature === $t ? 'selected' : '' }}>{{ $t }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-6">
                             <label class="form-label">Potensi Revenue</label>
                             <input type="text" name="potensi_revenue" class="form-control idr-input" value="{{ idr_input($lead->potensi_revenue) }}" placeholder="Contoh: 100.000.000">
                         </div>
@@ -587,9 +569,9 @@
 
 @push('scripts')
 <script>
-function quickActivity(type) {
-    document.getElementById('actType').value = type;
-    new bootstrap.Modal(document.getElementById('addActivityModal')).show();
-}
+    function quickActivity(type) {
+        document.getElementById('actType').value = type;
+        new bootstrap.Modal(document.getElementById('addActivityModal')).show();
+    }
 </script>
 @endpush

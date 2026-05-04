@@ -28,15 +28,7 @@
                     <select name="stage" class="form-select form-select-sm">
                         <option value="">All Stage</option>
                         @foreach(['Identifying','Approaching','Follow Up','Closing','Won','Lost'] as $s)
-                        <option value="{{ $s }}" @selected($stage == $s)>{{ $s }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-auto">
-                    <select name="temperature" class="form-select form-select-sm">
-                        <option value="">All Temperature</option>
-                        @foreach(['Hot','Warm','Cold'] as $t)
-                        <option value="{{ $t }}" @selected($temperature == $t)>{{ $t }}</option>
+                        <option value="{{ $s }}" @selected($stage==$s)>{{ $s }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -60,10 +52,9 @@
                 <thead>
                     <tr>
                         <th>Company</th>
-                        <th>PIC</th>
+                        <th>PIC / Jabatan</th>
                         <th>Service / Route</th>
                         <th>Stage</th>
-                        <th>Temp</th>
                         <th>Potensi Revenue</th>
                         <th>Sales PIC</th>
                         <th>Next Follow Up</th>
@@ -79,7 +70,7 @@
                         </td>
                         <td>
                             <div style="font-size:.8rem">{{ $lead->pic_name }}</div>
-                            <div style="font-size:.7rem;color:var(--text-muted)">{{ $lead->phone }}</div>
+                            <div style="font-size:.7rem;color:var(--text-muted)">{{ $lead->pic_position ?? $lead->phone }}</div>
                         </td>
                         <td>
                             <div style="font-size:.8rem">{{ $lead->service_type ?? '-' }}</div>
@@ -92,16 +83,15 @@
                             @endphp
                             <span class="badge-stage badge-{{ $slug }}">{{ $lead->pipeline_stage }}</span>
                         </td>
-                        <td><span class="badge-{{ strtolower($lead->temperature) }}">{{ $lead->temperature }}</span></td>
                         <td style="font-weight:600;color:var(--primary)">{{ idrm($lead->potensi_revenue) }}</td>
                         <td style="font-size:.78rem">{{ $lead->salesUser?->name }}</td>
                         <td style="font-size:.78rem">
                             @if($lead->next_follow_up)
-                                <span style="color:{{ $lead->next_follow_up->isPast() ? '#dc2626' : '#d97706' }};font-weight:600">
-                                    {{ $lead->next_follow_up->format('d M Y') }}
-                                </span>
+                            <span style="color:{{ $lead->next_follow_up->isPast() ? '#dc2626' : '#d97706' }};font-weight:600">
+                                {{ $lead->next_follow_up->format('d M Y') }}
+                            </span>
                             @else
-                                <span class="text-muted">-</span>
+                            <span class="text-muted">-</span>
                             @endif
                         </td>
                         <td>
@@ -153,12 +143,20 @@
                             <input type="text" name="pic_name" class="form-control" required>
                         </div>
                         <div class="col-6">
+                            <label class="form-label">Jabatan PIC</label>
+                            <input type="text" name="pic_position" class="form-control" placeholder="Misal: Direktur, Manager Logistik">
+                        </div>
+                        <div class="col-6">
                             <label class="form-label">Phone</label>
                             <input type="text" name="phone" class="form-control">
                         </div>
                         <div class="col-6">
                             <label class="form-label">Email</label>
                             <input type="email" name="email" class="form-control">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Industry</label>
+                            <input type="text" name="industry" class="form-control" placeholder="Misal: Manufaktur, Retail">
                         </div>
                         <div class="col-6">
                             <label class="form-label">Service Type</label>
@@ -182,27 +180,19 @@
                             </select>
                         </div>
                         <div class="col-4">
-                            <label class="form-label">Temperature *</label>
-                            <select name="temperature" class="form-select" required>
-                                @foreach(['Warm','Hot','Cold'] as $t)
-                                <option value="{{ $t }}">{{ $t }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-4">
                             <label class="form-label">Potensi Revenue</label>
                             <input type="text" name="potensi_revenue" class="form-control idr-input" placeholder="Contoh: 100.000.000">
                         </div>
-                        <div class="col-6">
-                            @include('components.sales-pic-field')
-                        </div>
-                        <div class="col-6">
+                        <div class="col-4">
                             <label class="form-label">Lead Source</label>
                             <select name="lead_source" class="form-select">
                                 @foreach(['Referral','Website','Cold Call','Email Campaign','Lainnya'] as $src)
                                 <option value="{{ $src }}">{{ $src }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div class="col-6">
+                            @include('components.sales-pic-field')
                         </div>
                     </div>
                 </div>
