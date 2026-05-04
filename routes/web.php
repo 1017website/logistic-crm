@@ -14,8 +14,14 @@ use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\TaskReminderController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ArtisanController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\UserController;
+
+// ── Artisan runner (shared hosting) — dilindungi secret key ──
+Route::get('/run/{command}', [ArtisanController::class, 'run'])
+    ->name('artisan.run')
+    ->middleware('throttle:10,1'); // max 10x per menit
 
 // ── Auth (Guest only) ──────────────────────────────
 Route::middleware('guest')->group(function () {
