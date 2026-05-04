@@ -19,8 +19,6 @@
         <div>
             <h4 class="mb-1 fw-bold">{{ $lead->company_name }}</h4>
             <div class="d-flex gap-2 align-items-center flex-wrap">
-                @php $stageMap = ['Identifying'=>'identifying','Approaching'=>'approaching','Follow Up'=>'follow-up','Closing'=>'closing','Won'=>'won','Lost'=>'lost']; @endphp
-                <span class="badge-stage badge-{{ $stageMap[$lead->pipeline_stage] ?? 'identifying' }}">{{ $lead->pipeline_stage }}</span>
                 <span style="font-size:.75rem;color:var(--text-muted)">{{ $lead->lead_code }}</span>
             </div>
         </div>
@@ -43,43 +41,6 @@
                 <i class="fas fa-check-circle me-1"></i> Convert to Deal
             </button>
         </form>
-    </div>
-</div>
-
-{{-- Pipeline Steps --}}
-<div class="card mb-4">
-    <div class="card-body py-3 px-4">
-        <div class="d-flex align-items-center justify-content-between">
-            @php
-            $stages = ['Identifying'=>'Mencari informasi','Approaching'=>'Menghubungi lead','Follow Up'=>'Follow up & penawaran','Closing'=>'Negosiasi / Closing'];
-            $stageOrder = array_keys($stages);
-            $currentIdx = array_search($lead->pipeline_stage, $stageOrder);
-            @endphp
-            @foreach($stages as $sn => $sd)
-            @php $idx = array_search($sn, $stageOrder); $isDone = $idx < $currentIdx; $isCurrent=$sn===$lead->pipeline_stage; @endphp
-                <div class="d-flex align-items-center gap-3" style="flex:1">
-                    <form method="POST" action="{{ route('leads.update', $lead) }}" style="display:contents">
-                        @csrf @method('PUT')
-                        <input type="hidden" name="pipeline_stage" value="{{ $sn }}">
-                        <button type="submit" style="background:none;border:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">
-                            <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-                            background:{{ $isCurrent ? '#f59e0b' : ($isDone ? '#d1fae5' : '#f3f4f6') }};
-                            border:2px solid {{ $isCurrent ? '#d97706' : ($isDone ? '#059669' : '#e5e7eb') }};
-                            transition:.2s">
-                                @if($isDone)<i class="fas fa-check" style="color:#059669;font-size:.7rem"></i>
-                                @elseif($isCurrent)<i class="fas fa-circle" style="color:#d97706;font-size:.5rem"></i>
-                                @else<i class="fas fa-circle" style="color:#d1d5db;font-size:.4rem"></i>@endif
-                            </div>
-                            <span style="font-size:.75rem;font-weight:{{ $isCurrent ? '700' : '400' }};color:{{ $isCurrent ? '#d97706' : ($isDone ? '#059669' : '#9ca3af') }}">{{ $sn }}</span>
-                            <span style="font-size:.65rem;color:#9ca3af">{{ $sd }}</span>
-                        </button>
-                    </form>
-                    @if(!$loop->last)
-                    <div style="flex:1;height:2px;background:{{ $isDone ? '#10b981' : '#e5e7eb' }};margin-top:-20px"></div>
-                    @endif
-                </div>
-                @endforeach
-        </div>
     </div>
 </div>
 
@@ -262,7 +223,6 @@
             </div>
             <div class="card-body p-3">
                 @foreach([
-                ['label'=>'Status Lead','value'=>$lead->pipeline_stage],
                 ['label'=>'Lead Score','value'=>($lead->lead_score ?? 0) . ' / 100'],
                 ['label'=>'Potensi Revenue','value'=>idr($lead->potensi_revenue)],
                 ['label'=>'Probability','value'=>($lead->probability ?? 0) . '%'],
@@ -380,14 +340,6 @@
                         <div class="col-md-4">
                             <label class="form-label">Expected Closing</label>
                             <input type="date" name="expected_closing" class="form-control" value="{{ $lead->expected_closing?->format('Y-m-d') }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Pipeline Stage</label>
-                            <select name="pipeline_stage" class="form-select">
-                                @foreach(['Identifying','Approaching','Follow Up','Closing','Won','Lost'] as $s)
-                                <option value="{{ $s }}" {{ $lead->pipeline_stage === $s ? 'selected' : '' }}>{{ $s }}</option>
-                                @endforeach
-                            </select>
                         </div>
                         <div class="col-md-6">
                             @include('components.sales-pic-field', ['selectedId' => $lead->user_id])
@@ -530,14 +482,6 @@
                 @csrf @method('PUT')
                 <div class="modal-body">
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Pipeline Stage</label>
-                            <select name="pipeline_stage" class="form-select">
-                                @foreach(['Identifying','Approaching','Follow Up','Closing','Won','Lost'] as $s)
-                                <option value="{{ $s }}" {{ $lead->pipeline_stage === $s ? 'selected' : '' }}>{{ $s }}</option>
-                                @endforeach
-                            </select>
-                        </div>
                         <div class="col-md-6">
                             <label class="form-label">Potensi Revenue</label>
                             <input type="text" name="potensi_revenue" class="form-control idr-input" value="{{ idr_input($lead->potensi_revenue) }}" placeholder="Contoh: 100.000.000">

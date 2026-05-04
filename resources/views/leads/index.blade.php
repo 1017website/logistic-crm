@@ -24,15 +24,7 @@
     <div class="card mb-3">
         <div class="card-body p-3">
             <div class="row g-2 align-items-center">
-                <div class="col-auto">
-                    <select name="stage" class="form-select form-select-sm">
-                        <option value="">All Stage</option>
-                        @foreach(['Identifying','Approaching','Follow Up','Closing','Won','Lost'] as $s)
-                        <option value="{{ $s }}" @selected($stage==$s)>{{ $s }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-3">
+                <div class="col-4">
                     <input type="text" name="search" class="form-control form-control-sm" placeholder="Cari company..." value="{{ $search }}">
                 </div>
                 <div class="col-auto">
@@ -54,7 +46,6 @@
                         <th>Company</th>
                         <th>PIC / Jabatan</th>
                         <th>Service / Route</th>
-                        <th>Stage</th>
                         <th>Potensi Revenue</th>
                         <th>Sales PIC</th>
                         <th>Next Follow Up</th>
@@ -75,13 +66,6 @@
                         <td>
                             <div style="font-size:.8rem">{{ $lead->service_type ?? '-' }}</div>
                             <div style="font-size:.7rem;color:var(--text-muted)">{{ $lead->route }}</div>
-                        </td>
-                        <td>
-                            @php
-                            $stageMap = ['Identifying'=>'identifying','Approaching'=>'approaching','Follow Up'=>'follow-up','Closing'=>'closing','Won'=>'won','Lost'=>'lost'];
-                            $slug = $stageMap[$lead->pipeline_stage] ?? 'identifying';
-                            @endphp
-                            <span class="badge-stage badge-{{ $slug }}">{{ $lead->pipeline_stage }}</span>
                         </td>
                         <td style="font-weight:600;color:var(--primary)">{{ idrm($lead->potensi_revenue) }}</td>
                         <td style="font-size:.78rem">{{ $lead->salesUser?->name }}</td>
@@ -171,19 +155,11 @@
                             <label class="form-label">Route</label>
                             <input type="text" name="route" class="form-control" placeholder="Misal: Shanghai - Surabaya">
                         </div>
-                        <div class="col-4">
-                            <label class="form-label">Pipeline Stage *</label>
-                            <select name="pipeline_stage" class="form-select" required>
-                                @foreach(['Identifying','Approaching','Follow Up','Closing'] as $s)
-                                <option value="{{ $s }}">{{ $s }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-4">
+                        <div class="col-6">
                             <label class="form-label">Potensi Revenue</label>
                             <input type="text" name="potensi_revenue" class="form-control idr-input" placeholder="Contoh: 100.000.000">
                         </div>
-                        <div class="col-4">
+                        <div class="col-6">
                             <label class="form-label">Lead Source</label>
                             <select name="lead_source" class="form-select">
                                 @foreach(['Referral','Website','Cold Call','Email Campaign','Lainnya'] as $src)
