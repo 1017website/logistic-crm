@@ -13,9 +13,9 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Select2 (local) -->
-    <link href="{{ asset('vendor/select2/css/select2.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('vendor/select2/select2.min.css') }}" rel="stylesheet">
     <!-- Flatpickr (local) -->
-    <link href="{{ asset('vendor/flatpickr/css/flatpickr.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('vendor/flatpickr/flatpickr.min.css') }}" rel="stylesheet">
 
     <style>
         /* ── Select2 Custom Theme ── */
@@ -871,9 +871,9 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <!-- Select2 (local) -->
-<script src="{{ asset('vendor/select2/js/select2.min.js') }}"></script>
+<script src="{{ asset('vendor/select2/select2.min.js') }}"></script>
 <!-- Flatpickr (local) -->
-<script src="{{ asset('vendor/flatpickr/js/flatpickr.min.js') }}"></script>
+<script src="{{ asset('vendor/flatpickr/flatpickr.min.js') }}"></script>
 
 <script>
 function toggleSidebar() {
