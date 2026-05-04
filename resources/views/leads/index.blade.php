@@ -117,57 +117,68 @@
             <form method="POST" action="{{ route('leads.store') }}">
                 @csrf
                 <div class="modal-body">
+                    {{-- Tampilkan error validasi --}}
+                    @if($errors->any())
+                    <div class="alert alert-danger alert-sm py-2 mb-3">
+                        <ul class="mb-0 ps-3" style="font-size:.8rem">
+                            @foreach($errors->all() as $e)
+                            <li>{{ $e }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    @endif
                     <div class="row g-3">
                         <div class="col-6">
                             <label class="form-label">Company Name *</label>
-                            <input type="text" name="company_name" class="form-control" required>
+                            <input type="text" name="company_name" class="form-control" value="{{ old('company_name') }}" required>
                         </div>
                         <div class="col-6">
                             <label class="form-label">PIC Name *</label>
-                            <input type="text" name="pic_name" class="form-control" required>
+                            <input type="text" name="pic_name" class="form-control" value="{{ old('pic_name') }}" required>
                         </div>
                         <div class="col-6">
                             <label class="form-label">Jabatan PIC</label>
-                            <input type="text" name="pic_position" class="form-control" placeholder="Misal: Direktur, Manager Logistik">
+                            <input type="text" name="pic_position" class="form-control" value="{{ old('pic_position') }}" placeholder="Misal: Direktur, Manager Logistik">
                         </div>
                         <div class="col-6">
                             <label class="form-label">Phone</label>
-                            <input type="text" name="phone" class="form-control">
+                            <input type="text" name="phone" class="form-control" value="{{ old('phone') }}">
                         </div>
                         <div class="col-6">
                             <label class="form-label">Email</label>
-                            <input type="email" name="email" class="form-control">
+                            <input type="email" name="email" class="form-control" value="{{ old('email') }}">
                         </div>
                         <div class="col-6">
                             <label class="form-label">Industry</label>
-                            <input type="text" name="industry" class="form-control" placeholder="Misal: Manufaktur, Retail">
+                            <input type="text" name="industry" class="form-control" value="{{ old('industry') }}" placeholder="Misal: Manufaktur, Retail">
                         </div>
                         <div class="col-6">
                             <label class="form-label">Service Type</label>
                             <select name="service_type" class="form-select">
                                 <option value="">Pilih service</option>
                                 @foreach(['Import Sea Freight','Export Sea Freight','Import Air Freight','Export Air Freight','Trucking Domestic','Project Cargo'] as $svc)
-                                <option value="{{ $svc }}">{{ $svc }}</option>
+                                <option value="{{ $svc }}" {{ old('service_type') == $svc ? 'selected' : '' }}>{{ $svc }}</option>
                                 @endforeach
                             </select>
                         </div>
                         <div class="col-6">
                             <label class="form-label">Route</label>
-                            <input type="text" name="route" class="form-control" placeholder="Misal: Shanghai - Surabaya">
+                            <input type="text" name="route" class="form-control" value="{{ old('route') }}" placeholder="Misal: Shanghai - Surabaya">
                         </div>
                         <div class="col-6">
                             <label class="form-label">Potensi Revenue</label>
-                            <input type="text" name="potensi_revenue" class="form-control idr-input" placeholder="Contoh: 100.000.000">
+                            <input type="text" name="potensi_revenue" class="form-control idr-input" value="{{ old('potensi_revenue') }}" placeholder="Contoh: 100.000.000">
                         </div>
                         <div class="col-6">
                             <label class="form-label">Lead Source</label>
                             <select name="lead_source" class="form-select">
+                                <option value="">- Pilih -</option>
                                 @foreach(['Referral','Website','Cold Call','Email Campaign','Lainnya'] as $src)
-                                <option value="{{ $src }}">{{ $src }}</option>
+                                <option value="{{ $src }}" {{ old('lead_source') == $src ? 'selected' : '' }}>{{ $src }}</option>
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-6">
+                        <div class="col-12">
                             @include('components.sales-pic-field')
                         </div>
                     </div>
@@ -221,3 +232,15 @@
 </div>
 
 @endsection
+
+@push('scripts')
+<script>
+    // Auto-reopen modal Add Lead jika ada error validasi
+    @if($errors - > any())
+    document.addEventListener('DOMContentLoaded', function() {
+        var modal = new bootstrap.Modal(document.getElementById('addLeadModal'));
+        modal.show();
+    });
+    @endif
+</script>
+@endpush

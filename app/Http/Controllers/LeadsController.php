@@ -42,6 +42,13 @@ class LeadsController extends Controller
 
     public function store(Request $request)
     {
+        // Strip format IDR (titik pemisah ribuan) sebelum validasi
+        if ($request->filled('potensi_revenue')) {
+            $request->merge([
+                'potensi_revenue' => str_replace(['.', ','], ['', '.'], $request->potensi_revenue)
+            ]);
+        }
+
         $validated = $request->validate([
             'company_name'    => 'required|string|max:255',
             'pic_name'        => 'required|string|max:255',
@@ -50,7 +57,7 @@ class LeadsController extends Controller
             'email'           => 'nullable|email|max:255',
             'address'         => 'nullable|string',
             'industry'        => 'nullable|string|max:100',
-            'pipeline_stage'  => 'required|in:Identifying,Approaching,Follow Up,Closing,Won,Lost',
+            'pipeline_stage'  => 'nullable|in:Identifying,Approaching,Follow Up,Closing,Won,Lost',
             'temperature'     => 'nullable|in:Hot,Warm,Cold',
             'service_type'    => 'nullable|string|max:100',
             'route'           => 'nullable|string|max:255',
@@ -65,10 +72,13 @@ class LeadsController extends Controller
             'notes_kebutuhan' => 'nullable|string',
         ]);
 
-        $validated['lead_code'] = Lead::generateLeadCode();
+        $validated['lead_code']      = Lead::generateLeadCode();
+        $validated['pipeline_stage'] = $validated['pipeline_stage'] ?? 'Identifying';
+
         if (auth()->user()->isSalesExecutive()) {
             $validated['user_id'] = auth()->id();
         }
+
         $lead = Lead::create($validated);
 
         // Auto-sync ke database customer
@@ -87,6 +97,13 @@ class LeadsController extends Controller
 
     public function update(Request $request, Lead $lead)
     {
+        // Strip format IDR (titik pemisah ribuan) sebelum validasi
+        if ($request->filled('potensi_revenue')) {
+            $request->merge([
+                'potensi_revenue' => str_replace(['.', ','], ['', '.'], $request->potensi_revenue)
+            ]);
+        }
+
         $validated = $request->validate([
             'company_name'    => 'sometimes|string|max:255',
             'pic_name'        => 'sometimes|string|max:255',
@@ -157,7 +174,7 @@ class LeadsController extends Controller
         $stage = $lead->pipeline_stage;
 
         if ($stage === 'Lost') {
-            return; // Lost: tidak dimasukkan ke customer
+            return;
         }
 
         $status = in_array($stage, ['Closing', 'Won']) ? 'Existing' : 'Potential';
@@ -173,21 +190,18 @@ class LeadsController extends Controller
             'status'         => $status,
             'user_id'        => $lead->user_id,
             'customer_since' => $status === 'Existing' ? now()->toDateString() : null,
-            'notes'          => $lead->notes_kebutuhan,
         ];
 
         if ($lead->customer_id) {
-            // Update customer yang sudah ada
             \App\Models\Customer::where('id', $lead->customer_id)->update($customerData);
         } else {
-            // Cari dulu by company_name (hindari duplikat)
             $customer = \App\Models\Customer::where('company_name', $lead->company_name)->first();
             if ($customer) {
                 $customer->update($customerData);
-                $lead->update(['customer_id' => $customer->id]);
+                $lead->updateQuietly(['customer_id' => $customer->id]);
             } else {
                 $customer = \App\Models\Customer::create($customerData);
-                $lead->update(['customer_id' => $customer->id]);
+                $lead->updateQuietly(['customer_id' => $customer->id]);
             }
         }
     }
