@@ -61,6 +61,7 @@
         ['bg'=>'#eff6ff','icon'=>'fas fa-dollar-sign','ico_color'=>'#3b82f6','label'=>'Revenue (Omzet)','value'=>idr($revenue),'sub'=>'Total periode ini'],
         ['bg'=>'#f0fdf4','icon'=>'fas fa-chart-line','ico_color'=>'#10b981','label'=>'Gross Profit','value'=>idr($grossProfit),'sub'=>'Revenue - Biaya Vendor'],
         ['bg'=>'#faf5ff','icon'=>'fas fa-wallet','ico_color'=>'#7c3aed','label'=>'Nett Profit','value'=>idr($nettProfit),'sub'=>'Revenue - Total Biaya'],
+        ['bg'=>'#f0fdfa','icon'=>'fas fa-file-invoice','ico_color'=>'#0d9488','label'=>'Volume DO','value'=>$volumeDo,'sub'=>'DO Done periode ini'],
         ['bg'=>'#fff7ed','icon'=>'fas fa-handshake','ico_color'=>'#f97316','label'=>'Deals Closed','value'=>$dealsClosed,'sub'=>'Won periode ini'],
         ['bg'=>'#fef9c3','icon'=>'fas fa-bullseye','ico_color'=>'#ca8a04','label'=>'Conversion Rate','value'=>$conversionRate.'%','sub'=>'Lead → Won'],
     ];

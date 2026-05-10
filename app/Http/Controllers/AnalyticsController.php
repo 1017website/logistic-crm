@@ -27,6 +27,7 @@ class AnalyticsController extends Controller
         $vendorCost  = (clone $doQuery)->where('status', 'Done')->sum('cost');
         $grossProfit = $revenue - $vendorCost;
         $nettProfit  = $revenue - $totalCost;
+        $volumeDo    = (clone $doQuery)->where('status', 'Done')->count();
 
         $leadsQuery = Lead::query();
         if ($salesId) $leadsQuery->where('user_id', $salesId);
@@ -116,7 +117,7 @@ class AnalyticsController extends Controller
         $salesUsers = User::orderBy('name')->get();
 
         return view('analytics.index', compact(
-            'revenue', 'grossProfit', 'nettProfit', 'dealsClosed', 'conversionRate',
+            'revenue', 'grossProfit', 'nettProfit', 'volumeDo', 'dealsClosed', 'conversionRate',
             'revenueTrend', 'revenueByService', 'revenueByRoute',
             'funnel', 'salesPerformance', 'topCustomers', 'leadSources',
             'recentDeals', 'profitAnalysis', 'salesUsers', 'startDate', 'endDate', 'salesId'
