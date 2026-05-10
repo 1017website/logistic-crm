@@ -21,7 +21,11 @@ class ReportsController extends Controller
         $search     = $request->get('search');
 
         // ── Summary KPI ──
-        $revenue        = DeliveryOrder::whereBetween('order_date', [$startDate, $endDate])->where('currency', 'IDR')->sum('amount');
+        $revenue        = DeliveryOrder::whereBetween('order_date', [$startDate, $endDate])->where('currency', 'IDR')->where('status', 'Done')->sum('amount');
+        $totalCost      = DeliveryOrder::whereBetween('order_date', [$startDate, $endDate])->where('currency', 'IDR')->where('status', 'Done')->selectRaw('SUM(cost + other_cost) as total')->value('total') ?? 0;
+        $vendorCost     = DeliveryOrder::whereBetween('order_date', [$startDate, $endDate])->where('currency', 'IDR')->where('status', 'Done')->sum('cost');
+        $grossProfit    = $revenue - $vendorCost;
+        $nettProfit     = $revenue - $totalCost;
         $totalDeals     = Lead::where('pipeline_stage', 'Won')->whereBetween('updated_at', [$startDate, $endDate])->count();
         $avgDealValue   = $totalDeals > 0 ? $revenue / $totalDeals : 0;
         $totalLeadsP    = Lead::whereBetween('created_at', [$startDate, $endDate])->count();
@@ -82,7 +86,8 @@ class ReportsController extends Controller
         $salesUsers = User::orderBy('name')->get();
 
         return view('reports.index', compact(
-            'reportData', 'revenue', 'totalDeals', 'avgDealValue', 'conversionRate', 'winRate',
+            'reportData', 'revenue', 'grossProfit', 'nettProfit', 'totalDeals',
+            'avgDealValue', 'conversionRate', 'winRate',
             'salesUsers', 'startDate', 'endDate', 'reportType', 'salesId', 'status', 'search'
         ));
     }
@@ -114,10 +119,14 @@ class ReportsController extends Controller
                     break;
 
                 case 'do':
-                    fputcsv($f, ['DO Number', 'Customer', 'Vendor', 'Service Type', 'Route', 'Amount', 'Currency', 'Status', 'Order Date']);
+                    fputcsv($f, ['DO Number', 'Customer', 'Vendor', 'Service Type', 'Route', 'Amount', 'Cost Vendor', 'Other Cost', 'Gross Profit', 'Nett Profit', 'Currency', 'Status', 'Order Date']);
                     $dos = DeliveryOrder::with(['customer', 'vendor'])->whereBetween('order_date', [$startDate, $endDate]);
                     foreach ($dos->get() as $do) {
-                        fputcsv($f, [$do->do_number, $do->customer?->company_name, $do->vendor?->vendor_name, $do->service_type, $do->route, $do->amount, $do->currency, $do->status, $do->order_date]);
+                        fputcsv($f, [
+                            $do->do_number, $do->customer?->company_name, $do->vendor?->vendor_name,
+                            $do->service_type, $do->route, $do->amount, $do->cost, $do->other_cost,
+                            $do->gross_profit, $do->nett_profit, $do->currency, $do->status, $do->order_date,
+                        ]);
                     }
                     break;
 

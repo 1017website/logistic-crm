@@ -22,9 +22,11 @@ class AnalyticsController extends Controller
         $doQuery = DeliveryOrder::whereBetween('order_date', [$startDate, $endDate])->where('currency', 'IDR');
         if ($salesId) $doQuery->whereHas('lead', fn($q) => $q->where('user_id', $salesId));
 
-        $revenue     = (clone $doQuery)->sum('amount');
-        $grossProfit = $revenue * 0.32;
-        $nettProfit  = $revenue * 0.19;
+        $revenue     = (clone $doQuery)->where('status', 'Done')->sum('amount');
+        $totalCost   = (clone $doQuery)->where('status', 'Done')->selectRaw('SUM(cost + other_cost) as total')->value('total') ?? 0;
+        $vendorCost  = (clone $doQuery)->where('status', 'Done')->sum('cost');
+        $grossProfit = $revenue - $vendorCost;
+        $nettProfit  = $revenue - $totalCost;
 
         $leadsQuery = Lead::query();
         if ($salesId) $leadsQuery->where('user_id', $salesId);
@@ -39,7 +41,7 @@ class AnalyticsController extends Controller
             $month = now()->subMonths($i);
             $val   = DeliveryOrder::whereYear('order_date', $month->year)
                 ->whereMonth('order_date', $month->month)
-                ->where('currency', 'IDR')->sum('amount');
+                ->where('currency', 'IDR')->where('status', 'Done')->sum('amount');
             $revenueTrend[] = ['label' => $month->format('M Y'), 'value' => (float)($val / 1000000)];
         }
 
@@ -93,14 +95,21 @@ class AnalyticsController extends Controller
         // ── Profit analysis (6 bulan) ──
         $profitAnalysis = [];
         for ($i = 5; $i >= 0; $i--) {
-            $m   = now()->subMonths($i);
-            $rev = DeliveryOrder::whereYear('order_date', $m->year)
-                ->whereMonth('order_date', $m->month)->where('currency', 'IDR')->sum('amount');
+            $m    = now()->subMonths($i);
+            $rev  = DeliveryOrder::whereYear('order_date', $m->year)
+                ->whereMonth('order_date', $m->month)->where('currency', 'IDR')
+                ->where('status', 'Done')->sum('amount');
+            $cogs = DeliveryOrder::whereYear('order_date', $m->year)
+                ->whereMonth('order_date', $m->month)->where('currency', 'IDR')
+                ->where('status', 'Done')->selectRaw('SUM(cost) as vendor, SUM(cost + other_cost) as total')->first();
+            $grossP = $rev - ($cogs->vendor ?? 0);
+            $nettP  = $rev - ($cogs->total  ?? 0);
             $profitAnalysis[] = [
-                'label'   => $m->format('M'),
-                'revenue' => (float)($rev / 1000000),
-                'cost'    => (float)($rev * 0.68 / 1000000),
-                'profit'  => (float)($rev * 0.32 / 1000000),
+                'label'        => $m->format('M'),
+                'revenue'      => round($rev / 1000000, 2),
+                'cost'         => round(($cogs->total ?? 0) / 1000000, 2),
+                'gross_profit' => round($grossP / 1000000, 2),
+                'profit'       => round($nettP  / 1000000, 2),
             ];
         }
 

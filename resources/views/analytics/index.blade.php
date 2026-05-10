@@ -59,8 +59,8 @@
     @php
     $kpis = [
         ['bg'=>'#eff6ff','icon'=>'fas fa-dollar-sign','ico_color'=>'#3b82f6','label'=>'Revenue (Omzet)','value'=>idr($revenue),'sub'=>'Total periode ini'],
-        ['bg'=>'#f0fdf4','icon'=>'fas fa-chart-line','ico_color'=>'#10b981','label'=>'Gross Profit (32%)','value'=>idr($grossProfit),'sub'=>'Estimasi'],
-        ['bg'=>'#faf5ff','icon'=>'fas fa-wallet','ico_color'=>'#7c3aed','label'=>'Nett Profit (19%)','value'=>idr($nettProfit),'sub'=>'Estimasi'],
+        ['bg'=>'#f0fdf4','icon'=>'fas fa-chart-line','ico_color'=>'#10b981','label'=>'Gross Profit','value'=>idr($grossProfit),'sub'=>'Revenue - Biaya Vendor'],
+        ['bg'=>'#faf5ff','icon'=>'fas fa-wallet','ico_color'=>'#7c3aed','label'=>'Nett Profit','value'=>idr($nettProfit),'sub'=>'Revenue - Total Biaya'],
         ['bg'=>'#fff7ed','icon'=>'fas fa-handshake','ico_color'=>'#f97316','label'=>'Deals Closed','value'=>$dealsClosed,'sub'=>'Won periode ini'],
         ['bg'=>'#fef9c3','icon'=>'fas fa-bullseye','ico_color'=>'#ca8a04','label'=>'Conversion Rate','value'=>$conversionRate.'%','sub'=>'Lead → Won'],
     ];
@@ -158,7 +158,9 @@
             </div>
             @if($revenueByService->count())
             <div class="d-flex align-items-center gap-3">
-                <canvas id="serviceDonutChart" width="110" height="110" style="max-width:110px;flex-shrink:0"></canvas>
+                <div style="width:120px;height:120px;flex-shrink:0;position:relative">
+                <canvas id="serviceDonutChart" style="width:100%;height:100%"></canvas>
+                </div>
                 <div style="flex:1">
                     @php $totalSvc = $revenueByService->sum('total'); $svcColors = ['#3b82f6','#10b981','#f59e0b','#f97316','#8b5cf6','#ec4899']; @endphp
                     @foreach($revenueByService as $idx => $svc)
@@ -256,7 +258,9 @@
             <div class="chart-title mb-3">Lead Source Performance</div>
             @if($leadSources->count())
             <div class="d-flex align-items-center gap-3">
-                <canvas id="leadSourceChart" width="110" height="110" style="max-width:110px;flex-shrink:0"></canvas>
+                <div style="width:120px;height:120px;flex-shrink:0;position:relative">
+                <canvas id="leadSourceChart" style="width:100%;height:100%"></canvas>
+                </div>
                 <div style="flex:1">
                     @php $totalSrc = $leadSources->sum('count'); $srcColors=['#3b82f6','#10b981','#f59e0b','#f97316','#8b5cf6','#9ca3af']; @endphp
                     @foreach($leadSources as $idx => $src)
@@ -324,6 +328,7 @@ $srcValues = $leadSources->pluck('count')->toArray();
 $profitLabels   = array_column($profitAnalysis, 'label');
 $profitRevenue  = array_column($profitAnalysis, 'revenue');
 $profitCost     = array_column($profitAnalysis, 'cost');
+$profitGross    = array_column($profitAnalysis, 'gross_profit');
 $profitNet      = array_column($profitAnalysis, 'profit');
 @endphp
 
@@ -354,7 +359,7 @@ new Chart(document.getElementById('revenueTrendChart'), {
 new Chart(document.getElementById('serviceDonutChart'), {
     type: 'doughnut',
     data: { labels: {!! json_encode($svcLabels) !!}, datasets: [{ data: {!! json_encode($svcValues) !!}, backgroundColor: svcColors, borderWidth: 0, hoverOffset: 4 }] },
-    options: { cutout: '65%', plugins: { legend: { display: false } } }
+    options: { cutout: '65%', maintainAspectRatio: false, plugins: { legend: { display: false } } }
 });
 @endif
 
@@ -363,7 +368,11 @@ new Chart(document.getElementById('serviceDonutChart'), {
 new Chart(document.getElementById('leadSourceChart'), {
     type: 'doughnut',
     data: { labels: {!! json_encode($srcLabels) !!}, datasets: [{ data: {!! json_encode($srcValues) !!}, backgroundColor: srcColors, borderWidth: 0, hoverOffset: 4 }] },
-    options: { cutout: '60%', plugins: { legend: { display: false } } }
+    options: {
+        cutout: '60%',
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } }
+    }
 });
 @endif
 
@@ -374,8 +383,9 @@ new Chart(document.getElementById('profitChart'), {
         labels: {!! json_encode($profitLabels) !!},
         datasets: [
             { label: 'Revenue', data: {!! json_encode($profitRevenue) !!}, backgroundColor: '#3b82f6', borderRadius: 3, barPercentage: .5 },
-            { label: 'Cost', data: {!! json_encode($profitCost) !!}, backgroundColor: '#fca5a5', borderRadius: 3, barPercentage: .5 },
-            { label: 'Profit', data: {!! json_encode($profitNet) !!}, type: 'line', borderColor: '#10b981', backgroundColor: 'transparent', tension: .4, borderWidth: 2, pointRadius: 3 }
+            { label: 'Total Cost', data: {!! json_encode($profitCost) !!}, backgroundColor: '#fca5a5', borderRadius: 3, barPercentage: .5 },
+            { label: 'Gross Profit', data: {!! json_encode($profitGross) !!}, type: 'line', borderColor: '#10b981', backgroundColor: 'transparent', tension: .4, borderWidth: 2, pointRadius: 3 },
+            { label: 'Nett Profit', data: {!! json_encode($profitNet) !!}, type: 'line', borderColor: '#7c3aed', backgroundColor: 'transparent', tension: .4, borderWidth: 2, pointRadius: 3, borderDash: [4,3] }
         ]
     },
     options: {

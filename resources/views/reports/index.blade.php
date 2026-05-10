@@ -105,7 +105,8 @@
 <div class="row g-3 mb-4">
     @foreach([
         ['bg'=>'#eff6ff','icon'=>'fas fa-chart-bar','color'=>'#3b82f6','label'=>'Total Revenue','value'=>idr($revenue)],
-        ['bg'=>'#f0fdf4','icon'=>'fas fa-handshake','color'=>'#10b981','label'=>'Total Deals Won','value'=>$totalDeals],
+        ['bg'=>'#f0fdf4','icon'=>'fas fa-chart-line','color'=>'#10b981','label'=>'Gross Profit','value'=>idr($grossProfit ?? 0)],
+        ['bg'=>'#faf5ff','icon'=>'fas fa-wallet','color'=>'#7c3aed','label'=>'Nett Profit','value'=>idr($nettProfit ?? 0)],
         ['bg'=>'#fff7ed','icon'=>'fas fa-coins','color'=>'#f97316','label'=>'Avg Deal Value','value'=>idr($avgDealValue)],
         ['bg'=>'#faf5ff','icon'=>'fas fa-bullseye','color'=>'#7c3aed','label'=>'Conversion Rate','value'=>$conversionRate.'%'],
         ['bg'=>'#fef9c3','icon'=>'fas fa-trophy','color'=>'#ca8a04','label'=>'Win Rate','value'=>$winRate.'%'],
@@ -278,7 +279,7 @@
         <table class="table report-table mb-0">
             <thead><tr>
                 <th>No</th><th>No. DO</th><th>Customer</th><th>Vendor</th>
-                <th>Service Type</th><th>Route</th><th>Amount</th><th>Currency</th><th>Status</th><th>Tgl Order</th>
+                <th>Service Type</th><th>Route</th><th>Revenue</th><th>Cost Vendor</th><th>Gross Profit</th><th>Nett Profit</th><th>Status</th><th>Tgl Order</th>
             </tr></thead>
             <tbody>
                 @forelse($reportData as $i => $do)
@@ -290,6 +291,9 @@
                     <td style="font-size:12px">{{ $do->service_type }}</td>
                     <td style="font-size:12px">{{ $do->route }}</td>
                     <td style="font-size:12px;font-weight:600;color:var(--primary)">{{ idrm($do->amount) }}</td>
+                    <td style="font-size:12px;color:#dc2626">{{ idrm($do->cost) }}</td>
+                    <td style="font-size:12px;font-weight:600;color:#10b981">{{ idrm($do->gross_profit) }}</td>
+                    <td style="font-size:12px;font-weight:600;color:#7c3aed">{{ idrm($do->nett_profit) }}</td>
                     <td style="font-size:12px">{{ $do->currency }}</td>
                     <td>
                         @php $sc=['Done'=>'badge-won','In Progress'=>'badge-follow-up','Pending'=>'badge-approaching','Cancelled'=>'badge-lost']; @endphp
