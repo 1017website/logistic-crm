@@ -20,7 +20,7 @@ class TaskReminderController extends Controller
         if ($salesId) $query->where('user_id', $salesId);
         if ($type)    $query->where('type', $type);
 
-        match($filter) {
+        match ($filter) {
             'today'    => $query->whereDate('activity_at', today()),
             'overdue'  => $query->where('activity_at', '<', now())->where('status', '!=', 'Done'),
             'upcoming' => $query->where('activity_at', '>=', now())->where('activity_at', '<=', now()->addDays(7)),
@@ -38,8 +38,14 @@ class TaskReminderController extends Controller
         $salesUsers = User::orderBy('name')->get();
 
         return view('tasks.index', compact(
-            'tasks', 'filter', 'salesId', 'type',
-            'totalToday', 'totalOverdue', 'totalUpcoming', 'totalDone',
+            'tasks',
+            'filter',
+            'salesId',
+            'type',
+            'totalToday',
+            'totalOverdue',
+            'totalUpcoming',
+            'totalDone',
             'salesUsers'
         ));
     }
@@ -49,7 +55,7 @@ class TaskReminderController extends Controller
         $validated = $request->validate([
             'lead_id'        => 'nullable|exists:leads,id',
             'customer_id'    => 'nullable|exists:customers,id',
-            'user_id'  => 'required|exists:sales_users,id',
+            'user_id'  => 'required|exists:users,id',
             'type'           => 'required|in:Call,Visit,Email,Note,Task',
             'subject'        => 'required|string|max:255',
             'description'    => 'nullable|string',

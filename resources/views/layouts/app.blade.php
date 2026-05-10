@@ -1220,6 +1220,9 @@
             <a href="{{ route('vendors.index') }}" class="sidebar-item {{ request()->routeIs('vendors.*') ? 'active' : '' }}">
                 <i class="fas fa-handshake si-icon"></i><span>Database Vendor</span>
             </a>
+            <a href="{{ route('delivery-orders.index') }}" class="sidebar-item {{ request()->routeIs('delivery-orders.*') ? 'active' : '' }}">
+                <i class="fas fa-file-invoice si-icon"></i><span>Delivery Orders</span>
+            </a>
 
             <div class="sidebar-section">Analytics</div>
             @if(auth()->user()->canAccess('analytics'))
@@ -1680,8 +1683,8 @@
                     minimumResultsForSearch: 0,
                     dropdownParent: $(this).closest('.modal').length ? $(this).closest('.modal') : $('body'),
                     language: {
-                        noResults: () => '<span style="font-size:13px;color:#9ca3af">Tidak ada hasil</span>',
-                        searching: () => '<span style="font-size:13px;color:#9ca3af">Mencari...</span>',
+                        noResults: () => $('<span style="font-size:13px;color:#9ca3af">Tidak ada hasil</span>'),
+                        searching: () => $('<span style="font-size:13px;color:#9ca3af">Mencari...</span>'),
                     }
                 });
             });

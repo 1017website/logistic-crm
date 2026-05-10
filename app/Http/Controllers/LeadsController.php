@@ -221,7 +221,7 @@ class LeadsController extends Controller
             'description'    => 'nullable|string',
             'activity_at'    => 'required|date',
             'status'         => 'required|in:Planned,Pending,Done,Overdue',
-            'user_id'  => 'required|exists:sales_users,id',
+            'user_id'  => 'required|exists:users,id',
             'next_follow_up' => 'nullable|date',
         ]);
 

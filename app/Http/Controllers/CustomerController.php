@@ -23,8 +23,8 @@ class CustomerController extends Controller
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('company_name', 'like', "%$search%")
-                  ->orWhere('pic_name', 'like', "%$search%")
-                  ->orWhere('phone', 'like', "%$search%");
+                    ->orWhere('pic_name', 'like', "%$search%")
+                    ->orWhere('phone', 'like', "%$search%");
             });
         }
 
@@ -36,12 +36,21 @@ class CustomerController extends Controller
         $salesUsers        = User::orderBy('name')->get();
 
         $selectedCustomer = $request->get('selected_id')
-            ? Customer::with(['salesUser','deliveryOrders','activities.salesUser','leads'])->find($request->get('selected_id'))
+            ? Customer::with(['salesUser', 'deliveryOrders', 'activities.salesUser', 'leads'])->find($request->get('selected_id'))
             : null;
 
         return view('customers.index', compact(
-            'customers','totalCustomer','potentialCustomer','existingCustomer',
-            'industries','salesUsers','selectedCustomer','status','industry','search','salesId'
+            'customers',
+            'totalCustomer',
+            'potentialCustomer',
+            'existingCustomer',
+            'industries',
+            'salesUsers',
+            'selectedCustomer',
+            'status',
+            'industry',
+            'search',
+            'salesId'
         ));
     }
 
@@ -57,7 +66,7 @@ class CustomerController extends Controller
             'location'       => 'nullable|string|max:255',
             'address'        => 'nullable|string',
             'status'         => 'required|in:Existing,Potential',
-            'user_id'  => 'required|exists:sales_users,id',
+            'user_id'  => 'required|exists:users,id',
             'customer_since' => 'nullable|date',
             'notes'          => 'nullable|string',
         ]);
@@ -80,7 +89,7 @@ class CustomerController extends Controller
             'location'       => 'nullable|string|max:255',
             'address'        => 'nullable|string',
             'status'         => 'sometimes|in:Existing,Potential',
-            'user_id'  => 'sometimes|exists:sales_users,id',
+            'user_id'  => 'sometimes|exists:users,id',
             'customer_since' => 'nullable|date',
             'notes'          => 'nullable|string',
         ]);
@@ -104,12 +113,18 @@ class CustomerController extends Controller
         $callback = function () use ($customers) {
             $f = fopen('php://output', 'w');
             fputs($f, "\xEF\xBB\xBF");
-            fputcsv($f, ['Company Name','PIC Name','Position','Phone','Email','Industry','Location','Status','Sales PIC','Customer Since']);
+            fputcsv($f, ['Company Name', 'PIC Name', 'Position', 'Phone', 'Email', 'Industry', 'Location', 'Status', 'Sales PIC', 'Customer Since']);
             foreach ($customers as $c) {
                 fputcsv($f, [
-                    $c->company_name, $c->pic_name, $c->pic_position,
-                    $c->phone, $c->email, $c->industry, $c->location,
-                    $c->status, $c->salesUser?->name,
+                    $c->company_name,
+                    $c->pic_name,
+                    $c->pic_position,
+                    $c->phone,
+                    $c->email,
+                    $c->industry,
+                    $c->location,
+                    $c->status,
+                    $c->salesUser?->name,
                     $c->customer_since?->format('Y-m-d'),
                 ]);
             }
@@ -136,7 +151,7 @@ class CustomerController extends Controller
                 'email'          => trim($row[4] ?? ''),
                 'industry'       => trim($row[5] ?? ''),
                 'location'       => trim($row[6] ?? ''),
-                'status'         => in_array(trim($row[7] ?? ''), ['Existing','Potential']) ? trim($row[7]) : 'Potential',
+                'status'         => in_array(trim($row[7] ?? ''), ['Existing', 'Potential']) ? trim($row[7]) : 'Potential',
                 'user_id'  => $salesUser?->id,
                 'customer_since' => !empty($row[9]) ? $row[9] : null,
             ]);
@@ -155,7 +170,7 @@ class CustomerController extends Controller
             'description'   => 'nullable|string',
             'activity_at'   => 'required|date',
             'status'        => 'required|in:Planned,Pending,Done,Overdue',
-            'user_id' => 'required|exists:sales_users,id',
+            'user_id' => 'required|exists:users,id',
         ]);
         $validated['customer_id'] = $customer->id;
         if (auth()->user()->isSalesExecutive()) {
@@ -165,4 +180,3 @@ class CustomerController extends Controller
         return redirect()->back()->with('success', 'Activity ditambahkan.');
     }
 }
-

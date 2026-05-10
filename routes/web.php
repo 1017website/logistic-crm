@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\DeliveryOrderController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SalesActivityController;
@@ -78,6 +79,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/vendors/export', [VendorController::class, 'export'])->name('vendors.export');
     Route::post('/vendors/{vendor}/rates', [VendorController::class, 'storeRate'])->name('vendors.rates.store');
     Route::resource('vendors', VendorController::class);
+
+    // Delivery Orders
+    Route::get('/delivery-orders/export', [DeliveryOrderController::class, 'export'])->name('delivery-orders.export');
+    Route::resource('delivery-orders', DeliveryOrderController::class)->only(['index', 'store', 'update', 'destroy']);
 
     // ── Manager & Admin only ───────────────────────
     Route::middleware('role:Admin,Sales Manager')->group(function () {
