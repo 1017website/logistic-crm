@@ -9,7 +9,7 @@ class Activity extends Model
 {
     protected $fillable = [
         'lead_id','customer_id','user_id','sales_user_id','type','subject',
-        'description','activity_at','status','next_follow_up'
+        'description','activity_at','status','next_follow_up','photo'
     ];
 
     protected $casts = [
