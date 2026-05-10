@@ -17,7 +17,7 @@
                 </a>
             </div>
             <div class="d-flex gap-3">
-                @foreach([[$totalVendor,'Total','#111'],[$activeVendor,'Active','#059669'],[$nonActiveVendor,'Non-Active','#dc2626'],[$preferredVendor,'Preferred','#d97706']] as $s)
+                @foreach([[$totalVendor,'Total','#111'],[$existingVendor,'Existing','#059669'],[$potentialVendor,'Potential','#2563eb'],[$preferredVendor,'Preferred','#d97706'],[$nonActiveVendor,'Non-Active','#dc2626']] as $s)
                 <div class="text-center {{ !$loop->first ? 'ps-3' : '' }}" style="{{ !$loop->first ? 'border-left:1px solid var(--border-color)' : '' }}">
                     <div style="font-size:1.2rem;font-weight:800;color:{{ $s[2] }}">{{ $s[0] }}</div>
                     <div style="font-size:.68rem;color:var(--text-muted)">{{ $s[1] }}</div>
@@ -35,6 +35,13 @@
                             @foreach(['Shipping Line','Trucking','Air Freight','EMKL','Others'] as $t)
                             <option value="{{ $t }}" @selected($type==$t)>{{ $t }}</option>
                             @endforeach
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <select name="relationship_status" class="form-select form-select-sm">
+                            <option value="all">All Relationship</option>
+                            <option value="Existing" @selected($relationshipStatus=='Existing')>Existing</option>
+                            <option value="Potential" @selected($relationshipStatus=='Potential')>Potential</option>
                         </select>
                     </div>
                     <div class="col-auto">
@@ -91,14 +98,16 @@
                                     <div style="width:{{ $ot }}%;height:4px;border-radius:3px;background:{{ $ot>=90?'#10b981':($ot>=70?'#f59e0b':'#ef4444') }}"></div>
                                 </div>
                             </td>
-                            <td><span class="{{ $v->status==='Active'?'badge-existing':'badge-overdue' }}">{{ $v->status }}</span></td>
+                            <td><span class="{{ $v->status==='Active'?'badge-existing':'badge-overdue' }}">{{ $v->status }}</span>
+                                <div class="mt-1"><span style="font-size:.65rem;padding:2px 7px;border-radius:20px;font-weight:600;background:{{ $v->relationship_status==='Existing'?'#d1fae5':'#dbeafe' }};color:{{ $v->relationship_status==='Existing'?'#059669':'#1d4ed8' }}">{{ $v->relationship_status }}</span></div>
+                            </td>
                             <td>
                                 <div class="d-flex gap-1">
                                     <a href="{{ route('vendors.index', array_merge(request()->query(), ['selected_id'=>$v->id])) }}" class="btn btn-sm btn-outline-primary" style="padding:3px 7px">
                                         <i class="fas fa-eye" style="font-size:.7rem"></i>
                                     </a>
                                     <button class="btn btn-sm btn-outline-secondary" style="padding:3px 7px"
-                                        onclick="openEditVendor({{ $v->id }},'{{ addslashes($v->vendor_name) }}','{{ $v->vendor_type }}','{{ addslashes($v->pic_name) }}','{{ $v->phone }}','{{ $v->email }}','{{ $v->coverage_area }}','{{ $v->status }}','{{ $v->is_preferred?1:0 }}','{{ $v->rating }}')">
+                                        onclick="openEditVendor({{ $v->id }},'{{ addslashes($v->vendor_name) }}','{{ $v->vendor_type }}','{{ addslashes($v->pic_name) }}','{{ $v->phone }}','{{ $v->email }}','{{ $v->coverage_area }}','{{ $v->status }}','{{ $v->relationship_status }}','{{ $v->is_preferred?1:0 }}','{{ $v->rating }}')">
                                         <i class="fas fa-edit" style="font-size:.7rem"></i>
                                     </button>
                                     <form method="POST" action="{{ route('vendors.destroy',$v) }}" class="d-inline" onsubmit="return confirm('Hapus {{ addslashes($v->vendor_name) }}?')">
@@ -136,6 +145,7 @@
                         <div class="d-flex gap-1 mt-1 flex-wrap">
                             @if($selectedVendor->is_preferred)<span style="background:#fef3c7;color:#b45309;font-size:.65rem;padding:2px 7px;border-radius:20px;font-weight:600">⭐ Preferred</span>@endif
                             <span class="{{ $selectedVendor->status==='Active'?'badge-existing':'badge-overdue' }}">{{ $selectedVendor->status }}</span>
+                            <span style="font-size:.65rem;padding:2px 7px;border-radius:20px;font-weight:600;background:{{ $selectedVendor->relationship_status==='Existing'?'#d1fae5':'#dbeafe' }};color:{{ $selectedVendor->relationship_status==='Existing'?'#059669':'#1d4ed8' }}">{{ $selectedVendor->relationship_status }}</span>
                         </div>
                     </div>
                 </div>
@@ -186,7 +196,7 @@
                 </div>
                 <div class="d-flex gap-2 mt-3">
                     <button class="btn btn-sm btn-outline-secondary flex-fill" style="font-size:.75rem"
-                        onclick="openEditVendor({{ $selectedVendor->id }},'{{ addslashes($selectedVendor->vendor_name) }}','{{ $selectedVendor->vendor_type }}','{{ addslashes($selectedVendor->pic_name) }}','{{ $selectedVendor->phone }}','{{ $selectedVendor->email }}','{{ $selectedVendor->coverage_area }}','{{ $selectedVendor->status }}','{{ $selectedVendor->is_preferred?1:0 }}','{{ $selectedVendor->rating }}')">
+                        onclick="openEditVendor({{ $selectedVendor->id }},'{{ addslashes($selectedVendor->vendor_name) }}','{{ $selectedVendor->vendor_type }}','{{ addslashes($selectedVendor->pic_name) }}','{{ $selectedVendor->phone }}','{{ $selectedVendor->email }}','{{ $selectedVendor->coverage_area }}','{{ $selectedVendor->status }}','{{ $selectedVendor->relationship_status }}','{{ $selectedVendor->is_preferred?1:0 }}','{{ $selectedVendor->rating }}')">
                         <i class="fas fa-edit me-1"></i> Edit
                     </button>
                     <form method="POST" action="{{ route('vendors.destroy',$selectedVendor) }}" class="flex-fill" onsubmit="return confirm('Hapus vendor ini?')">
@@ -292,6 +302,8 @@
                 <div class="col-md-4"><label class="form-label">Payment Term</label><input type="text" name="payment_term" class="form-control" placeholder="NET 30"></div>
                 <div class="col-md-4"><label class="form-label">Status</label>
                     <select name="status" class="form-select"><option value="Active">Active</option><option value="Non-Active">Non-Active</option></select></div>
+                <div class="col-md-4"><label class="form-label">Relationship</label>
+                    <select name="relationship_status" class="form-select"><option value="Potential">Potential</option><option value="Existing">Existing</option></select></div>
                 <div class="col-md-4"><label class="form-label">Rating (0-5)</label><input type="number" name="rating" class="form-control" min="0" max="5" step="0.1"></div>
                 <div class="col-12"><label class="form-label">Alamat</label><textarea name="address" class="form-control" rows="2"></textarea></div>
                 <div class="col-12"><div class="form-check">
@@ -318,6 +330,8 @@
                 <div class="col-md-6"><label class="form-label">Coverage Area</label><input type="text" name="coverage_area" id="evCoverage" class="form-control"></div>
                 <div class="col-md-4"><label class="form-label">Status</label>
                     <select name="status" id="evStatus" class="form-select"><option value="Active">Active</option><option value="Non-Active">Non-Active</option></select></div>
+                <div class="col-md-4"><label class="form-label">Relationship</label>
+                    <select name="relationship_status" id="evRelationship" class="form-select"><option value="Potential">Potential</option><option value="Existing">Existing</option></select></div>
                 <div class="col-md-4"><label class="form-label">Rating</label><input type="number" name="rating" id="evRating" class="form-control" min="0" max="5" step="0.1"></div>
                 <div class="col-md-4 d-flex align-items-end pb-1"><div class="form-check">
                     <input class="form-check-input" type="checkbox" name="is_preferred" id="evPreferred" value="1">
@@ -374,7 +388,7 @@ function showVTab(tab, el) {
         if(d) d.style.display = t===tab?'block':'none';
     });
 }
-function openEditVendor(id,name,type,pic,phone,email,coverage,status,preferred,rating) {
+function openEditVendor(id,name,type,pic,phone,email,coverage,status,relationship,preferred,rating) {
     document.getElementById('editVendorForm').action = `/vendors/${id}`;
     document.getElementById('evName').value = name;
     document.getElementById('evType').value = type;
@@ -383,6 +397,7 @@ function openEditVendor(id,name,type,pic,phone,email,coverage,status,preferred,r
     document.getElementById('evEmail').value = email;
     document.getElementById('evCoverage').value = coverage;
     document.getElementById('evStatus').value = status;
+    document.getElementById('evRelationship').value = relationship;
     document.getElementById('evPreferred').checked = preferred=='1';
     document.getElementById('evRating').value = rating;
     new bootstrap.Modal(document.getElementById('editVendorModal')).show();

@@ -201,7 +201,7 @@
             <div class="card-body p-3">
                 @foreach($pipelineSummary as $stage => $data)
                 @php
-                $colors = ['Identifying'=>'#2563eb','Approaching'=>'#d97706','Follow Up'=>'#7c3aed','Closing'=>'#059669'];
+                $colors = ['Identifying'=>'#2563eb','Approaching'=>'#d97706','Follow Up'=>'#7c3aed','Closing'=>'#059669','Maintaining'=>'#6366f1'];
                 @endphp
                 <div class="d-flex align-items-center justify-content-between py-2" style="border-bottom:1px solid #f3f4f6">
                     <span style="font-size:.8rem;color:{{ $colors[$stage] ?? '#333' }};font-weight:600">{{ $stage }}</span>
@@ -233,7 +233,7 @@
                 <div class="mb-3">
                     <label class="form-label" style="font-size:.78rem">Pipeline Stage</label>
                     <select id="stageSelect" class="form-select form-select-sm">
-                        @foreach(['Identifying','Approaching','Follow Up','Closing','Won'] as $s)
+                        @foreach(['Identifying','Approaching','Follow Up','Closing','Won','Maintaining'] as $s)
                         <option value="{{ $s }}">{{ $s }}</option>
                         @endforeach
                     </select>
@@ -272,7 +272,7 @@
                     <div class="mb-3" id="stageWrap" style="display:none">
                         <label class="form-label">Update Pipeline Stage</label>
                         <select name="pipeline_stage" class="form-select" id="actStageSelect">
-                            @foreach(['Identifying','Approaching','Follow Up','Closing','Won','Lost'] as $s)
+                            @foreach(['Identifying','Approaching','Follow Up','Closing','Won','Lost','Maintaining'] as $s)
                             <option value="{{ $s }}">{{ $s }}</option>
                             @endforeach
                         </select>

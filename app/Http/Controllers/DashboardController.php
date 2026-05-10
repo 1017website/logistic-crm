@@ -49,6 +49,7 @@ class DashboardController extends Controller
             'Approaching' => Lead::where('pipeline_stage','Approaching')->get(),
             'Follow Up'   => Lead::where('pipeline_stage','Follow Up')->get(),
             'Closing'     => Lead::where('pipeline_stage','Closing')->get(),
+            'Maintaining' => Lead::where('pipeline_stage','Maintaining')->get(),
         ];
 
         // ── Today reminders ──

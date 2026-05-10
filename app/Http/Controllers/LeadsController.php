@@ -57,7 +57,7 @@ class LeadsController extends Controller
             'email'           => 'nullable|email|max:255',
             'address'         => 'nullable|string',
             'industry'        => 'nullable|string|max:100',
-            'pipeline_stage'  => 'nullable|in:Identifying,Approaching,Follow Up,Closing,Won,Lost',
+            'pipeline_stage'  => 'nullable|in:Identifying,Approaching,Follow Up,Closing,Won,Lost,Maintaining',
             'temperature'     => 'nullable|in:Hot,Warm,Cold',
             'service_type'    => 'nullable|string|max:100',
             'route'           => 'nullable|string|max:255',
@@ -112,7 +112,7 @@ class LeadsController extends Controller
             'email'           => 'nullable|email|max:255',
             'address'         => 'nullable|string',
             'industry'        => 'nullable|string|max:100',
-            'pipeline_stage'  => 'sometimes|in:Identifying,Approaching,Follow Up,Closing,Won,Lost',
+            'pipeline_stage'  => 'sometimes|in:Identifying,Approaching,Follow Up,Closing,Won,Lost,Maintaining',
             'temperature'     => 'nullable|in:Hot,Warm,Cold',
             'service_type'    => 'nullable|string|max:100',
             'route'           => 'nullable|string|max:255',
@@ -177,7 +177,7 @@ class LeadsController extends Controller
             return;
         }
 
-        $status = in_array($stage, ['Closing', 'Won']) ? 'Existing' : 'Potential';
+        $status = in_array($stage, ['Closing', 'Won', 'Maintaining']) ? 'Existing' : 'Potential';
 
         $customerData = [
             'company_name'   => $lead->company_name,
@@ -315,7 +315,7 @@ class LeadsController extends Controller
                     'pic_name'       => trim($row[2] ?? ''),
                     'phone'          => trim($row[3] ?? ''),
                     'email'          => trim($row[4] ?? ''),
-                    'pipeline_stage' => in_array(trim($row[5] ?? ''), ['Identifying', 'Approaching', 'Follow Up', 'Closing', 'Won', 'Lost']) ? trim($row[5]) : 'Identifying',
+                    'pipeline_stage' => in_array(trim($row[5] ?? ''), ['Identifying', 'Approaching', 'Follow Up', 'Closing', 'Won', 'Lost', 'Maintaining']) ? trim($row[5]) : 'Identifying',
                     'temperature'    => in_array(trim($row[6] ?? ''), ['Hot', 'Warm', 'Cold']) ? trim($row[6]) : 'Cold',
                     'service_type'   => trim($row[7] ?? ''),
                     'route'          => trim($row[8] ?? ''),

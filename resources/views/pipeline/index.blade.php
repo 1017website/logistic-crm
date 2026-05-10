@@ -86,6 +86,7 @@
             'Follow Up' => ['slug'=>'follow-up','num'=>'03','desc'=>'Follow up & penawaran'],
             'Closing' => ['slug'=>'closing','num'=>'04','desc'=>'Negosiasi / Closing'],
             'Won' => ['slug'=>'won','num'=>'05','desc'=>'Deal berhasil'],
+            'Maintaining' => ['slug'=>'maintaining','num'=>'06','desc'=>'Mempertahankan pelanggan'],
             ];
             @endphp
             @foreach($pipeline as $stageName => $leads)
@@ -160,7 +161,7 @@
                 <canvas id="pipelinePie" height="150"></canvas>
                 <div class="mt-3">
                     @foreach($pipeline as $sn => $leads)
-                    @php $colors = ['Identifying'=>'#3b82f6','Approaching'=>'#10b981','Follow Up'=>'#f59e0b','Closing'=>'#ef4444','Won'=>'#8b5cf6']; @endphp
+                    @php $colors = ['Identifying'=>'#3b82f6','Approaching'=>'#10b981','Follow Up'=>'#f59e0b','Closing'=>'#ef4444','Won'=>'#8b5cf6','Maintaining'=>'#6366f1']; @endphp
                     <div class="d-flex align-items-center justify-content-between py-1" style="border-bottom:1px solid #f9fafb">
                         <div class="d-flex align-items-center gap-2">
                             <div style="width:8px;height:8px;border-radius:2px;background:{{ $colors[$sn] ?? '#999' }}"></div>
@@ -250,7 +251,7 @@
                         <div class="col-md-6">
                             <label class="form-label">Pipeline Stage <span class="text-danger">*</span></label>
                             <select name="pipeline_stage" class="form-select" id="modalPipelineStage">
-                                @foreach(['Identifying','Approaching','Follow Up','Closing'] as $s)
+                                @foreach(['Identifying','Approaching','Follow Up','Closing','Maintaining'] as $s)
                                 <option value="{{ $s }}">{{ $s }}</option>
                                 @endforeach
                             </select>

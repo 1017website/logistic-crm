@@ -8,10 +8,24 @@ class Vendor extends Model
 {
     protected $fillable = [
         'vendor_name','pic_name','pic_position','phone','email','address',
-        'vendor_type','service_type','coverage_area','status','is_preferred',
-        'rating','payment_term','vendor_since','logo'
+        'vendor_type','service_type','coverage_area','status','relationship_status',
+        'is_preferred','rating','payment_term','vendor_since','logo'
     ];
     protected $casts = ['vendor_since' => 'date', 'is_preferred' => 'boolean'];
+
+    public function isExisting(): bool  { return $this->relationship_status === 'Existing'; }
+    public function isPotential(): bool { return $this->relationship_status === 'Potential'; }
+
+    /**
+     * Auto-upgrade ke Existing jika sudah ada DO yang selesai.
+     */
+    public function syncRelationshipStatus(): void
+    {
+        $hasDone = $this->deliveryOrders()->where('status', 'Done')->exists();
+        if ($hasDone && $this->relationship_status !== 'Existing') {
+            $this->updateQuietly(['relationship_status' => 'Existing']);
+        }
+    }
 
     public function deliveryOrders(): HasMany { return $this->hasMany(DeliveryOrder::class); }
     public function rates(): HasMany { return $this->hasMany(VendorRate::class); }

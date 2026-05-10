@@ -10,7 +10,7 @@ class PipelineController extends Controller
 {
     public function index(Request $request)
     {
-        $stages   = ['Identifying', 'Approaching', 'Follow Up', 'Closing', 'Won'];
+        $stages   = ['Identifying', 'Approaching', 'Follow Up', 'Closing', 'Won', 'Maintaining'];
         $pipeline = [];
         foreach ($stages as $stage) {
             $pipeline[$stage] = Lead::where('pipeline_stage', $stage)

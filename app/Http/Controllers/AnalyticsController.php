@@ -56,7 +56,7 @@ class AnalyticsController extends Controller
             ->groupBy('route')->orderByDesc('total')->limit(5)->get();
 
         // ── Pipeline funnel ──
-        $funnel = collect(['Identifying','Approaching','Follow Up','Closing','Won'])
+        $funnel = collect(['Identifying','Approaching','Follow Up','Closing','Won','Maintaining'])
             ->mapWithKeys(fn($s) => [$s => (clone $leadsQuery)->where('pipeline_stage', $s)->count()]);
 
         // ── Sales performance ──

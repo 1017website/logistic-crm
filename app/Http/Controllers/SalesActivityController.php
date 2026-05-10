@@ -49,6 +49,7 @@ class SalesActivityController extends Controller
             'Approaching' => ['count' => Lead::where('pipeline_stage', 'Approaching')->count(), 'value' => Lead::where('pipeline_stage', 'Approaching')->sum('potensi_revenue')],
             'Follow Up'   => ['count' => Lead::where('pipeline_stage', 'Follow Up')->count(), 'value' => Lead::where('pipeline_stage', 'Follow Up')->sum('potensi_revenue')],
             'Closing'     => ['count' => Lead::where('pipeline_stage', 'Closing')->count(), 'value' => Lead::where('pipeline_stage', 'Closing')->sum('potensi_revenue')],
+            'Maintaining' => ['count' => Lead::where('pipeline_stage', 'Maintaining')->count(), 'value' => Lead::where('pipeline_stage', 'Maintaining')->sum('potensi_revenue')],
         ];
 
         return view('sales.activity', compact(

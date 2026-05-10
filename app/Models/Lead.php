@@ -41,11 +41,12 @@ class Lead extends Model
         return match($this->pipeline_stage) {
             'Identifying' => 'primary',
             'Approaching' => 'warning',
-            'Follow Up' => 'purple',
-            'Closing' => 'success',
-            'Won' => 'teal',
-            'Lost' => 'danger',
-            default => 'secondary',
+            'Follow Up'   => 'purple',
+            'Closing'     => 'success',
+            'Won'         => 'teal',
+            'Lost'        => 'danger',
+            'Maintaining' => 'indigo',
+            default       => 'secondary',
         };
     }
 
