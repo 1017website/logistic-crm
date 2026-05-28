@@ -546,7 +546,6 @@
                     ? $c->productItems->map(function ($p) {
                         return [
                             'service_name' => $p->display_name,
-                            'qty' => $p->qty,
                             'unit' => $p->unit,
                         ];
                     })->values()
@@ -622,8 +621,7 @@ function addCustProductRow(containerId, data = {}) {
     const i = custProdIdx++;
     const html = `<div class="row g-2 mb-2 align-items-center" id="custProd_${i}">
         <div class="col-5"><input type="text" name="products_list[${i}][service_name]" list="vendorServiceOptions" class="form-control form-control-sm" placeholder="Nama Layanan *" value="${escapeHtml(safeValue(data.service_name))}" required></div>
-        <div class="col-3"><input type="number" name="products_list[${i}][qty]" class="form-control form-control-sm" placeholder="Qty" min="0" step="0.01" value="${escapeHtml(safeValue(data.qty))}"></div>
-        <div class="col-3"><input type="text" name="products_list[${i}][unit]" class="form-control form-control-sm" placeholder="Satuan (ton, kg...)" value="${escapeHtml(safeValue(data.unit))}"></div>
+        <div class="col-6"><input type="text" name="products_list[${i}][unit]" class="form-control form-control-sm" placeholder="Rute / area / catatan layanan" value="${escapeHtml(safeValue(data.unit))}"></div>
         <div class="col-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger p-1" onclick="document.getElementById('custProd_${i}').remove()"><i class="fas fa-times"></i></button></div>
     </div>`;
     document.getElementById(containerId).insertAdjacentHTML('beforeend', html);

@@ -261,7 +261,7 @@ class LeadsController extends Controller
 
             $exists = $customer->productItems()
                 ->where(function ($q) use ($name) {
-                    $q->whereRaw('LOWER(COALESCE(service_name, product_name)) = ?', [mb_strtolower($name)]);
+                    $q->whereRaw('LOWER(product_name) = ?', [mb_strtolower($name)]);
                 })
                 ->exists();
 
@@ -269,7 +269,6 @@ class LeadsController extends Controller
                 $customer->productItems()->create([
                     'service_name' => $name,
                     'product_name' => $name,
-                    'qty'          => $leadProduct->qty ?? 0,
                     'unit'         => $unit,
                 ]);
             }
@@ -280,14 +279,13 @@ class LeadsController extends Controller
             $piName = trim((string) $lead->product_interest);
             $exists = $customer->productItems()
                 ->where(function ($q) use ($piName) {
-                    $q->whereRaw('LOWER(COALESCE(service_name, product_name)) = ?', [mb_strtolower($piName)]);
+                    $q->whereRaw('LOWER(product_name) = ?', [mb_strtolower($piName)]);
                 })
                 ->exists();
             if (!$exists) {
                 $customer->productItems()->create([
                     'service_name' => $piName,
                     'product_name' => $piName,
-                    'qty'          => 0,
                     'unit'         => '',
                 ]);
             }

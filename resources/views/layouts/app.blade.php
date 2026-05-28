@@ -72,6 +72,12 @@
         .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
             border-color: transparent transparent #2563eb transparent !important;
         }
+        /* Air Datepicker harus tampil di atas Bootstrap modal/backdrop */
+        .air-datepicker-global-container,
+        .air-datepicker {
+            z-index: 20000 !important;
+        }
+
 
         /* Multiple select2 */
         .select2-container--default .select2-selection--multiple {
@@ -1704,7 +1710,7 @@
     </script>
 
     <script>
-        // ── Global Init: Select2 & Flatpickr ──
+        // ── Global Init: Select2 & Air Datepicker ──
         function initSelect2(scope) {
             const ctx = scope ? $(scope) : $(document);
             ctx.find('select').filter('.form-select, .form-select-sm, .select2').not('.no-select2').each(function() {
@@ -1746,9 +1752,17 @@
             const parseInitialDate = (value) => {
                 if (!value) return null;
                 const normalized = String(value).replace('T', ' ').trim();
-                const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2}))?/);
-                if (!match) return null;
-                return new Date(Number(match[1]), Number(match[2])-1, Number(match[3]), Number(match[4] || 0), Number(match[5] || 0));
+                let match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2}))?/);
+                if (match) {
+                    return new Date(Number(match[1]), Number(match[2])-1, Number(match[3]), Number(match[4] || 0), Number(match[5] || 0));
+                }
+                // Support value display Indonesia: 28 Mei 2026 22:12
+                match = normalized.match(/^(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+                if (match) {
+                    const m = monthNames.map(x => x.toLowerCase()).indexOf(match[2].toLowerCase());
+                    if (m >= 0) return new Date(Number(match[3]), m, Number(match[1]), Number(match[4] || 0), Number(match[5] || 0));
+                }
+                return null;
             };
 
             $(ctx).find('input[type="date"], input[type="datetime-local"]').each(function() {
@@ -1797,6 +1811,7 @@
 
                 input._airDatepicker = new AirDatepicker(input, {
                     locale: airIdLocale,
+                    container: input.closest('.modal') || document.body,
                     dateFormat: 'dd MMM yyyy',
                     timepicker: isDateTime,
                     timeFormat: 'HH:mm',

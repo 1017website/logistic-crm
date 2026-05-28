@@ -79,7 +79,6 @@ class CustomerController extends Controller
             // Kebutuhan layanan — pilihan mengikuti layanan vendor
             'products_list'                => 'nullable|array',
             'products_list.*.service_name' => 'required_with:products_list|string|max:255',
-            'products_list.*.qty'          => 'nullable|numeric|min:0',
             'products_list.*.unit'         => 'nullable|string|max:100',
         ]);
 
@@ -121,7 +120,6 @@ class CustomerController extends Controller
                 $customer->productItems()->create([
                     'service_name' => $name,
                     'product_name' => $name,
-                    'qty'          => $prod['qty'] ?? 0,
                     'unit'         => trim($prod['unit'] ?? ''),
                 ]);
             }
@@ -148,7 +146,6 @@ class CustomerController extends Controller
                 $lead->products()->create([
                     'service_name' => $cp->service_name ?? $cp->product_name,
                     'product_name' => $cp->service_name ?? $cp->product_name,
-                    'qty'          => $cp->qty ?? 0,
                     'unit'         => $cp->unit ?? '',
                 ]);
             }
@@ -183,7 +180,6 @@ class CustomerController extends Controller
             // Kebutuhan layanan — pilihan mengikuti layanan vendor
             'products_list'                => 'nullable|array',
             'products_list.*.service_name' => 'nullable|string|max:255',
-            'products_list.*.qty'          => 'nullable|numeric|min:0',
             'products_list.*.unit'         => 'nullable|string|max:100',
         ]);
 
@@ -215,8 +211,7 @@ class CustomerController extends Controller
                     if ($name === '') continue;
                     $customer->productItems()->create([
                         'product_name' => $name,
-                        'qty'          => $product['qty'] ?? 0,
-                        'unit'         => trim($product['unit'] ?? ''),
+                            'unit'         => trim($product['unit'] ?? ''),
                     ]);
                 }
             }

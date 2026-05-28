@@ -125,7 +125,9 @@
                 <div class="d-flex align-items-center justify-content-between mb-2 pb-2" style="border-bottom:1px solid #f9fafb">
                     <div>
                         <div style="font-size:.82rem;font-weight:600">{{ $prod->display_name }}</div>
-                        <div style="font-size:.72rem;color:var(--text-muted)">{{ number_format($prod->qty, 0, ',', '.') }} {{ $prod->unit }}</div>
+                        @if($prod->unit)
+                        <div style="font-size:.72rem;color:var(--text-muted)">{{ $prod->unit }}</div>
+                        @endif
                     </div>
                     <form method="POST" action="{{ route('leads.products.destroy', [$lead, $prod]) }}" onsubmit="return confirm('Hapus layanan {{ addslashes($prod->display_name) }}?')">
                         @csrf @method('DELETE')
@@ -520,19 +522,9 @@
                             <label class="form-label">Nama Layanan <span class="text-danger">*</span></label>
                             <input type="text" name="service_name" list="vendorServiceOptions" class="form-control" required placeholder="Contoh: Solvent IPA">
                         </div>
-                        <div class="col-6">
-                            <label class="form-label">Qty / Volume</label>
-                            <input type="number" name="qty" class="form-control" step="0.001" placeholder="0">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label">Satuan</label>
-                            <select name="unit" class="form-select">
-                                <option value="ton">ton</option>
-                                <option value="kg">kg</option>
-                                <option value="liter">liter</option>
-                                <option value="drum">drum</option>
-                                <option value="pcs">pcs</option>
-                            </select>
+                        <div class="col-12">
+                            <label class="form-label">Rute / Area / Catatan Layanan</label>
+                            <input type="text" name="unit" class="form-control" placeholder="Contoh: Surabaya - Jakarta, FCL 20ft, door to door">
                         </div>
                     </div>
                 </div>
