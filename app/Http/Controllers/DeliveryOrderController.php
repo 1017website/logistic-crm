@@ -49,11 +49,11 @@ class DeliveryOrderController extends Controller
         $customers = Customer::orderBy('company_name')->get(['id', 'company_name']);
         $vendors = Vendor::where('status', 'Active')->orderBy('vendor_name')->get(['id', 'vendor_name', 'vendor_type', 'service_type']);
         $leads = Lead::where(function ($q) {
-            $q->whereIn('pipeline_stage', ['Closing', 'Won', 'Maintaining'])
+            $q->whereIn('pipeline_stage', ['Won', 'Maintaining'])
                 ->orWhereNotNull('customer_id');
         })->orderBy('company_name')->get(['id', 'company_name', 'lead_code', 'customer_id']);
 
-        // Vendor services untuk dropdown SO items
+        // Vendor services untuk dropdown DO items
         $vendorServices = VendorService::with('vendor')
             ->orderBy('service_name')->get(['id', 'vendor_id', 'service_name', 'unit', 'tariff', 'tariff_unit']);
 

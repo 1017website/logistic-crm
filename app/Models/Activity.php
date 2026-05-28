@@ -20,4 +20,16 @@ class Activity extends Model
     public function customer(): BelongsTo { return $this->belongsTo(Customer::class); }
     public function user(): BelongsTo     { return $this->belongsTo(User::class); }
     public function salesUser(): BelongsTo { return $this->belongsTo(User::class, 'sales_user_id'); }
+
+    public function getTypeIconAttribute(): string
+    {
+        return match($this->type) {
+            'Call' => 'phone',
+            'Visit' => 'map-marker-alt',
+            'Email' => 'envelope',
+            'Note' => 'sticky-note',
+            default => 'tasks',
+        };
+    }
 }
+

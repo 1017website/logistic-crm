@@ -201,7 +201,7 @@
 <div id="popupOverlay" onclick="closePopup()" style="display:none;position:fixed;inset:0;z-index:9998"></div>
 
 {{-- Add Activity Modal --}}
-<div class="modal fade" id="addActivityModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addActivityModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -366,6 +366,7 @@ function fetchEvents(year, month) {
     .then(r => r.json())
     .then(data => {
         allEvents = data;
+        rebuildEventsMap();
         renderCalendar();
     })
     .catch(() => renderCalendar()); // fallback render saja
@@ -384,21 +385,35 @@ function filterSales(val) {
 }
 
 // ── Klik tanggal kosong → buka add modal dengan tanggal ter-set ──
+function setAddActivityDate(value) {
+    const el = document.getElementById('addActDate');
+    if (!el) return;
+    const normalized = value.replace('T', ' ');
+    el.value = normalized;
+    if (el._airDatepicker) el._airDatepicker.selectDate(new Date(normalized));
+}
 function clickDay(dateStr) {
-    const dt = dateStr + 'T09:00';
-    document.getElementById('addActDate').value = dt;
-    new bootstrap.Modal(document.getElementById('addActivityModal')).show();
+    setAddActivityDate(dateStr + ' 09:00');
+    new bootstrap.Modal(document.getElementById('addActivityModal'), {backdrop:'static', keyboard:false}).show();
 }
 function openAddModal() {
     const now = new Date();
-    const dt  = now.toISOString().slice(0,16);
-    document.getElementById('addActDate').value = dt;
-    new bootstrap.Modal(document.getElementById('addActivityModal')).show();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth()+1).padStart(2,'0');
+    const dd = String(now.getDate()).padStart(2,'0');
+    const hh = String(now.getHours()).padStart(2,'0');
+    const mi = String(now.getMinutes()).padStart(2,'0');
+    setAddActivityDate(`${yyyy}-${mm}-${dd} ${hh}:${mi}`);
+    new bootstrap.Modal(document.getElementById('addActivityModal'), {backdrop:'static', keyboard:false}).show();
 }
 
 // ── Event detail popup ──
-const eventsMap = {};
-allEvents.forEach(e => eventsMap[e.id] = e);
+let eventsMap = {};
+function rebuildEventsMap() {
+    eventsMap = {};
+    allEvents.forEach(e => eventsMap[e.id] = e);
+}
+rebuildEventsMap();
 
 function showEventById(id) {
     const e = eventsMap[id];

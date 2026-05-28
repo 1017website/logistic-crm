@@ -47,9 +47,17 @@ return new class extends Migration
                 $table->id();
                 $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
                 $table->string('product_name');   // tetap product_name (dari sisi kebutuhan customer)
+                $table->decimal('qty', 15, 3)->default(0);
                 $table->string('unit')->default('kg');
                 $table->text('description')->nullable();
                 $table->timestamps();
+            });
+        }
+
+
+        if (Schema::hasTable('customer_products') && !Schema::hasColumn('customer_products', 'qty')) {
+            Schema::table('customer_products', function (Blueprint $table) {
+                $table->decimal('qty', 15, 3)->default(0)->after('product_name');
             });
         }
 

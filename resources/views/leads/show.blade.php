@@ -281,7 +281,7 @@
 {{-- ===================== MODALS ===================== --}}
 
 {{-- 1. Edit Lead Modal --}}
-<div class="modal fade" id="editLeadModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editLeadModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -360,7 +360,7 @@
 </div>
 
 {{-- 2. Add Activity Modal --}}
-<div class="modal fade" id="addActivityModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addActivityModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -417,7 +417,7 @@
 </div>
 
 {{-- 3. Edit Catatan Internal Modal --}}
-<div class="modal fade" id="editCatatanModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editCatatanModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -441,7 +441,7 @@
 </div>
 
 {{-- 4. Edit Follow Up Modal --}}
-<div class="modal fade" id="editFollowUpModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editFollowUpModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -470,7 +470,7 @@
 </div>
 
 {{-- 5. Edit Status Modal --}}
-<div class="modal fade" id="editStatusModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editStatusModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -505,7 +505,7 @@
 </div>
 
 {{-- 6. Add Produk Modal --}}
-<div class="modal fade" id="addProductModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addProductModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -546,7 +546,7 @@
 </div>
 
 {{-- 7. Add PIC Modal --}}
-<div class="modal fade" id="addLeadPicModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addLeadPicModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">

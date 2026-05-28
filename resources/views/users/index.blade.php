@@ -152,7 +152,7 @@
 </div>
 
 {{-- Add User Modal --}}
-<div class="modal fade" id="addUserModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addUserModal" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
         <div class="modal-header"><h6 class="modal-title fw-bold">Tambah User Baru</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <form action="{{ route('users.store') }}" method="POST">@csrf
@@ -185,7 +185,7 @@
 </div>
 
 {{-- Edit User Modal (shared - 1 modal saja) --}}
-<div class="modal fade" id="editUserModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editUserModal" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
         <div class="modal-header"><h6 class="modal-title fw-bold">Edit User</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <form id="editUserForm" method="POST">@csrf @method('PATCH')

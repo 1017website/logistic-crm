@@ -185,7 +185,7 @@
     </div>
 
     {{-- Modal Tambah DO --}}
-    <div class="modal fade" id="addPoModal" tabindex="-1">
+    <div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addPoModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
@@ -324,7 +324,7 @@
     </div>
 
     {{-- Modal Edit DO --}}
-    <div class="modal fade" id="editPoModal" tabindex="-1">
+    <div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editPoModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
@@ -489,7 +489,7 @@
                 document.getElementById(prefix + 'TotalProfit').style.color = profit >= 0 ? '#10b981' : '#dc2626';
             }
 
-            // Map vendor_id → products dari controller
+            // Map vendor_id → services dari controller
             const vendorServicesMap = @json($vendorServices->groupBy('vendor_id'));
 
             // Map customer_id & company_name → lead info untuk Linked Lead
@@ -513,7 +513,7 @@
                     const unitInput  = s.closest('tr').querySelector('.po-unit-input');
                     // Rebuild options
                     s.innerHTML = '<option value="">-- Pilih atau ketik --</option>';
-                    products.forEach(p => {
+                    svcs.forEach(p => {
                         const o = document.createElement('option');
                         o.value = p.service_name;
                         o.dataset.unit = p.unit || '';
@@ -536,7 +536,7 @@
                 if (!hiddenInput) return;
 
                 if (sel.value === '__manual__') {
-                    const manual = prompt('Nama produk:', '');
+                    const manual = prompt('Nama service:', '');
                     const productName = manual ? manual.trim() : '';
 
                     if (productName !== '') {
@@ -595,16 +595,16 @@
                 const vendorId = vendorSel ? vendorSel.value : null;
                 const svcs = vendorId && vendorServicesMap[vendorId] ? vendorServicesMap[vendorId] : [];
 
-                // Build product options
+                // Build service options
                 let productOptions = '<option value="">-- Pilih atau ketik --</option>';
                 let productExists = false;
-                products.forEach(p => {
+                svcs.forEach(p => {
                     const selected = data.service_name === p.service_name ? 'selected' : '';
                     if (data.service_name === p.service_name) productExists = true;
                     productOptions += `<option value="${p.service_name}" data-unit="${p.unit||''}" ${selected}>${p.service_name}</option>`;
                 });
 
-                // Jika product berasal dari input manual / product lama, tetap tampilkan di dropdown saat edit.
+                // Jika service berasal dari input manual / data lama, tetap tampilkan di dropdown saat edit.
                 if (data.service_name && !productExists) {
                     productOptions += `<option value="${data.service_name}" selected>${data.service_name}</option>`;
                 }
@@ -712,23 +712,14 @@
                 el.setAttribute('value', dateValue);
                 el.dataset.pendingDate = dateValue;
 
-                // Jika project memakai Flatpickr / datepicker dengan altInput,
-                // value harus diset lewat instance agar UI ikut terisi.
-                if (el._flatpickr && dateValue) {
-                    el._flatpickr.setDate(dateValue, true, 'Y-m-d');
+                // Air Datepicker: set lewat instance agar UI ikut terisi.
+                if (el._airDatepicker && dateValue) {
+                    el._airDatepicker.selectDate(new Date(dateValue));
                 }
 
                 // Fallback untuk datepicker lain yang mendengar event input/change.
                 el.dispatchEvent(new Event('input', { bubbles: true }));
                 el.dispatchEvent(new Event('change', { bubbles: true }));
-
-                // Fallback khusus flatpickr altInput jika ada tapi instance belum sync.
-                if (el._flatpickr && el._flatpickr.altInput && dateValue) {
-                    el._flatpickr.altInput.value = el._flatpickr.formatDate(
-                        el._flatpickr.selectedDates[0] || new Date(dateValue),
-                        el._flatpickr.config.altFormat || 'd F Y'
-                    );
-                }
             }
 
             async function openEditPo(id) {

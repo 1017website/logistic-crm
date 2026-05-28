@@ -108,7 +108,7 @@ function growthBadge($val, $prev_label) {
     <div class="col-lg-3">
         <div class="card h-100">
             <div class="card-header d-flex align-items-center justify-content-between">
-                <span>Trend Closing (Deal)</span>
+                <span>Trend Won/Closing (Deal)</span>
                 <select class="form-select form-select-sm" style="width:110px"><option>This Month</option></select>
             </div>
             <div class="card-body p-3">
@@ -128,13 +128,13 @@ function growthBadge($val, $prev_label) {
                 <div class="row g-2">
                     @foreach($pipelineStages as $stageName => $stageLeads)
                     @php
-                        $slugs = ['Identifying'=>'identifying','Approaching'=>'approaching','Follow Up'=>'follow-up','Closing'=>'closing'];
+                        $slugs = ['Identifying'=>'identifying','Approaching'=>'approaching','Follow Up'=>'follow-up','Won'=>'won','Maintaining'=>'maintaining'];
                         $slug = $slugs[$stageName] ?? 'identifying';
-                        $colors = ['Identifying'=>'#2563eb','Approaching'=>'#d97706','Follow Up'=>'#7c3aed','Closing'=>'#059669'];
+                        $colors = ['Identifying'=>'#2563eb','Approaching'=>'#d97706','Follow Up'=>'#7c3aed','Won'=>'#059669','Maintaining'=>'#4f46e5'];
                     @endphp
                     <div class="col-3">
                         <div class="kanban-header kanban-{{ $slug }}">
-                            <span>{{ strtoupper($stageName) }}</span>
+                            <span>{{ strtoupper($stageName === 'Won' ? 'Won/Closing' : $stageName) }}</span>
                             <span class="badge" style="background:{{ $colors[$stageName] ?? '#333' }};color:#fff;font-size:.65rem">{{ $stageLeads->count() }}</span>
                         </div>
                         <div class="kanban-body">
@@ -360,7 +360,7 @@ new Chart(document.getElementById('volumeChart').getContext('2d'), {
     }
 });
 
-// ── Closing Trend Chart (data real dari DB) ──
+// ── Won/Lost Trend Chart (data real dari DB) ──
 new Chart(document.getElementById('closingChart').getContext('2d'), {
     type: 'line',
     data: {

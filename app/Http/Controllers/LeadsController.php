@@ -371,22 +371,22 @@ class LeadsController extends Controller
             'description'    => 'nullable|string',
             'activity_at'    => 'required|date',
             'status'         => 'required|in:Planned,Pending,Done,Overdue',
-            'user_id'  => 'required|exists:users,id',
+            'user_id'        => 'nullable|exists:users,id',
             'next_follow_up' => 'nullable|date',
+            'pipeline_stage' => 'nullable|in:Identifying,Approaching,Follow Up,Won,Lost,Maintaining',
         ]);
 
         $validated['lead_id'] = $lead->id;
-        if (auth()->user()->isSalesExecutive()) {
-            $validated['user_id'] = auth()->id();
-        }
+        $validated['user_id'] = auth()->user()->isSalesExecutive() ? auth()->id() : ($validated['user_id'] ?? $lead->user_id ?? auth()->id());
         $validated['sales_user_id'] = $validated['user_id'];
-        Activity::create($validated);
 
-        // Sync customer jika ada perubahan pipeline_stage dari activity
-        if ($request->filled('pipeline_stage')) {
-            $lead->update(['pipeline_stage' => $request->pipeline_stage]);
+        if (!empty($validated['pipeline_stage'])) {
+            $lead->update(['pipeline_stage' => $validated['pipeline_stage']]);
             self::syncToCustomer($lead->fresh());
         }
+
+        unset($validated['pipeline_stage']);
+        Activity::create($validated);
 
         return redirect()->route('sales.activity')->with('success', 'Activity berhasil ditambahkan.');
     }
@@ -464,7 +464,11 @@ class LeadsController extends Controller
                     'pic_name'       => trim($row[2] ?? ''),
                     'phone'          => trim($row[3] ?? ''),
                     'email'          => trim($row[4] ?? ''),
-                    'pipeline_stage' => in_array(trim($row[5] ?? ''), ['Identifying', 'Approaching', 'Follow Up', 'Closing', 'Won', 'Lost', 'Maintaining']) ? trim($row[5]) : 'Identifying',
+                    'pipeline_stage' => (function ($stage) {
+                        $stage = trim((string) $stage);
+                        if ($stage === 'Closing') return 'Won';
+                        return in_array($stage, ['Identifying', 'Approaching', 'Follow Up', 'Won', 'Lost', 'Maintaining']) ? $stage : 'Identifying';
+                    })($row[5] ?? ''),
                     'temperature'    => in_array(trim($row[6] ?? ''), ['Hot', 'Warm', 'Cold']) ? trim($row[6]) : 'Cold',
                     'product_interest' => trim($row[7] ?? ''),
                     'route'          => trim($row[8] ?? ''),

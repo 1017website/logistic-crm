@@ -139,7 +139,7 @@
     </div>
 
     {{-- Add Lead Modal --}}
-    <div class="modal fade" id="addLeadModal" tabindex="-1">
+    <div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addLeadModal" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
@@ -246,7 +246,7 @@
     </div>
 
     {{-- Import Modal --}}
-    <div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="importModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">

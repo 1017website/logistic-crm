@@ -369,23 +369,57 @@ class CustomerController extends Controller
         return redirect()->route('customers.index')->with('success', "Berhasil import {$imported} customer.");
     }
 
-    // AJAX: Add activity ke customer
+    // Add activity ke customer — disamakan dengan Sales Activity
     public function storeActivity(Request $request, Customer $customer)
     {
         $validated = $request->validate([
-            'type'          => 'required|in:Call,Visit,Email,Note,Others',
-            'subject'       => 'required|string|max:255',
-            'description'   => 'nullable|string',
-            'activity_at'   => 'required|date',
-            'status'        => 'required|in:Planned,Pending,Done,Overdue',
-            'user_id' => 'required|exists:users,id',
+            'type'           => 'required|in:Call,Visit,Email,Note,Others',
+            'subject'        => 'required|string|max:255',
+            'description'    => 'nullable|string',
+            'activity_at'    => 'required|date',
+            'status'         => 'required|in:Planned,Pending,Done,Overdue',
+            'next_follow_up' => 'nullable|date',
+            'pipeline_stage' => 'nullable|in:Identifying,Approaching,Follow Up,Won,Lost,Maintaining',
+            'user_id'        => 'nullable|exists:users,id',
         ]);
+
         $validated['customer_id'] = $customer->id;
-        if (auth()->user()->isSalesExecutive()) {
-            $validated['user_id'] = auth()->id();
-        }
+        $validated['user_id'] = auth()->user()->isSalesExecutive() ? auth()->id() : ($validated['user_id'] ?? $customer->user_id ?? auth()->id());
         $validated['sales_user_id'] = $validated['user_id'];
+
+        $lead = Lead::where('customer_id', $customer->id)->orderByDesc('updated_at')->first();
+        if (!$lead) {
+            $lead = Lead::create([
+                'lead_code'      => Lead::generateLeadCode(),
+                'customer_id'    => $customer->id,
+                'company_name'   => $customer->company_name,
+                'pic_name'       => $customer->pic_name,
+                'pic_position'   => $customer->pic_position,
+                'phone'          => $customer->phone,
+                'email'          => $customer->email,
+                'address'        => $customer->address,
+                'industry'       => $customer->industry,
+                'location'       => $customer->location,
+                'pipeline_stage' => $customer->status === 'Existing' ? 'Maintaining' : 'Identifying',
+                'temperature'    => 'Warm',
+                'user_id'        => $customer->user_id ?: auth()->id(),
+            ]);
+        }
+
+        if (!empty($validated['pipeline_stage'])) {
+            $allowed = $customer->status === 'Existing'
+                ? ['Follow Up','Won','Lost','Maintaining']
+                : ['Identifying','Approaching','Follow Up','Won','Lost','Maintaining'];
+            if (in_array($validated['pipeline_stage'], $allowed, true)) {
+                $lead->update(['pipeline_stage' => $validated['pipeline_stage']]);
+                LeadsController::syncToCustomer($lead->fresh());
+            }
+        }
+
+        unset($validated['pipeline_stage']);
         Activity::create($validated);
         return redirect()->back()->with('success', 'Activity ditambahkan.');
     }
+
 }
+

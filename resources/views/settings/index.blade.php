@@ -432,7 +432,7 @@
                         ['Identifying', '#3b82f6', '10%'],
                         ['Approaching', '#10b981', '30%'],
                         ['Follow Up', '#f59e0b', '50%'],
-                        ['Closing', '#f97316', '80%'],
+                        ['Won/Closing', '#10b981', '100%'],
                         ['Won', '#16a34a', '100%'],
                     ];
                 @endphp

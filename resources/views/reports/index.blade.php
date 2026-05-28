@@ -142,7 +142,7 @@
                         <select name="status" class="form-select">
                             <option value="">Semua Status</option>
                             @if(in_array($reportType, ['sales','pipeline']))
-                                @foreach(['Identifying','Approaching','Follow Up','Closing','Won','Lost'] as $s)
+                                @foreach(['Identifying','Approaching','Follow Up','Won','Lost','Maintaining'] as $s)
                                 <option value="{{ $s }}" @selected($status==$s)>{{ $s }}</option>
                                 @endforeach
                             @elseif($reportType === 'do')
@@ -290,7 +290,7 @@
                     <td style="font-size:12px;color:#6b7280">{{ $lead->pic_name }}</td>
                     <td style="font-size:12px">{{ $lead->salesUser?->name ?? '-' }}</td>
                     <td>
-                        @php $stageMap=['Identifying'=>'identifying','Approaching'=>'approaching','Follow Up'=>'follow-up','Closing'=>'closing','Won'=>'won','Lost'=>'lost']; @endphp
+                        @php $stageMap=['Identifying'=>'identifying','Approaching'=>'approaching','Follow Up'=>'follow-up','Won'=>'won','Lost'=>'lost']; @endphp
                         <span class="badge-stage badge-{{ $stageMap[$lead->pipeline_stage]??'identifying' }}" style="font-size:11px">{{ $lead->pipeline_stage }}</span>
                     </td>
                     <td style="font-size:12px">{{ $lead->product_interest ?? "-" }}</td>
@@ -343,7 +343,7 @@
             </tr></thead>
             <tbody>
                 @forelse($reportData as $i => $lead)
-                @php $stageMap=['Identifying'=>'identifying','Approaching'=>'approaching','Follow Up'=>'follow-up','Closing'=>'closing','Won'=>'won','Lost'=>'lost']; @endphp
+                @php $stageMap=['Identifying'=>'identifying','Approaching'=>'approaching','Follow Up'=>'follow-up','Won'=>'won','Lost'=>'lost']; @endphp
                 <tr>
                     <td style="color:#9ca3af;font-size:12px">{{ $reportData->firstItem() + $i }}</td>
                     <td>

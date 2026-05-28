@@ -43,14 +43,17 @@ class SalesActivityController extends Controller
 
         $salesUsers = User::orderBy('name')->get();
 
-        // Pipeline summary for sidebar
-        $pipelineSummary = [
-            'Identifying' => ['count' => Lead::where('pipeline_stage', 'Identifying')->count(), 'value' => Lead::where('pipeline_stage', 'Identifying')->sum('potensi_revenue')],
-            'Approaching' => ['count' => Lead::where('pipeline_stage', 'Approaching')->count(), 'value' => Lead::where('pipeline_stage', 'Approaching')->sum('potensi_revenue')],
-            'Follow Up'   => ['count' => Lead::where('pipeline_stage', 'Follow Up')->count(), 'value' => Lead::where('pipeline_stage', 'Follow Up')->sum('potensi_revenue')],
-            'Won/Closing' => ['count' => Lead::where('pipeline_stage', 'Won')->count(), 'value' => Lead::where('pipeline_stage', 'Won')->sum('potensi_revenue')],
-            'Maintaining' => ['count' => Lead::where('pipeline_stage', 'Maintaining')->count(), 'value' => Lead::where('pipeline_stage', 'Maintaining')->sum('potensi_revenue')],
-        ];
+        $stageRows = Lead::select('pipeline_stage')
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('COALESCE(SUM(potensi_revenue),0) as value')
+            ->groupBy('pipeline_stage')
+            ->get()
+            ->keyBy('pipeline_stage');
+        $pipelineSummary = collect(['Identifying','Approaching','Follow Up','Won','Maintaining'])->mapWithKeys(function ($stage) use ($stageRows) {
+            $row = $stageRows->get($stage);
+            $label = $stage === 'Won' ? 'Won/Closing' : $stage;
+            return [$label => ['count' => (int) optional($row)->total, 'value' => (float) optional($row)->value]];
+        })->toArray();
 
         return view('sales.activity', compact(
             'activities',
@@ -70,6 +73,7 @@ class SalesActivityController extends Controller
         $validated = $request->validate([
             'lead_id'        => 'nullable|exists:leads,id',
             'customer_id'    => 'nullable|exists:customers,id',
+            'client_ref'     => 'nullable|string|max:50',
             'type'           => 'required|in:Call,Visit,Email,Note,Others',
             'subject'        => 'required|string|max:255',
             'description'    => 'nullable|string',
@@ -80,45 +84,63 @@ class SalesActivityController extends Controller
             'photo'          => 'nullable|image|mimes:jpg,jpeg,png,webp|max:3072',
         ]);
 
-        // Selalu pakai auth user
-        $validated['user_id']       = auth()->id();
-        $validated['sales_user_id'] = $validated['sales_user_id'] ?? auth()->id();
+        if (empty($validated['lead_id']) && empty($validated['customer_id']) && !empty($validated['client_ref'])) {
+            [$kind, $id] = array_pad(explode(':', $validated['client_ref'], 2), 2, null);
+            if ($kind === 'lead') {
+                $validated['lead_id'] = $id;
+            } elseif ($kind === 'customer') {
+                $validated['customer_id'] = $id;
+            }
+        }
 
-        // Resolusi target: lead langsung, atau lead yang terhubung ke customer.
-        // Revisi #3: activity bisa dari (lead / customer potential) & (customer existing).
+        $validated['user_id'] = auth()->id();
+        $validated['sales_user_id'] = auth()->id();
+
         $targetLead = null;
+        $customer = null;
 
         if (!empty($validated['lead_id'])) {
             $targetLead = Lead::find($validated['lead_id']);
+            $validated['customer_id'] = null;
         } elseif (!empty($validated['customer_id'])) {
             $customer = Customer::find($validated['customer_id']);
-            // Cari lead terbaru yang terhubung ke customer ini untuk update stage.
             if ($customer) {
-                $targetLead = Lead::where('customer_id', $customer->id)
-                    ->orderByDesc('updated_at')
-                    ->first();
+                $targetLead = Lead::where('customer_id', $customer->id)->orderByDesc('updated_at')->first();
+
+                if (!$targetLead) {
+                    $targetLead = Lead::create([
+                        'lead_code'      => Lead::generateLeadCode(),
+                        'customer_id'    => $customer->id,
+                        'company_name'   => $customer->company_name,
+                        'pic_name'       => $customer->pic_name,
+                        'pic_position'   => $customer->pic_position,
+                        'phone'          => $customer->phone,
+                        'email'          => $customer->email,
+                        'address'        => $customer->address,
+                        'industry'       => $customer->industry,
+                        'location'       => $customer->location,
+                        'pipeline_stage' => $customer->status === 'Existing' ? 'Maintaining' : 'Identifying',
+                        'temperature'    => 'Warm',
+                        'user_id'        => $customer->user_id ?: auth()->id(),
+                    ]);
+                }
             }
         }
 
-        // Update pipeline_stage bila dikirim & ada lead target.
-        // Revisi #4 & #5: validasi stage sesuai sumber dilakukan di server.
         if ($request->filled('pipeline_stage') && $targetLead) {
-            $requested  = $request->pipeline_stage;
-            $isExisting = !empty($validated['customer_id'])
-                && optional(Customer::find($validated['customer_id']))->status === 'Existing';
-
+            $requested = $request->pipeline_stage;
+            $isExisting = $customer && $customer->status === 'Existing';
             $allowed = $isExisting
-                ? ['Follow Up', 'Won', 'Lost', 'Maintaining']                                  // customer existing
-                : ['Identifying', 'Approaching', 'Follow Up', 'Won', 'Lost', 'Maintaining'];   // lead / customer potential
+                ? ['Follow Up', 'Won', 'Lost', 'Maintaining']
+                : ['Identifying', 'Approaching', 'Follow Up', 'Won', 'Lost', 'Maintaining'];
 
             if (in_array($requested, $allowed, true)) {
                 $targetLead->update(['pipeline_stage' => $requested]);
-                \App\Http\Controllers\LeadsController::syncToCustomer($targetLead->fresh());
+                LeadsController::syncToCustomer($targetLead->fresh());
             }
         }
 
-        // Foto: compress ke maks 500KB sebelum simpan
-        unset($validated['photo'], $validated['pipeline_stage']);
+        unset($validated['photo'], $validated['pipeline_stage'], $validated['client_ref']);
         if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
             $validated['photo'] = self::compressAndStore($request->file('photo'));
         }

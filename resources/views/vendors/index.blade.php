@@ -167,7 +167,7 @@
 </div>
 
 {{-- Modal Tambah --}}
-<div class="modal fade" id="addVendorModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addVendorModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -288,7 +288,7 @@
 </div>
 
 {{-- Modal Edit --}}
-<div class="modal fade" id="editVendorModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editVendorModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -401,7 +401,7 @@
 </div>
 
 {{-- Modal Layanan Vendor --}}
-<div class="modal fade" id="vendorServiceModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="vendorServiceModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">

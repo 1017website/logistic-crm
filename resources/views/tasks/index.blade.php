@@ -186,7 +186,7 @@
 </div>
 
 <!-- Add Task Modal -->
-<div class="modal fade" id="addTaskModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addTaskModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -250,7 +250,7 @@
 </div>
 
 <!-- Edit Task Modal -->
-<div class="modal fade" id="editTaskModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editTaskModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">

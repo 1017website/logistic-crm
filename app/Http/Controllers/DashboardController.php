@@ -8,6 +8,7 @@ use App\Models\DeliveryOrder;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -47,7 +48,7 @@ class DashboardController extends Controller
             'Identifying' => Lead::where('pipeline_stage','Identifying')->get(),
             'Approaching' => Lead::where('pipeline_stage','Approaching')->get(),
             'Follow Up'   => Lead::where('pipeline_stage','Follow Up')->get(),
-            'Closing'     => Lead::where('pipeline_stage','Closing')->get(),
+            'Won'         => Lead::where('pipeline_stage','Won')->get(),
             'Maintaining' => Lead::where('pipeline_stage','Maintaining')->get(),
         ];
 
@@ -67,34 +68,52 @@ class DashboardController extends Controller
         $topSales = User::withCount(['leads as deals_closed' => fn($q) => $q->where('pipeline_stage','Won')])
             ->get()->sortByDesc('deals_closed')->take(5);
 
-        // ── Revenue chart (30 hari terakhir) ──
-        $revenueChart = [];
-        for ($i = 30; $i >= 0; $i--) {
-            $date    = $now->copy()->subDays($i);
-            $dayDOs  = DeliveryOrder::with('items')->whereDate('order_date', $date)->where('status','Done')->where('currency','IDR')->get();
-            $revenueChart[] = [
-                'date'  => $date->format('d M'),
-                'value' => $dayDOs->sum(fn($po) => $po->total_revenue),
-            ];
-        }
+        // ── Revenue & Volume DO chart (30 hari terakhir) ──
+        $chartStart = $now->copy()->subDays(30)->toDateString();
+        $chartEnd   = $now->copy()->toDateString();
 
-        // ── Volume DO chart (30 hari terakhir) ──
+        $revenueRows = DB::table('delivery_order_items')
+            ->join('delivery_orders', 'delivery_orders.id', '=', 'delivery_order_items.delivery_order_id')
+            ->whereBetween('delivery_orders.order_date', [$chartStart, $chartEnd])
+            ->where('delivery_orders.status', 'Done')
+            ->where('delivery_orders.currency', 'IDR')
+            ->selectRaw('DATE(delivery_orders.order_date) as date_key, COALESCE(SUM(delivery_order_items.qty * delivery_order_items.sell_price),0) as total')
+            ->groupBy('date_key')
+            ->pluck('total', 'date_key');
+
+        $volumeRows = DeliveryOrder::whereBetween('order_date', [$chartStart, $chartEnd])
+            ->selectRaw('DATE(order_date) as date_key, COUNT(*) as total')
+            ->groupBy('date_key')
+            ->pluck('total', 'date_key');
+
+        $revenueChart = [];
         $volumeChart = [];
         for ($i = 30; $i >= 0; $i--) {
             $date = $now->copy()->subDays($i);
-            $volumeChart[] = [
-                'date'  => $date->format('d M'),
-                'value' => DeliveryOrder::whereDate('order_date', $date)->count(),
-            ];
+            $key = $date->toDateString();
+            $revenueChart[] = ['date' => $date->format('d M'), 'value' => (float) ($revenueRows[$key] ?? 0)];
+            $volumeChart[]  = ['date' => $date->format('d M'), 'value' => (int) ($volumeRows[$key] ?? 0)];
         }
 
-        // ── Trend closing chart ──
+        // ── Trend Won/Lost chart ──
+        $wonRows = Lead::where('pipeline_stage', 'Won')
+            ->whereBetween('updated_at', [$chartStart, $chartEnd . ' 23:59:59'])
+            ->selectRaw('DATE(updated_at) as date_key, COUNT(*) as total')
+            ->groupBy('date_key')
+            ->pluck('total', 'date_key');
+        $lostRows = Lead::where('pipeline_stage', 'Lost')
+            ->whereBetween('updated_at', [$chartStart, $chartEnd . ' 23:59:59'])
+            ->selectRaw('DATE(updated_at) as date_key, COUNT(*) as total')
+            ->groupBy('date_key')
+            ->pluck('total', 'date_key');
+
         $trendWon  = [];
         $trendLost = [];
         for ($i = 30; $i >= 0; $i--) {
             $date = $now->copy()->subDays($i);
-            $trendWon[]  = ['date' => $date->format('d M'), 'value' => Lead::where('pipeline_stage','Won')->whereDate('updated_at', $date)->count()];
-            $trendLost[] = ['date' => $date->format('d M'), 'value' => Lead::where('pipeline_stage','Lost')->whereDate('updated_at', $date)->count()];
+            $key = $date->toDateString();
+            $trendWon[]  = ['date' => $date->format('d M'), 'value' => (int) ($wonRows[$key] ?? 0)];
+            $trendLost[] = ['date' => $date->format('d M'), 'value' => (int) ($lostRows[$key] ?? 0)];
         }
 
         return view('dashboard.index', compact(

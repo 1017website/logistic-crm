@@ -99,7 +99,7 @@
         <div class="chart-card h-100">
             <div class="chart-title mb-3">Pipeline Conversion Funnel</div>
             @php
-            $funnelColors = ['Identifying'=>'#3b82f6','Approaching'=>'#10b981','Follow Up'=>'#f59e0b','Closing'=>'#f97316','Won'=>'#16a34a'];
+            $funnelColors = ['Identifying'=>'#3b82f6','Approaching'=>'#10b981','Follow Up'=>'#f59e0b','Won'=>'#16a34a','Maintaining'=>'#4f46e5'];
             $maxCount = max(array_values($funnel->toArray()) + [1]);
             @endphp
             @foreach($funnel as $stage => $count)
@@ -168,7 +168,7 @@
                     <div class="d-flex align-items-center gap-2 mb-2">
                         <div style="width:8px;height:8px;border-radius:2px;background:{{ $svcColors[$idx%count($svcColors)] }};flex-shrink:0"></div>
                         <div style="flex:1;min-width:0">
-                            <div style="font-size:12px;font-weight:600;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ ($svc->product_name ?? "Lainnya") }}</div>
+                            <div style="font-size:12px;font-weight:600;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ ($svc->service_type ?? "Lainnya") }}</div>
                             <div style="font-size:11px;color:#6b7280">{{ idrm($svc->total) }}</div>
                         </div>
                         <span style="font-size:11px;font-weight:600;color:#0f1d35;flex-shrink:0">{{ $totalSvc > 0 ? round(($svc->total/$totalSvc)*100,1) : 0 }}%</span>

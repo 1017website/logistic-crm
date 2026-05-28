@@ -376,7 +376,7 @@
 
 {{-- MODALS --}}
 {{-- Add Customer --}}
-<div class="modal fade" id="addCustomerModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addCustomerModal" tabindex="-1">
     <div class="modal-dialog modal-lg"><div class="modal-content">
         <div class="modal-header"><h6 class="modal-title fw-bold">Add Customer Baru</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <form method="POST" action="{{ route('customers.store') }}" id="addCustomerForm">@csrf
@@ -427,7 +427,7 @@
 </div>
 
 {{-- Edit Customer --}}
-<div class="modal fade" id="editCustomerModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editCustomerModal" tabindex="-1">
     <div class="modal-dialog modal-lg"><div class="modal-content">
         <div class="modal-header"><h6 class="modal-title fw-bold">Edit Customer</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <form method="POST" id="editCustomerForm">@csrf @method('PUT')
@@ -472,7 +472,7 @@
 
 {{-- Add Activity (Customer) --}}
 @if($selectedCustomer)
-<div class="modal fade" id="addCustActivityModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addCustActivityModal" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
         <div class="modal-header"><h6 class="modal-title fw-bold">Add Activity — {{ $selectedCustomer->company_name }}</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <form method="POST" action="{{ route('customers.activity.store', $selectedCustomer) }}">@csrf
@@ -495,7 +495,7 @@
 </div>
 
 {{-- Add PIC (Customer) --}}
-<div class="modal fade" id="addCustPicModal" tabindex="-1">
+<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addCustPicModal" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
         <div class="modal-header"><h6 class="modal-title fw-bold">Tambah PIC — {{ $selectedCustomer->company_name }}</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <form method="POST" action="{{ route('customers.pics.store', $selectedCustomer) }}">@csrf

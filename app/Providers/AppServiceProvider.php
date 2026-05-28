@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Pagination\Paginator;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -11,6 +12,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Paginator::useBootstrapFive();
         // Blade directive: @idr(value) — format IDR lengkap: Rp 100.000.000
         Blade::directive('idr', function ($expression) {
             return "<?php echo idr($expression); ?>";
