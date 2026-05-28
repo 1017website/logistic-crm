@@ -584,13 +584,13 @@ function openServiceModal(vendorId, vendorName) {
     document.getElementById('spModalName').textContent = vendorName;
     document.getElementById('addVendorServiceForm').action = `/vendors/${vendorId}/products`;
 
-    // Render existing products
+    // Render existing services
     const services = vendorServices[vendorId] || [];
     const list = document.getElementById('spProductList');
-    if (products.length === 0) {
+    if (services.length === 0) {
         list.innerHTML = '<div style="font-size:.8rem;color:#9ca3af">Belum ada layanan.</div>';
     } else {
-        list.innerHTML = products.map(p => `
+        list.innerHTML = services.map(p => `
             <div class="d-flex align-items-center justify-content-between mb-2 pb-2" style="border-bottom:1px solid #f3f4f6">
                 <div>
                     <div style="font-size:.82rem;font-weight:600">${p.service_name}</div>

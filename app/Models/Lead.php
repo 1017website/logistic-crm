@@ -47,6 +47,22 @@ class Lead extends Model
         };
     }
 
+    public function getLogoInitialsAttribute(): string
+    {
+        $name = trim((string) $this->company_name);
+        if ($name === '') {
+            return 'LD';
+        }
+
+        $parts = preg_split('/\s+/', $name);
+        $initials = '';
+        foreach (array_slice($parts, 0, 2) as $part) {
+            $initials .= strtoupper(substr($part, 0, 1));
+        }
+
+        return $initials ?: 'LD';
+    }
+
     public static function generateLeadCode(): string
     {
         $prefix = 'LEAD-' . date('Y') . '-';

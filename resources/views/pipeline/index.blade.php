@@ -70,9 +70,6 @@
             @endforeach
         </select>
     </div>
-    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addLeadPipelineModal">
-        <i class="fas fa-plus me-1"></i> Add Lead
-    </button>
 </div>
 
 {{-- Kanban Board --}}

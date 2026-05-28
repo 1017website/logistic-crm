@@ -25,7 +25,7 @@
     .event-visit { background:#dbeafe;color:#1d4ed8; }
     .event-email { background:#fef9c3;color:#92400e; }
     .event-note  { background:#f3e8ff;color:#6d28d9; }
-    .event-task  { background:#fee2e2;color:#b91c1c; }
+    .event-task, .event-others  { background:#fee2e2;color:#b91c1c; }
     .more-events { font-size:9px;color:#6b7280;margin-top:1px;padding:0 2px; }
 
     /* Sidebar */
@@ -74,9 +74,6 @@
             <option value="{{ $su->id }}">{{ $su->name }}</option>
             @endforeach
         </select>
-        <button class="btn btn-primary btn-sm" onclick="openAddModal()" style="border-radius:8px;font-size:13px">
-            <i class="fas fa-plus me-1"></i> Add Activity
-        </button>
     </div>
 </div>
 
@@ -200,70 +197,6 @@
 </div>
 <div id="popupOverlay" onclick="closePopup()" style="display:none;position:fixed;inset:0;z-index:9998"></div>
 
-{{-- Add Activity Modal --}}
-<div class="modal fade" id="addActivityModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h6 class="modal-title fw-bold">Tambah Activity</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ route('tasks.store') }}" method="POST">
-                @csrf
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-6">
-                            <label class="form-label">Jenis Activity <span class="text-danger">*</span></label>
-                            <select name="type" id="addActType" class="form-select" required>
-                                <option value="Call">Call</option><option value="Visit">Visit</option><option value="Email">Email</option><option value="Note">Note</option><option value="Others">Task</option>
-                            </select>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label">Status</label>
-                            <select name="status" class="form-select">
-                                <option value="Planned">Planned</option>
-                                <option value="Done">Done</option>
-                                <option value="Pending">Pending</option>
-                            </select>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Subject <span class="text-danger">*</span></label>
-                            <input type="text" name="subject" class="form-control" required placeholder="Contoh: Follow up PT. ABC">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Tanggal & Waktu <span class="text-danger">*</span></label>
-                            <input type="datetime-local" name="activity_at" id="addActDate" class="form-control" required>
-                        </div>
-                        <div class="col-md-6">
-                            @include('components.sales-pic-field')
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Lead (Opsional)</label>
-                            <select name="lead_id" class="form-select">
-                                <option value="">- Tidak ada / pilih lead -</option>
-                                @foreach(\App\Models\Lead::whereNotIn('pipeline_stage',['Won','Lost'])->orderBy('company_name')->get() as $lead)
-                                <option value="{{ $lead->id }}">{{ $lead->company_name }} ({{ $lead->pipeline_stage }})</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Keterangan</label>
-                            <textarea name="description" class="form-control" rows="2" placeholder="Opsional..."></textarea>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">Next Follow Up</label>
-                            <input type="date" name="next_follow_up" class="form-control">
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary btn-sm">Simpan Activity</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 
 @endsection
 
@@ -282,6 +215,22 @@ function updateStats() {
     const monthEvents = allEvents.filter(e => e.date.startsWith(`${year}-${month}`));
     document.getElementById('statTotal').textContent = monthEvents.length;
     document.getElementById('statDone').textContent  = monthEvents.filter(e => e.status === 'Done').length;
+}
+
+
+function normalizeEventDate(value) {
+    const s = String(value || '').trim();
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+
+    // Support tampilan d M Y jika ada data dari server/view lama.
+    m = s.match(/^(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})/);
+    if (m) {
+        const map = {jan:'01',feb:'02',mar:'03',apr:'04',mei:'05',may:'05',jun:'06',jul:'07',agu:'08',aug:'08',sep:'09',okt:'10',oct:'10',nov:'11',des:'12',dec:'12'};
+        const mon = map[m[2].slice(0,3).toLowerCase()] || '01';
+        return `${m[3]}-${mon}-${String(m[1]).padStart(2,'0')}`;
+    }
+    return s;
 }
 
 // ── Render calendar ──
@@ -321,18 +270,19 @@ function renderCalendar() {
                 year    === today.getFullYear();
 
             const dateStr  = `${year}-${String(month+1).padStart(2,'0')}-${String(dateNum).padStart(2,'0')}`;
-            const filtered = allEvents.filter(e =>
-                e.date === dateStr &&
+            const eventDateStr = isCurrentMonth ? dateStr : `${year}-${String(month+1).padStart(2,'0')}-${String(dateNum).padStart(2,'0')}`;
+            const filtered = isCurrentMonth ? allEvents.filter(e =>
+                normalizeEventDate(e.date) === eventDateStr &&
                 (activeType  === 'all' || e.type  === activeType) &&
                 (activeSales === ''   || String(e.sales_id) === activeSales)
-            );
+            ) : [];
 
             const hasBorder = filtered.length > 0;
             html += `<td class="${isToday?'today':''} ${!isCurrentMonth?'other-month':''} ${hasBorder?'has-events':''}"
                 onclick="${isCurrentMonth ? `clickDay('${dateStr}')` : ''}">`;
             html += `<div class="day-num">${dateNum}</div>`;
             filtered.slice(0, 3).forEach(e => {
-                const cls = 'event-' + e.type.toLowerCase();
+                const cls = 'event-' + String(e.type || 'Others').toLowerCase();
                 html += `<div class="day-event ${cls}" title="${e.customer} · ${e.time}"
                     onclick="event.stopPropagation(); showEventById(${e.id})">${e.time} ${e.title || e.type}</div>`;
             });
@@ -342,7 +292,7 @@ function renderCalendar() {
             html += '</td>';
         }
         html += '</tr>';
-        if (!isCurrentMonth && day > daysInMonth && r >= 4) break;
+        if (day > daysInMonth && r >= 4) break;
     }
 
     document.getElementById('calBody').innerHTML = html;
@@ -400,20 +350,10 @@ function setAddActivityDate(value) {
     if (hidden) hidden.value = normalized;
 }
 function clickDay(dateStr) {
-    setAddActivityDate(dateStr + ' 09:00');
-    new bootstrap.Modal(document.getElementById('addActivityModal'), {backdrop:'static', keyboard:false}).show();
+    // Add Activity hanya dilakukan dari menu Sales Activity.
+    // Klik tanggal di Calendar tidak membuka form tambah activity.
+    return false;
 }
-function openAddModal() {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth()+1).padStart(2,'0');
-    const dd = String(now.getDate()).padStart(2,'0');
-    const hh = String(now.getHours()).padStart(2,'0');
-    const mi = String(now.getMinutes()).padStart(2,'0');
-    setAddActivityDate(`${yyyy}-${mm}-${dd} ${hh}:${mi}`);
-    new bootstrap.Modal(document.getElementById('addActivityModal'), {backdrop:'static', keyboard:false}).show();
-}
-
 function formatDateDisplay(isoDate) {
     const m = String(isoDate || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!m) return isoDate || '-';

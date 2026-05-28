@@ -36,9 +36,17 @@ class Customer extends Model
 
     public function getLogoInitialsAttribute(): string
     {
-        $parts = explode(' ', $this->company_name);
+        $name = trim((string) $this->company_name);
+        if ($name === '') {
+            return 'CU';
+        }
+
+        $parts = preg_split('/\s+/', $name);
         $initials = '';
-        foreach (array_slice($parts, 0, 2) as $part) $initials .= strtoupper(substr($part, 0, 1));
-        return $initials;
+        foreach (array_slice($parts, 0, 2) as $part) {
+            $initials .= strtoupper(substr($part, 0, 1));
+        }
+
+        return $initials ?: 'CU';
     }
 }

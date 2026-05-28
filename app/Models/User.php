@@ -43,8 +43,16 @@ class User extends Authenticatable
 
     public function getAvatarInitialsAttribute(): string
     {
-        $parts = explode(' ', $this->name);
-        return strtoupper(substr($parts[0], 0, 1) . (isset($parts[1]) ? substr($parts[1], 0, 1) : substr($parts[0], 1, 1)));
+        $name = trim((string) $this->name);
+        if ($name === '') {
+            return 'US';
+        }
+
+        $parts = preg_split('/\s+/', $name);
+        $first = strtoupper(substr($parts[0] ?? 'U', 0, 1));
+        $second = isset($parts[1]) ? strtoupper(substr($parts[1], 0, 1)) : strtoupper(substr($parts[0] ?? 'S', 1, 1));
+
+        return trim($first . $second) ?: 'US';
     }
 }
 

@@ -565,13 +565,26 @@
             width: 34px;
             height: 34px;
             border-radius: 50%;
-            background: var(--primary);
+            background: linear-gradient(135deg, var(--primary), #1d4ed8);
             color: #fff;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
             font-size: .75rem;
-            font-weight: 700;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: .02em;
+            text-transform: uppercase;
+            box-shadow: 0 6px 14px rgba(37, 99, 235, .18);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .user-avatar:empty::before {
+            content: "\f1ad";
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            font-size: .9rem;
         }
 
         .user-info {
@@ -819,14 +832,28 @@
             color: #dc2626;
         }
 
+        [class^="badge-"], [class*=" badge-"] {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 20px;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-size: .68rem;
+            font-weight: 700;
+            line-height: 1;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
         .badge-done {
             background: #d1fae5;
-            color: #059669;
+            color: #047857;
         }
 
         .badge-pending {
             background: #fef3c7;
-            color: #d97706;
+            color: #b45309;
         }
 
         .badge-planned {
@@ -836,7 +863,7 @@
 
         .badge-overdue {
             background: #fee2e2;
-            color: #dc2626;
+            color: #b91c1c;
         }
 
         .badge-today {
@@ -846,7 +873,12 @@
 
         .badge-tomorrow {
             background: #ede9fe;
-            color: #7c3aed;
+            color: #6d28d9;
+        }
+
+        .badge-call, .badge-visit, .badge-email, .badge-note, .badge-task, .badge-others {
+            background: #f3f4f6;
+            color: #374151;
         }
 
         /* PIPELINE KANBAN */

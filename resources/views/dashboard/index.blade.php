@@ -255,15 +255,7 @@ function growthBadge($val, $prev_label) {
             <div class="card-header">Quick Action</div>
             <div class="card-body p-3">
                 <div class="row g-2">
-                    <div class="col-4">
-                        <a href="{{ route('leads.index') }}" class="quick-action-btn">
-                            <div class="qa-icon" style="background:#dbeafe">
-                                <i class="fas fa-plus" style="color:#2563eb;font-size:.8rem"></i>
-                            </div>
-                            <span class="qa-label">Add Lead</span>
-                        </a>
-                    </div>
-                    <div class="col-4">
+                    <div class="col-6">
                         <a href="{{ route('sales.activity') }}" class="quick-action-btn">
                             <div class="qa-icon" style="background:#d1fae5">
                                 <i class="fas fa-phone" style="color:#059669;font-size:.8rem"></i>
@@ -271,7 +263,7 @@ function growthBadge($val, $prev_label) {
                             <span class="qa-label">Log Call</span>
                         </a>
                     </div>
-                    <div class="col-4">
+                    <div class="col-6">
                         <a href="{{ route('sales.activity') }}" class="quick-action-btn">
                             <div class="qa-icon" style="background:#fef3c7">
                                 <i class="fas fa-map-marker-alt" style="color:#d97706;font-size:.8rem"></i>
