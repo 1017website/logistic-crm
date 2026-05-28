@@ -138,9 +138,9 @@ class VendorController extends Controller
 
                 $vendor->services()->create([
                     'service_name' => $serviceName,
-                    'unit' => $svc['unit'] ?? 'kg',
+                    'unit' => trim($svc['unit'] ?? ''),
                     'tariff' => $svc['tariff'] ?? 0,
-                    'tariff_unit' => $svc['tariff_unit'] ?? 'per kg',
+                    'tariff_unit' => trim($svc['tariff_unit'] ?? '') ?: 'per shipment',
                     'route_origin' => $svc['route_origin'] ?? null,
                     'route_destination' => $svc['route_destination'] ?? null,
                     'description' => $svc['description'] ?? null,
@@ -229,9 +229,9 @@ class VendorController extends Controller
 
                     $vendor->services()->create([
                         'service_name' => $serviceName,
-                        'unit' => $svc['unit'] ?? 'kg',
+                        'unit' => trim($svc['unit'] ?? ''),
                         'tariff' => $svc['tariff'] ?? 0,
-                        'tariff_unit' => $svc['tariff_unit'] ?? 'per kg',
+                        'tariff_unit' => trim($svc['tariff_unit'] ?? '') ?: 'per shipment',
                         'route_origin' => $svc['route_origin'] ?? null,
                         'route_destination' => $svc['route_destination'] ?? null,
                         'description' => $svc['description'] ?? null,
@@ -291,7 +291,7 @@ class VendorController extends Controller
             'service_name' => $request->service_name,
             'unit' => $request->unit,
             'tariff' => $request->tariff ?? 0,
-            'tariff_unit' => $request->tariff_unit ?? 'per kg',
+            'tariff_unit' => trim($request->tariff_unit ?? '') ?: 'per shipment',
             'route_origin' => $request->route_origin,
             'route_destination' => $request->route_destination,
             'description' => $request->description,

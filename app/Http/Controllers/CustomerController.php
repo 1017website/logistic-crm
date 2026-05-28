@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\CustomerPic;
 use App\Models\User;
 use App\Models\Activity;
+use App\Models\VendorService;
 use App\Models\Lead;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -48,9 +49,11 @@ class CustomerController extends Controller
             ? Customer::with(['salesUser','deliveryOrders','activities.salesUser','leads','pics','productItems'])->find($request->get('selected_id'))
             : null;
 
+        $vendorServices = VendorService::with('vendor')->orderBy('service_name')->get();
+
         return view('customers.index', compact(
             'customers','totalCustomer','potentialCustomer','existingCustomer',
-            'industries','salesUsers','selectedCustomer','status','industry','search','salesId'
+            'industries','salesUsers','selectedCustomer','vendorServices','status','industry','search','salesId'
         ));
     }
 
@@ -73,9 +76,9 @@ class CustomerController extends Controller
             'pics.*.pic_position' => 'nullable|string|max:100',
             'pics.*.phone'        => 'nullable|string|max:20',
             'pics.*.email'        => 'nullable|email|max:255',
-            // Kebutuhan produk — field disamakan dengan leads (product_name, qty, unit)
+            // Kebutuhan layanan — pilihan mengikuti layanan vendor
             'products_list'                => 'nullable|array',
-            'products_list.*.product_name' => 'required_with:products_list|string|max:255',
+            'products_list.*.service_name' => 'required_with:products_list|string|max:255',
             'products_list.*.qty'          => 'nullable|numeric|min:0',
             'products_list.*.unit'         => 'nullable|string|max:100',
         ]);
@@ -111,14 +114,15 @@ class CustomerController extends Controller
                 ]);
             }
 
-            // Kebutuhan produk -> tabel relasi customer_products
+            // Kebutuhan layanan -> tabel relasi customer_products
             foreach ($productsList as $prod) {
-                $name = trim($prod['product_name'] ?? '');
+                $name = trim($prod['service_name'] ?? $prod['product_name'] ?? '');
                 if ($name === '') continue;
                 $customer->productItems()->create([
+                    'service_name' => $name,
                     'product_name' => $name,
                     'qty'          => $prod['qty'] ?? 0,
-                    'unit'         => trim($prod['unit'] ?? '') !== '' ? $prod['unit'] : 'ton',
+                    'unit'         => trim($prod['unit'] ?? ''),
                 ]);
             }
 
@@ -139,12 +143,13 @@ class CustomerController extends Controller
                 'user_id'        => $customer->user_id,
             ]);
 
-            // Salin produk customer ke lead products agar konsisten
+            // Salin layanan customer ke lead products agar konsisten
             foreach ($customer->productItems as $cp) {
                 $lead->products()->create([
-                    'product_name' => $cp->product_name,
+                    'service_name' => $cp->service_name ?? $cp->product_name,
+                    'product_name' => $cp->service_name ?? $cp->product_name,
                     'qty'          => $cp->qty ?? 0,
-                    'unit'         => $cp->unit ?? 'ton',
+                    'unit'         => $cp->unit ?? '',
                 ]);
             }
 
@@ -175,9 +180,9 @@ class CustomerController extends Controller
             'pics.*.phone'        => 'nullable|string|max:20',
             'pics.*.email'        => 'nullable|email|max:255',
 
-            // Kebutuhan produk — product_name, qty, unit (sama seperti leads)
+            // Kebutuhan layanan — pilihan mengikuti layanan vendor
             'products_list'                => 'nullable|array',
-            'products_list.*.product_name' => 'nullable|string|max:255',
+            'products_list.*.service_name' => 'nullable|string|max:255',
             'products_list.*.qty'          => 'nullable|numeric|min:0',
             'products_list.*.unit'         => 'nullable|string|max:100',
         ]);
@@ -200,18 +205,18 @@ class CustomerController extends Controller
             $customer->update($validated);
 
             /**
-             * products_submitted: daftar produk dari modal edit dianggap final.
+             * products_submitted: daftar layanan dari modal edit dianggap final.
              * Replace seluruh customer_products dengan data dari form.
              */
             if ($request->has('products_submitted')) {
                 $customer->productItems()->delete();
                 foreach ($productsList as $product) {
-                    $name = trim($product['product_name'] ?? '');
+                    $name = trim($product['service_name'] ?? $product['product_name'] ?? '');
                     if ($name === '') continue;
                     $customer->productItems()->create([
                         'product_name' => $name,
                         'qty'          => $product['qty'] ?? 0,
-                        'unit'         => trim($product['unit'] ?? '') !== '' ? $product['unit'] : 'ton',
+                        'unit'         => trim($product['unit'] ?? ''),
                     ]);
                 }
             }
@@ -414,6 +419,10 @@ class CustomerController extends Controller
                 $lead->update(['pipeline_stage' => $validated['pipeline_stage']]);
                 LeadsController::syncToCustomer($lead->fresh());
             }
+        }
+
+        if ($lead) {
+            $validated['lead_id'] = $lead->id;
         }
 
         unset($validated['pipeline_stage']);

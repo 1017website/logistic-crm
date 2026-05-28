@@ -132,7 +132,7 @@ function growthBadge($val, $prev_label) {
                         $slug = $slugs[$stageName] ?? 'identifying';
                         $colors = ['Identifying'=>'#2563eb','Approaching'=>'#d97706','Follow Up'=>'#7c3aed','Won'=>'#059669','Maintaining'=>'#4f46e5'];
                     @endphp
-                    <div class="col-3">
+                    <div class="col-xl col-md-4 col-sm-6">
                         <div class="kanban-header kanban-{{ $slug }}">
                             <span>{{ strtoupper($stageName === 'Won' ? 'Won/Closing' : $stageName) }}</span>
                             <span class="badge" style="background:{{ $colors[$stageName] ?? '#333' }};color:#fff;font-size:.65rem">{{ $stageLeads->count() }}</span>
@@ -150,7 +150,6 @@ function growthBadge($val, $prev_label) {
                             @empty
                             <div class="text-center text-muted p-3" style="font-size:.75rem">No leads</div>
                             @endforelse
-                            <a href="{{ route('leads.index', ['stage'=>$stageName]) }}" class="d-block text-center mt-2" style="font-size:.75rem;color:var(--primary)">+ Add Lead</a>
                         </div>
                     </div>
                     @endforeach

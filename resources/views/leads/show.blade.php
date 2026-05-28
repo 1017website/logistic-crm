@@ -112,10 +112,10 @@
             </div>
         </div>
 
-        {{-- Produk --}}
+        {{-- Layanan --}}
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span>Kebutuhan Produk</span>
+                <span>Kebutuhan Layanan</span>
                 <button class="btn btn-sm p-0" style="font-size:.75rem;color:var(--primary);background:none;border:none" data-bs-toggle="modal" data-bs-target="#addProductModal">
                     <i class="fas fa-plus me-1"></i> Tambah
                 </button>
@@ -124,16 +124,16 @@
                 @forelse($lead->products as $prod)
                 <div class="d-flex align-items-center justify-content-between mb-2 pb-2" style="border-bottom:1px solid #f9fafb">
                     <div>
-                        <div style="font-size:.82rem;font-weight:600">{{ $prod->product_name }}</div>
+                        <div style="font-size:.82rem;font-weight:600">{{ $prod->display_name }}</div>
                         <div style="font-size:.72rem;color:var(--text-muted)">{{ number_format($prod->qty, 0, ',', '.') }} {{ $prod->unit }}</div>
                     </div>
-                    <form method="POST" action="{{ route('leads.products.destroy', [$lead, $prod]) }}" onsubmit="return confirm('Hapus produk {{ addslashes($prod->product_name) }}?')">
+                    <form method="POST" action="{{ route('leads.products.destroy', [$lead, $prod]) }}" onsubmit="return confirm('Hapus layanan {{ addslashes($prod->display_name) }}?')">
                         @csrf @method('DELETE')
                         <button type="submit" class="btn btn-sm p-0" style="color:#ef4444;background:none;border:none"><i class="fas fa-times"></i></button>
                     </form>
                 </div>
                 @empty
-                <div style="font-size:.78rem;color:var(--text-muted)">Belum ada produk ditambahkan.</div>
+                <div style="font-size:.78rem;color:var(--text-muted)">Belum ada layanan ditambahkan.</div>
                 @endforelse
             </div>
         </div>
@@ -281,7 +281,7 @@
 {{-- ===================== MODALS ===================== --}}
 
 {{-- 1. Edit Lead Modal --}}
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editLeadModal" tabindex="-1">
+<div class="modal fade" id="editLeadModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -360,7 +360,7 @@
 </div>
 
 {{-- 2. Add Activity Modal --}}
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addActivityModal" tabindex="-1">
+<div class="modal fade" id="addActivityModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -417,7 +417,7 @@
 </div>
 
 {{-- 3. Edit Catatan Internal Modal --}}
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editCatatanModal" tabindex="-1">
+<div class="modal fade" id="editCatatanModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -441,7 +441,7 @@
 </div>
 
 {{-- 4. Edit Follow Up Modal --}}
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editFollowUpModal" tabindex="-1">
+<div class="modal fade" id="editFollowUpModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -470,7 +470,7 @@
 </div>
 
 {{-- 5. Edit Status Modal --}}
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editStatusModal" tabindex="-1">
+<div class="modal fade" id="editStatusModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -504,12 +504,12 @@
     </div>
 </div>
 
-{{-- 6. Add Produk Modal --}}
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addProductModal" tabindex="-1">
+{{-- 6. Add Layanan Modal --}}
+<div class="modal fade" id="addProductModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h6 class="modal-title fw-bold">Tambah Produk</h6>
+                <h6 class="modal-title fw-bold">Tambah Layanan</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ route('leads.products.store', $lead) }}">
@@ -517,8 +517,8 @@
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-12">
-                            <label class="form-label">Nama Produk <span class="text-danger">*</span></label>
-                            <input type="text" name="product_name" class="form-control" required placeholder="Contoh: Solvent IPA">
+                            <label class="form-label">Nama Layanan <span class="text-danger">*</span></label>
+                            <input type="text" name="service_name" list="vendorServiceOptions" class="form-control" required placeholder="Contoh: Solvent IPA">
                         </div>
                         <div class="col-6">
                             <label class="form-label">Qty / Volume</label>
@@ -546,7 +546,7 @@
 </div>
 
 {{-- 7. Add PIC Modal --}}
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addLeadPicModal" tabindex="-1">
+<div class="modal fade" id="addLeadPicModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -583,5 +583,12 @@
         </div>
     </div>
 </div>
+
+
+<datalist id="vendorServiceOptions">
+    @foreach(($vendorServices ?? collect()) as $svc)
+        <option value="{{ $svc->service_name }}">{{ $svc->vendor?->company_name ?? $svc->vendor?->vendor_name ?? '' }}</option>
+    @endforeach
+</datalist>
 
 @endsection

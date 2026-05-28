@@ -82,7 +82,7 @@
                     <thead>
                         <tr>
                             <th>No.</th><th>Company</th><th>Contact</th><th>Industry</th>
-                            <th>Status</th><th>Sales PIC</th><th>Produk</th><th>Last Activity</th><th>Action</th>
+                            <th>Status</th><th>Sales PIC</th><th>Layanan</th><th>Last Activity</th><th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -111,7 +111,7 @@
                                     <div style="display:flex;flex-wrap:wrap;gap:3px">
                                         @foreach($cust->productItems as $p)
                                             <span style="background:#eff6ff;color:#2563eb;padding:1px 6px;border-radius:10px;font-size:.65rem;white-space:nowrap">
-                                                {{ $p->product_name }}{{ $p->qty > 0 ? ' '.number_format($p->qty, 0, ',', '.').' '.$p->unit : ($p->unit ? ' ('.$p->unit.')' : '') }}
+                                                {{ $p->display_name }}{{ $p->unit ? ' — '.$p->unit : '' }}
                                             </span>
                                         @endforeach
                                     </div>
@@ -211,11 +211,11 @@
 
                     @if($selectedCustomer->productItems && $selectedCustomer->productItems->count())
                     <div class="mt-2 pt-2" style="border-top:1px solid #f3f4f6">
-                        <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:4px">Kebutuhan Produk</div>
+                        <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:4px">Kebutuhan Layanan</div>
                         @foreach($selectedCustomer->productItems as $cp)
                         <div style="font-size:.78rem">
-                            • {{ $cp->product_name }}
-                            <span style="color:var(--text-muted);font-size:.7rem">{{ number_format($cp->qty, 0, ',', '.') }} {{ $cp->unit }}</span>
+                            • {{ $cp->display_name }}
+                            @if($cp->unit)<span style="color:var(--text-muted);font-size:.7rem">{{ $cp->unit }}</span>@endif
                         </div>
                         @endforeach
                     </div>
@@ -376,7 +376,7 @@
 
 {{-- MODALS --}}
 {{-- Add Customer --}}
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addCustomerModal" tabindex="-1">
+<div class="modal fade" id="addCustomerModal" tabindex="-1">
     <div class="modal-dialog modal-lg"><div class="modal-content">
         <div class="modal-header"><h6 class="modal-title fw-bold">Add Customer Baru</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <form method="POST" action="{{ route('customers.store') }}" id="addCustomerForm">@csrf
@@ -412,11 +412,11 @@
                     <div id="addCustPicsContainer"></div>
                 </div>
 
-                {{-- Kebutuhan Produk --}}
+                {{-- Kebutuhan Layanan --}}
                 <div class="col-12 mt-1">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <div style="font-size:.78rem;font-weight:600;color:var(--primary)"><i class="fas fa-box me-1"></i> Kebutuhan Produk</div>
-                        <button type="button" class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:2px 8px" onclick="addCustProductRow('addCustProductsContainer')"><i class="fas fa-plus me-1"></i> Add Produk</button>
+                        <div style="font-size:.78rem;font-weight:600;color:var(--primary)"><i class="fas fa-box me-1"></i> Kebutuhan Layanan</div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:2px 8px" onclick="addCustProductRow('addCustProductsContainer')"><i class="fas fa-plus me-1"></i> Add Layanan</button>
                     </div>
                     <div id="addCustProductsContainer"></div>
                 </div>
@@ -427,7 +427,7 @@
 </div>
 
 {{-- Edit Customer --}}
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editCustomerModal" tabindex="-1">
+<div class="modal fade" id="editCustomerModal" tabindex="-1">
     <div class="modal-dialog modal-lg"><div class="modal-content">
         <div class="modal-header"><h6 class="modal-title fw-bold">Edit Customer</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <form method="POST" id="editCustomerForm">@csrf @method('PUT')
@@ -456,11 +456,11 @@
                     <div id="editCustPicsContainer"></div>
                 </div>
 
-                {{-- Kebutuhan Produk (edit) --}}
+                {{-- Kebutuhan Layanan (edit) --}}
                 <div class="col-12 mt-1">
                     <div class="d-flex align-items-center justify-content-between mb-2">
-                        <div style="font-size:.78rem;font-weight:600;color:var(--primary)"><i class="fas fa-box me-1"></i> Kebutuhan Produk</div>
-                        <button type="button" class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:2px 8px" onclick="addCustProductRow('editCustProductsContainer')"><i class="fas fa-plus me-1"></i> Add Produk</button>
+                        <div style="font-size:.78rem;font-weight:600;color:var(--primary)"><i class="fas fa-box me-1"></i> Kebutuhan Layanan</div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:2px 8px" onclick="addCustProductRow('editCustProductsContainer')"><i class="fas fa-plus me-1"></i> Add Layanan</button>
                     </div>
                     <div id="editCustProductsContainer"></div>
                 </div>
@@ -472,7 +472,7 @@
 
 {{-- Add Activity (Customer) --}}
 @if($selectedCustomer)
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addCustActivityModal" tabindex="-1">
+<div class="modal fade" id="addCustActivityModal" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
         <div class="modal-header"><h6 class="modal-title fw-bold">Add Activity — {{ $selectedCustomer->company_name }}</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <form method="POST" action="{{ route('customers.activity.store', $selectedCustomer) }}">@csrf
@@ -495,7 +495,7 @@
 </div>
 
 {{-- Add PIC (Customer) --}}
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addCustPicModal" tabindex="-1">
+<div class="modal fade" id="addCustPicModal" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
         <div class="modal-header"><h6 class="modal-title fw-bold">Tambah PIC — {{ $selectedCustomer->company_name }}</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <form method="POST" action="{{ route('customers.pics.store', $selectedCustomer) }}">@csrf
@@ -510,6 +510,13 @@
     </div></div>
 </div>
 @endif
+
+
+<datalist id="vendorServiceOptions">
+    @foreach(($vendorServices ?? collect()) as $svc)
+        <option value="{{ $svc->service_name }}">{{ $svc->vendor?->company_name ?? $svc->vendor?->vendor_name ?? '' }}</option>
+    @endforeach
+</datalist>
 
 @endsection
 
@@ -538,7 +545,7 @@
                 'product_items' => $c->relationLoaded('productItems')
                     ? $c->productItems->map(function ($p) {
                         return [
-                            'product_name' => $p->product_name,
+                            'service_name' => $p->display_name,
                             'qty' => $p->qty,
                             'unit' => $p->unit,
                         ];
@@ -583,13 +590,13 @@ function splitProducts(products) {
         const match = item.match(/^(.*?)\s*\((.*?)\)$/);
         if (match) {
             return {
-                product_name: match[1].trim(),
+                service_name: match[1].trim(),
                 unit: match[2].trim()
             };
         }
 
         return {
-            product_name: item,
+            service_name: item,
             unit: ''
         };
     }).filter(Boolean);
@@ -609,12 +616,12 @@ function addCustPicRow(containerId, data = {}) {
     document.getElementById(containerId).insertAdjacentHTML('beforeend', html);
 }
 
-// ── Inline Product rows (Customer) — field: product_name, qty, unit (sama dgn leads) ──
+// ── Inline Service rows (Customer) — field: service_name + catatan/rute ──
 let custProdIdx = 0;
 function addCustProductRow(containerId, data = {}) {
     const i = custProdIdx++;
     const html = `<div class="row g-2 mb-2 align-items-center" id="custProd_${i}">
-        <div class="col-5"><input type="text" name="products_list[${i}][product_name]" class="form-control form-control-sm" placeholder="Nama Produk *" value="${escapeHtml(safeValue(data.product_name))}" required></div>
+        <div class="col-5"><input type="text" name="products_list[${i}][service_name]" list="vendorServiceOptions" class="form-control form-control-sm" placeholder="Nama Layanan *" value="${escapeHtml(safeValue(data.service_name))}" required></div>
         <div class="col-3"><input type="number" name="products_list[${i}][qty]" class="form-control form-control-sm" placeholder="Qty" min="0" step="0.01" value="${escapeHtml(safeValue(data.qty))}"></div>
         <div class="col-3"><input type="text" name="products_list[${i}][unit]" class="form-control form-control-sm" placeholder="Satuan (ton, kg...)" value="${escapeHtml(safeValue(data.unit))}"></div>
         <div class="col-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger p-1" onclick="document.getElementById('custProd_${i}').remove()"><i class="fas fa-times"></i></button></div>

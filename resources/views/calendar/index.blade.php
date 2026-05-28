@@ -201,7 +201,7 @@
 <div id="popupOverlay" onclick="closePopup()" style="display:none;position:fixed;inset:0;z-index:9998"></div>
 
 {{-- Add Activity Modal --}}
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addActivityModal" tabindex="-1">
+<div class="modal fade" id="addActivityModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -389,8 +389,15 @@ function setAddActivityDate(value) {
     const el = document.getElementById('addActDate');
     if (!el) return;
     const normalized = value.replace('T', ' ');
-    el.value = normalized;
-    if (el._airDatepicker) el._airDatepicker.selectDate(new Date(normalized));
+    const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
+    const dateObj = match ? new Date(Number(match[1]), Number(match[2])-1, Number(match[3]), Number(match[4]), Number(match[5])) : new Date(normalized);
+    if (el._airDatepicker) {
+        el._airDatepicker.selectDate(dateObj);
+    } else {
+        el.value = normalized;
+    }
+    const hidden = el.parentElement ? el.parentElement.querySelector('input[type="hidden"][name="activity_at"]') : document.querySelector('input[type="hidden"][name="activity_at"]');
+    if (hidden) hidden.value = normalized;
 }
 function clickDay(dateStr) {
     setAddActivityDate(dateStr + ' 09:00');
@@ -405,6 +412,13 @@ function openAddModal() {
     const mi = String(now.getMinutes()).padStart(2,'0');
     setAddActivityDate(`${yyyy}-${mm}-${dd} ${hh}:${mi}`);
     new bootstrap.Modal(document.getElementById('addActivityModal'), {backdrop:'static', keyboard:false}).show();
+}
+
+function formatDateDisplay(isoDate) {
+    const m = String(isoDate || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return isoDate || '-';
+    const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    return `${m[3]} ${months[Number(m[2])-1]} ${m[1]}`;
 }
 
 // ── Event detail popup ──
@@ -437,7 +451,7 @@ function showPopup(e) {
          <span style="font-size:10px;padding:1px 8px;border-radius:20px;background:${statusBgs[e.status]||'#f3f4f6'};color:${statusClr[e.status]||'#374151'};font-weight:600;margin-left:4px">${e.status}</span>`;
 
     document.getElementById('popupBody').innerHTML = `
-        <div class="popup-row"><i class="fas fa-calendar popup-icon"></i><span>${e.date} · ${e.time}</span></div>
+        <div class="popup-row"><i class="fas fa-calendar popup-icon"></i><span>${formatDateDisplay(e.date)} · ${e.time}</span></div>
         <div class="popup-row"><i class="fas fa-building popup-icon"></i><span>${e.customer}</span></div>
         <div class="popup-row"><i class="fas fa-user-tie popup-icon"></i><span>${e.sales}</span></div>
         ${e.description ? `<div class="popup-row"><i class="fas fa-align-left popup-icon"></i><span>${e.description}</span></div>` : ''}

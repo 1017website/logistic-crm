@@ -53,7 +53,7 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Cari vendor, produk..." value="{{ $search }}">
+                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Cari vendor, layanan..." value="{{ $search }}">
                 </div>
                 <div class="col-md-1">
                     <button type="submit" class="btn btn-primary btn-sm w-100"><i class="fas fa-search"></i></button>
@@ -139,7 +139,7 @@
                                     onclick="openEditVendor({{ $s->id }})">
                                     <i class="fas fa-pencil-alt"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-info" style="padding:3px 7px" title="Produk"
+                                <button class="btn btn-sm btn-outline-info" style="padding:3px 7px" title="Layanan"
                                     onclick="openServiceModal({{ $s->id }}, '{{ addslashes($s->vendor_name) }}')">
                                     <i class="fas fa-boxes" style="font-size:.7rem"></i>
                                 </button>
@@ -167,7 +167,7 @@
 </div>
 
 {{-- Modal Tambah --}}
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addVendorModal" tabindex="-1">
+<div class="modal fade" id="addVendorModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -272,7 +272,7 @@
                         <div class="col-12 mt-1">
                             <div class="d-flex align-items-center justify-content-between mb-2">
                                 <div style="font-size:.78rem;font-weight:600;color:var(--primary)"><i class="fas fa-box me-1"></i> Layanan Vendor</div>
-                                <button type="button" class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:2px 8px" onclick="addVendorServiceRow('addSupProductsContainer')"><i class="fas fa-plus me-1"></i> Add Produk</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:2px 8px" onclick="addVendorServiceRow('addSupProductsContainer')"><i class="fas fa-plus me-1"></i> Add Layanan</button>
                             </div>
                             <div id="addSupProductsContainer"></div>
                         </div>
@@ -288,7 +288,7 @@
 </div>
 
 {{-- Modal Edit --}}
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editVendorModal" tabindex="-1">
+<div class="modal fade" id="editVendorModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -385,7 +385,7 @@
                     <div class="mt-2">
                         <div class="d-flex align-items-center justify-content-between mb-2">
                             <div style="font-size:.78rem;font-weight:600;color:var(--primary)"><i class="fas fa-box me-1"></i> Layanan Vendor</div>
-                            <button type="button" class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:2px 8px" onclick="addVendorServiceRow('editVendorServicesContainer')"><i class="fas fa-plus me-1"></i> Add Produk</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:2px 8px" onclick="addVendorServiceRow('editVendorServicesContainer')"><i class="fas fa-plus me-1"></i> Add Layanan</button>
                         </div>
                         <div id="editSupProductsExisting" class="mt-1 mb-2"></div>
                         <div id="editVendorServicesContainer"></div>
@@ -401,7 +401,7 @@
 </div>
 
 {{-- Modal Layanan Vendor --}}
-<div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="vendorServiceModal" tabindex="-1">
+<div class="modal fade" id="vendorServiceModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -409,24 +409,25 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                {{-- List produk existing --}}
+                {{-- List layanan existing --}}
                 <div id="spProductList" class="mb-3"></div>
-                {{-- Form tambah produk --}}
+                {{-- Form tambah layanan --}}
                 <div style="background:#f9fafb;border-radius:8px;padding:12px">
-                    <div style="font-size:.78rem;font-weight:600;margin-bottom:8px">Tambah Produk</div>
+                    <div style="font-size:.78rem;font-weight:600;margin-bottom:8px">Tambah Layanan</div>
                     <form id="addVendorServiceForm" method="POST">
                         @csrf
                         <div class="row g-2">
                             <div class="col-5">
-                                <input type="text" name="service_name" class="form-control form-control-sm" placeholder="Nama produk *" required>
+                                <input type="text" name="service_name" class="form-control form-control-sm" placeholder="Nama layanan *" required>
                             </div>
                             <div class="col-3">
                                 <select name="unit" class="form-select form-select-sm">
-                                    <option value="ton">ton</option>
-                                    <option value="kg">kg</option>
-                                    <option value="liter">liter</option>
-                                    <option value="drum">drum</option>
-                                    <option value="pcs">pcs</option>
+                                    <option value="per shipment">per shipment</option>
+                                    <option value="per trip">per trip</option>
+                                    <option value="per container">per container</option>
+                                    <option value="FCL">FCL</option>
+                                    <option value="LCL">LCL</option>
+                                    <option value="custom">custom</option>
                                 </select>
                             </div>
                             <div class="col-4">
@@ -533,7 +534,7 @@ function openEditVendor(id) {
     }
 
     if ((data.services || []).length === 0) {
-        editSupProductsExisting.innerHTML = '<div style="font-size:.75rem;color:#9ca3af"><i>Belum ada produk vendor.</i></div>';
+        editSupProductsExisting.innerHTML = '<div style="font-size:.75rem;color:#9ca3af"><i>Belum ada layanan vendor.</i></div>';
     }
 
     new bootstrap.Modal(document.getElementById('editVendorModal')).show();
@@ -568,7 +569,7 @@ function addVendorServiceRow(containerId, data = {}) {
     const i = supProdIdx++;
     const html = `<div class="row g-2 mb-2 align-items-center" id="supProd_${i}">
         <div class="col-5"><input type="text" name="services[${i}][service_name]" class="form-control form-control-sm" placeholder="Nama Layanan *" value="${escapeHtml(data.service_name)}" required></div>
-        <div class="col-3"><input type="text" name="services[${i}][unit]" class="form-control form-control-sm" placeholder="Satuan (kg, m³, kontainer...)" value="${escapeHtml(data.unit)}"></div>
+        <div class="col-3"><input type="text" name="services[${i}][unit]" class="form-control form-control-sm" placeholder="Basis layanan (per trip, per shipment, FCL/LCL...)" value="${escapeHtml(data.unit)}"></div>
         <div class="col-3"><input type="text" name="services[${i}][description]" class="form-control form-control-sm" placeholder="Keterangan" value="${escapeHtml(data.description)}"></div>
         <div class="col-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger p-1" onclick="document.getElementById('supProd_${i}').remove()"><i class="fas fa-times"></i></button></div>
     </div>`;
@@ -587,7 +588,7 @@ function openServiceModal(vendorId, vendorName) {
     const services = vendorServices[vendorId] || [];
     const list = document.getElementById('spProductList');
     if (products.length === 0) {
-        list.innerHTML = '<div style="font-size:.8rem;color:#9ca3af">Belum ada produk.</div>';
+        list.innerHTML = '<div style="font-size:.8rem;color:#9ca3af">Belum ada layanan.</div>';
     } else {
         list.innerHTML = products.map(p => `
             <div class="d-flex align-items-center justify-content-between mb-2 pb-2" style="border-bottom:1px solid #f3f4f6">
@@ -595,7 +596,7 @@ function openServiceModal(vendorId, vendorName) {
                     <div style="font-size:.82rem;font-weight:600">${p.service_name}</div>
                     <div style="font-size:.72rem;color:#6b7280">${p.unit}${p.description ? ' · ' + p.description : ''}</div>
                 </div>
-                <form method="POST" action="/vendors/${vendorId}/products/${p.id}" onsubmit="return confirm('Hapus produk ${p.service_name}?')" style="display:inline">
+                <form method="POST" action="/vendors/${vendorId}/products/${p.id}" onsubmit="return confirm('Hapus layanan ${p.service_name}?')" style="display:inline">
                     <input type="hidden" name="_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="_method" value="DELETE">
                     <button type="submit" style="color:#ef4444;background:none;border:none;cursor:pointer"><i class="fas fa-times"></i></button>

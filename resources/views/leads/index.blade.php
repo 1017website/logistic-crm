@@ -87,7 +87,7 @@
                                     <div style="font-size:.8rem">
                                         @if($lead->products->count())
                                             @foreach($lead->products->take(2) as $p)
-                                                <div>{{ $p->product_name }} <span style="color:var(--text-muted);font-size:.7rem">{{ number_format($p->qty, 0, ',', '.') }} {{ $p->unit }}</span></div>
+                                                <div>{{ $p->display_name }} @if($p->unit)<span style="color:var(--text-muted);font-size:.7rem">{{ $p->unit }}</span>@endif</div>
                                             @endforeach
                                             @if($lead->products->count() > 2)
                                                 <div style="font-size:.7rem;color:var(--text-muted)">+{{ $lead->products->count() - 2 }} lainnya</div>
@@ -139,7 +139,7 @@
     </div>
 
     {{-- Add Lead Modal --}}
-    <div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addLeadModal" tabindex="-1">
+    <div class="modal fade" id="addLeadModal" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
@@ -224,13 +224,13 @@
                                 <div id="leadPicsContainer"></div>
                             </div>
 
-                            {{-- Kebutuhan Produk --}}
+                            {{-- Kebutuhan Layanan --}}
                             <div class="col-12 mt-1">
                                 <div class="d-flex align-items-center justify-content-between mb-2">
                                     <div style="font-size:.78rem;font-weight:600;color:var(--primary)">
-                                        <i class="fas fa-box me-1"></i> Kebutuhan Produk
+                                        <i class="fas fa-box me-1"></i> Kebutuhan Layanan
                                     </div>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:2px 8px" onclick="addLeadProductRow()"><i class="fas fa-plus me-1"></i> Add Produk</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:2px 8px" onclick="addLeadProductRow()"><i class="fas fa-plus me-1"></i> Add Layanan</button>
                                 </div>
                                 <div id="leadProductsContainer"></div>
                             </div>
@@ -246,7 +246,7 @@
     </div>
 
     {{-- Import Modal --}}
-    <div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="importModal" tabindex="-1">
+    <div class="modal fade" id="importModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -287,6 +287,13 @@
         </div>
     </div>
 
+
+<datalist id="vendorServiceOptions">
+    @foreach(($vendorServices ?? collect()) as $svc)
+        <option value="{{ $svc->service_name }}">{{ $svc->vendor?->company_name ?? $svc->vendor?->vendor_name ?? '' }}</option>
+    @endforeach
+</datalist>
+
 @endsection
 
 @push('scripts')
@@ -314,9 +321,8 @@
         function addLeadProductRow() {
             const i = leadProdIdx++;
             const html = `<div class="row g-2 mb-2 align-items-center" id="leadProd_${i}">
-                <div class="col-5"><input type="text" name="products[${i}][product_name]" class="form-control form-control-sm" placeholder="Nama Produk *" required></div>
-                <div class="col-3"><input type="number" name="products[${i}][qty]" class="form-control form-control-sm" placeholder="Qty" min="0" step="0.01"></div>
-                <div class="col-3"><input type="text" name="products[${i}][unit]" class="form-control form-control-sm" placeholder="Satuan (ton, kg...)"></div>
+                <div class="col-5"><input type="text" name="products[${i}][service_name]" list="vendorServiceOptions" class="form-control form-control-sm" placeholder="Kebutuhan layanan *" required></div>
+                <div class="col-6"><input type="text" name="products[${i}][unit]" class="form-control form-control-sm" placeholder="Rute / area / catatan layanan"></div>
                 <div class="col-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger p-1" onclick="document.getElementById('leadProd_${i}').remove()"><i class="fas fa-times"></i></button></div>
             </div>`;
             document.getElementById('leadProductsContainer').insertAdjacentHTML('beforeend', html);

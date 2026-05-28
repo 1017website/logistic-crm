@@ -43,14 +43,16 @@ class DashboardController extends Controller
         $dealGrowth    = $growth($dealClosed, $dealClosedPrev);
         $leadsGrowth   = $growth($activeLeads, $activeLeadsPrev);
 
-        // ── Pipeline by stage ──
-        $pipelineStages = [
-            'Identifying' => Lead::where('pipeline_stage','Identifying')->get(),
-            'Approaching' => Lead::where('pipeline_stage','Approaching')->get(),
-            'Follow Up'   => Lead::where('pipeline_stage','Follow Up')->get(),
-            'Won'         => Lead::where('pipeline_stage','Won')->get(),
-            'Maintaining' => Lead::where('pipeline_stage','Maintaining')->get(),
-        ];
+        // ── Pipeline by stage: disamakan dengan menu Pipeline ──
+        $pipelineStageNames = ['Identifying', 'Approaching', 'Follow Up', 'Won', 'Maintaining'];
+        $pipelineLeads = Lead::with(['customer', 'salesUser'])
+            ->whereIn('pipeline_stage', $pipelineStageNames)
+            ->orderBy('updated_at', 'desc')
+            ->get();
+        $pipelineStages = [];
+        foreach ($pipelineStageNames as $stage) {
+            $pipelineStages[$stage] = $pipelineLeads->where('pipeline_stage', $stage)->values();
+        }
 
         // ── Today reminders ──
         $todayReminders = Activity::where(function($q) {

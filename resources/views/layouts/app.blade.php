@@ -1180,6 +1180,21 @@
             color: #991b1b;
             font-size: .82rem;
         }
+
+
+        /* ── Bootstrap pagination custom ── */
+        .pagination { gap: 6px; justify-content: flex-end; margin: 16px 0 0; flex-wrap: wrap; }
+        .page-item .page-link {
+            min-width: 34px; height: 34px; padding: 6px 10px; border-radius: 8px !important;
+            border: 1px solid #e5e7eb; color: #374151; font-size: 12px; font-weight: 600;
+            display: flex; align-items: center; justify-content: center; box-shadow: none;
+        }
+        .page-item.active .page-link { background: #2563eb; border-color: #2563eb; color: #fff; }
+        .page-item.disabled .page-link { background: #f9fafb; color: #9ca3af; }
+        .page-link:hover { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+        .pagination .page-item:first-child .page-link,
+        .pagination .page-item:last-child .page-link { padding-left: 12px; padding-right: 12px; }
+
     </style>
 
     @stack('styles')
@@ -1471,7 +1486,6 @@
     <script src="{{ asset('vendor/select2/select2.min.js') }}"></script>
     <!-- Air Datepicker (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/air-datepicker@3.5.3/air-datepicker.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/air-datepicker@3.5.3/locale/id.js"></script>
 
     <script>
         function toggleSidebar() {
@@ -1710,72 +1724,93 @@
         }
 
         function initAirDatepicker(scope) {
-            if (typeof AirDatepicker === 'undefined') {
-                console.warn('AirDatepicker belum ter-load. Datepicker dilewati.');
-                return;
-            }
-
             const ctx = scope || document;
+            const monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+            const airIdLocale = {
+                days: ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'],
+                daysShort: ['Min','Sen','Sel','Rab','Kam','Jum','Sab'],
+                daysMin: ['Min','Sen','Sel','Rab','Kam','Jum','Sab'],
+                months: ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'],
+                monthsShort: monthNames,
+                today: 'Hari ini',
+                clear: 'Hapus',
+                dateFormat: 'dd MMM yyyy',
+                timeFormat: 'HH:mm',
+                firstDay: 1
+            };
+            const pad = (n) => String(n).padStart(2, '0');
+            const toIsoDate = (date) => `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+            const toIsoDateTime = (date) => `${toIsoDate(date)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+            const toDisplayDate = (date) => `${pad(date.getDate())} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+            const toDisplayDateTime = (date) => `${toDisplayDate(date)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+            const parseInitialDate = (value) => {
+                if (!value) return null;
+                const normalized = String(value).replace('T', ' ').trim();
+                const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s+(\d{2}):(\d{2}))?/);
+                if (!match) return null;
+                return new Date(Number(match[1]), Number(match[2])-1, Number(match[3]), Number(match[4] || 0), Number(match[5] || 0));
+            };
 
-            $(ctx).find('input[type="date"], input[type="datetime-local"], input.air-datepicker-input').each(function() {
+            $(ctx).find('input[type="date"], input[type="datetime-local"]').each(function() {
                 if (this._airDatepicker) return;
 
-                try {
-                    const input = this;
-                    const isDateTime = input.type === 'datetime-local' || input.getAttribute('data-datepicker-type') === 'datetime';
-                    const originalValue = input.value;
+                const input = this;
+                const isDateTime = input.type === 'datetime-local';
+                const originalName = input.getAttribute('name');
+                const originalValue = input.value;
+                input.type = 'text';
+                input.classList.add('air-datepicker-input');
+                input.setAttribute('autocomplete', 'off');
+                input.setAttribute('placeholder', isDateTime ? '28 Mei 2026 09:30' : '28 Mei 2026');
 
-                    input.setAttribute('data-datepicker-type', isDateTime ? 'datetime' : 'date');
-                    input.type = 'text';
-                    input.classList.add('air-datepicker-input');
-                    input.setAttribute('autocomplete', 'off');
+                let hiddenInput = null;
+                if (originalName) {
+                    input.removeAttribute('name');
+                    input.setAttribute('data-original-name', originalName);
+                    hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = originalName;
+                    input.insertAdjacentElement('afterend', hiddenInput);
+                }
 
-                    if (!input.closest('.date-input-wrap')) {
-                        const wrapper = document.createElement('div');
-                        wrapper.className = 'date-input-wrap';
-                        input.parentNode.insertBefore(wrapper, input);
-                        wrapper.appendChild(input);
-                        const icon = document.createElement('i');
-                        icon.className = isDateTime ? 'fas fa-clock date-icon' : 'fas fa-calendar-alt date-icon';
-                        wrapper.appendChild(icon);
+                const setValues = (date) => {
+                    if (!date || isNaN(date.getTime())) {
+                        input.value = '';
+                        if (hiddenInput) hiddenInput.value = '';
+                        return;
                     }
+                    input.value = isDateTime ? toDisplayDateTime(date) : toDisplayDate(date);
+                    if (hiddenInput) hiddenInput.value = isDateTime ? toIsoDateTime(date) : toIsoDate(date);
+                    input.dispatchEvent(new Event('change', {bubbles:true}));
+                    if (hiddenInput) hiddenInput.dispatchEvent(new Event('change', {bubbles:true}));
+                };
 
-                    input._airDatepicker = new AirDatepicker(input, {
-                        locale: (AirDatepicker.locales && AirDatepicker.locales.id) ? AirDatepicker.locales.id : undefined,
-                        dateFormat: 'yyyy-MM-dd',
-                        timepicker: isDateTime,
-                        timeFormat: 'HH:mm',
-                        minutesStep: 15,
-                        autoClose: !isDateTime,
-                        keyboardNav: true,
-                        buttons: ['today', 'clear'],
-                        onSelect({date, formattedDate}) {
-                            if (!date) {
-                                input.value = '';
-                                input.dispatchEvent(new Event('change', {bubbles:true}));
-                                return;
-                            }
-                            if (isDateTime) {
-                                const hh = String(date.getHours()).padStart(2, '0');
-                                const mm = String(date.getMinutes()).padStart(2, '0');
-                                input.value = `${formattedDate} ${hh}:${mm}`;
-                            } else {
-                                input.value = formattedDate;
-                            }
-                            input.dispatchEvent(new Event('change', {bubbles:true}));
-                        }
-                    });
+                if (!input.closest('.date-input-wrap')) {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'date-input-wrap';
+                    input.parentNode.insertBefore(wrapper, input);
+                    wrapper.appendChild(input);
+                    const icon = document.createElement('i');
+                    icon.className = isDateTime ? 'fas fa-clock date-icon' : 'fas fa-calendar-alt date-icon';
+                    wrapper.appendChild(icon);
+                }
 
-                    if (originalValue) {
-                        const normalized = originalValue.replace('T', ' ');
-                        const parsedDate = new Date(normalized);
-                        input.value = normalized;
-                        if (!isNaN(parsedDate.getTime())) {
-                            input._airDatepicker.selectDate(parsedDate, {silent: true});
-                        }
-                    }
-                } catch (e) {
-                    console.warn('Gagal init AirDatepicker pada input:', this, e);
+                input._airDatepicker = new AirDatepicker(input, {
+                    locale: airIdLocale,
+                    dateFormat: 'dd MMM yyyy',
+                    timepicker: isDateTime,
+                    timeFormat: 'HH:mm',
+                    minutesStep: 15,
+                    autoClose: !isDateTime,
+                    keyboardNav: true,
+                    buttons: ['today', 'clear'],
+                    onSelect({date}) { setValues(date); }
+                });
+
+                const initialDate = parseInitialDate(originalValue);
+                if (initialDate) {
+                    input._airDatepicker.selectDate(initialDate, {silent: true});
+                    setValues(initialDate);
                 }
             });
         }
@@ -1787,25 +1822,6 @@
                 this.setAttribute('data-bs-keyboard', 'false');
             });
         }
-
-        // Paksa semua modal Bootstrap tidak tertutup saat klik backdrop / tekan ESC.
-        // Listener capture ini berjalan sebelum Bootstrap data-api membuat instance modal.
-        document.addEventListener('click', function(e) {
-            const trigger = e.target.closest('[data-bs-toggle="modal"][data-bs-target], [data-bs-toggle="modal"][href]');
-            if (!trigger) return;
-            const selector = trigger.getAttribute('data-bs-target') || trigger.getAttribute('href');
-            if (!selector || selector === '#') return;
-            const modalEl = document.querySelector(selector);
-            if (!modalEl || !modalEl.classList.contains('modal')) return;
-
-            modalEl.setAttribute('data-bs-backdrop', 'static');
-            modalEl.setAttribute('data-bs-keyboard', 'false');
-
-            bootstrap.Modal.getOrCreateInstance(modalEl, {
-                backdrop: 'static',
-                keyboard: false
-            });
-        }, true);
 
         // Init saat DOM ready
         $(document).ready(function() {

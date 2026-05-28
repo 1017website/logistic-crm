@@ -101,7 +101,9 @@ class SalesActivityController extends Controller
 
         if (!empty($validated['lead_id'])) {
             $targetLead = Lead::find($validated['lead_id']);
-            $validated['customer_id'] = null;
+            if ($targetLead && $targetLead->customer_id) {
+                $validated['customer_id'] = $targetLead->customer_id;
+            }
         } elseif (!empty($validated['customer_id'])) {
             $customer = Customer::find($validated['customer_id']);
             if ($customer) {
@@ -143,6 +145,10 @@ class SalesActivityController extends Controller
         unset($validated['photo'], $validated['pipeline_stage'], $validated['client_ref']);
         if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
             $validated['photo'] = self::compressAndStore($request->file('photo'));
+        }
+
+        if ($targetLead && empty($validated['lead_id'])) {
+            $validated['lead_id'] = $targetLead->id;
         }
 
         Activity::create($validated);

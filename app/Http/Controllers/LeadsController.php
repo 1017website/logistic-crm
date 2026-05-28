@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Lead;
 use App\Models\User;
 use App\Models\Activity;
+use App\Models\VendorService;
 use App\Models\LeadProduct;
 use App\Models\LeadPic;
 use Illuminate\Http\Request;
@@ -32,15 +33,17 @@ class LeadsController extends Controller
 
         $leads      = $query->orderBy('updated_at', 'desc')->paginate(15);
         $salesUsers = User::orderBy('name')->get();
+        $vendorServices = VendorService::with('vendor')->orderBy('service_name')->get();
 
-        return view('leads.index', compact('leads', 'salesUsers', 'stage', 'search'));
+        return view('leads.index', compact('leads', 'salesUsers', 'vendorServices', 'stage', 'search'));
     }
 
     public function show(Lead $lead)
     {
         $lead->load(['salesUser', 'activities.salesUser', 'products', 'pics']);
         $salesUsers = User::orderBy('name')->get();
-        return view('leads.show', compact('lead', 'salesUsers'));
+        $vendorServices = VendorService::with('vendor')->orderBy('service_name')->get();
+        return view('leads.show', compact('lead', 'salesUsers', 'vendorServices'));
     }
 
     public function store(Request $request)
@@ -71,7 +74,7 @@ class LeadsController extends Controller
             'pics.*.email'        => 'nullable|email|max:255',
             // inline products
             'products'                => 'nullable|array',
-            'products.*.product_name' => 'required_with:products|string|max:255',
+            'products.*.service_name' => 'required_with:products|string|max:255',
             'products.*.qty'          => 'nullable|numeric|min:0',
             'products.*.unit'         => 'nullable|string|max:50',
         ]);
@@ -103,9 +106,10 @@ class LeadsController extends Controller
         // Simpan inline Products
         foreach ($productsData as $prod) {
             $lead->products()->create([
-                'product_name' => $prod['product_name'],
+                'service_name' => $prod['service_name'],
+                'product_name' => $prod['service_name'],
                 'qty'          => $prod['qty'] ?? 0,
-                'unit'         => $prod['unit'] ?? 'ton',
+                'unit'         => trim($prod['unit'] ?? ''),
             ]);
         }
 
@@ -246,21 +250,24 @@ class LeadsController extends Controller
             $lead->updateQuietly(['customer_id' => $customer->id]);
         }
 
-        // Sync produk lead ke tabel customer_products (field: product_name, qty, unit).
-        // Tidak menghapus produk manual customer; hanya menambah yang belum ada.
+        // Sync kebutuhan layanan lead ke customer_products.
+        // Tidak menghapus layanan manual customer; hanya menambah yang belum ada.
         foreach ($lead->products as $leadProduct) {
-            $name = trim($leadProduct->product_name ?? '');
+            $name = trim($leadProduct->service_name ?? $leadProduct->product_name ?? '');
             if ($name === '') {
                 continue;
             }
-            $unit = trim($leadProduct->unit ?? '') !== '' ? $leadProduct->unit : 'ton';
+            $unit = trim($leadProduct->unit ?? '');
 
             $exists = $customer->productItems()
-                ->whereRaw('LOWER(product_name) = ?', [mb_strtolower($name)])
+                ->where(function ($q) use ($name) {
+                    $q->whereRaw('LOWER(COALESCE(service_name, product_name)) = ?', [mb_strtolower($name)]);
+                })
                 ->exists();
 
             if (!$exists) {
                 $customer->productItems()->create([
+                    'service_name' => $name,
                     'product_name' => $name,
                     'qty'          => $leadProduct->qty ?? 0,
                     'unit'         => $unit,
@@ -268,17 +275,20 @@ class LeadsController extends Controller
             }
         }
 
-        // Fallback: product_interest (string) jika lead tidak punya produk terstruktur.
+        // Fallback: product_interest lama jika lead tidak punya layanan terstruktur.
         if ($lead->products->isEmpty() && trim((string) $lead->product_interest) !== '') {
             $piName = trim((string) $lead->product_interest);
             $exists = $customer->productItems()
-                ->whereRaw('LOWER(product_name) = ?', [mb_strtolower($piName)])
+                ->where(function ($q) use ($piName) {
+                    $q->whereRaw('LOWER(COALESCE(service_name, product_name)) = ?', [mb_strtolower($piName)]);
+                })
                 ->exists();
             if (!$exists) {
                 $customer->productItems()->create([
+                    'service_name' => $piName,
                     'product_name' => $piName,
                     'qty'          => 0,
-                    'unit'         => 'ton',
+                    'unit'         => '',
                 ]);
             }
         }
@@ -317,23 +327,24 @@ class LeadsController extends Controller
     public function storeProduct(Request $request, Lead $lead)
     {
         $request->validate([
-            'product_name' => 'required|string|max:255',
+            'service_name' => 'required|string|max:255',
             'qty'          => 'nullable|numeric|min:0',
-            'unit'         => 'required|string|max:50',
+            'unit'         => 'nullable|string|max:100',
         ]);
         $lead->products()->create([
-            'product_name' => $request->product_name,
+            'service_name' => $request->service_name,
+            'product_name' => $request->service_name,
             'qty'          => $request->qty ?? 0,
-            'unit'         => $request->unit,
+            'unit'         => trim($request->unit ?? ''),
         ]);
-        return redirect()->back()->with('success', 'Produk ditambahkan.');
+        return redirect()->back()->with('success', 'Layanan ditambahkan.');
     }
 
     public function destroyProduct(Lead $lead, LeadProduct $product)
     {
         abort_if((int) $product->lead_id !== (int) $lead->id, 404);
         $product->delete();
-        return redirect()->back()->with('success', 'Produk dihapus.');
+        return redirect()->back()->with('success', 'Layanan dihapus.');
     }
 
     // ── Lead PICs ──
@@ -377,6 +388,9 @@ class LeadsController extends Controller
         ]);
 
         $validated['lead_id'] = $lead->id;
+        if ($lead->customer_id) {
+            $validated['customer_id'] = $lead->customer_id;
+        }
         $validated['user_id'] = auth()->user()->isSalesExecutive() ? auth()->id() : ($validated['user_id'] ?? $lead->user_id ?? auth()->id());
         $validated['sales_user_id'] = $validated['user_id'];
 
