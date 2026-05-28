@@ -70,6 +70,9 @@
             @endforeach
         </select>
     </div>
+    <a href="{{ route('leads.index') }}" class="btn btn-outline-primary btn-sm">
+        <i class="fas fa-address-book me-1"></i> Kelola Leads
+    </a>
 </div>
 
 {{-- Kanban Board --}}

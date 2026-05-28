@@ -235,6 +235,16 @@
                             </div>
                         </div>
                     </div>
+                    <div class="row g-1 mb-3">
+                        @foreach([['phone','Log Call','#d1fae5','#059669',"quickActCust('Call')"],['building','Visit','#dbeafe','#2563eb',"quickActCust('Visit')"],['envelope','Email','#fef3c7','#d97706',"quickActCust('Email')"],['sticky-note','Note','#f3e8ff','#7c3aed',"quickActCust('Note')"]] as $qa)
+                        <div class="col-3">
+                            <div class="quick-action-btn" onclick="{{ $qa[4] }}" style="padding:8px 4px;cursor:pointer">
+                                <div class="qa-icon" style="width:28px;height:28px;background:{{ $qa[2] }}"><i class="fas fa-{{ $qa[0] }}" style="color:{{ $qa[3] }};font-size:.7rem"></i></div>
+                                <span class="qa-label" style="font-size:.62rem">{{ $qa[1] }}</span>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
                     <div class="d-flex gap-2">
                         <button class="btn btn-sm btn-outline-secondary flex-fill" style="font-size:.75rem"
                             onclick="openEditModal({{ $selectedCustomer->id }})">
@@ -315,6 +325,9 @@
                 <div id="tab-activity" style="display:none">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <strong style="font-size:.8rem">Activity History</strong>
+                        <button class="btn btn-sm btn-primary" style="font-size:.72rem;padding:3px 8px" data-bs-toggle="modal" data-bs-target="#addCustActivityModal">
+                            <i class="fas fa-plus me-1"></i> Add
+                        </button>
                     </div>
                     @forelse($selectedCustomer->activities->sortByDesc('activity_at') as $act)
                     <div class="d-flex gap-2 mb-3">
@@ -457,7 +470,18 @@
     </div></div>
 </div>
 
+{{-- Add Activity (Customer) --}}
 @if($selectedCustomer)
+@include('components.shared-activity-modal', [
+    'activityModalId' => 'addCustActivityModal',
+    'activityModalTitle' => 'Add Activity — '.$selectedCustomer->company_name,
+    'activityContextType' => 'customer',
+    'activityContextId' => $selectedCustomer->id,
+    'activityContextLabel' => $selectedCustomer->company_name.' (Customer)',
+    'activityContextStage' => 'Maintaining',
+])
+@endif
+
 {{-- Add PIC (Customer) --}}
 <div class="modal fade" id="addCustPicModal" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
@@ -658,8 +682,15 @@ function openEditModal(id) {
     }, 150);
 }
 function quickActCust(type) {
-    // Add Activity hanya dilakukan dari menu Sales Activity.
-    return false;
+    const m = document.getElementById('addCustActivityModal');
+    if (m) {
+        const radio = m.querySelector(`input[name="type"][value="${type}"]`);
+        if (radio) {
+            radio.checked = true;
+            radio.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        new bootstrap.Modal(m, {backdrop:'static', keyboard:false}).show();
+    }
 }
 // Prevent data loss add customer modal
 document.addEventListener('DOMContentLoaded', function() {

@@ -74,6 +74,9 @@
             <option value="{{ $su->id }}">{{ $su->name }}</option>
             @endforeach
         </select>
+        <button class="btn btn-primary btn-sm" onclick="openAddModal()" style="border-radius:8px;font-size:13px">
+            <i class="fas fa-plus me-1"></i> Add Activity
+        </button>
     </div>
 </div>
 
@@ -197,6 +200,8 @@
 </div>
 <div id="popupOverlay" onclick="closePopup()" style="display:none;position:fixed;inset:0;z-index:9998"></div>
 
+{{-- Add Activity Modal --}}
+@include('components.shared-activity-modal', ['activityModalTitle' => 'Add Activity'])
 
 @endsection
 
@@ -336,24 +341,26 @@ function filterSales(val) {
 
 // ── Klik tanggal kosong → buka add modal dengan tanggal ter-set ──
 function setAddActivityDate(value) {
-    const el = document.getElementById('addActDate');
+    const el = document.querySelector('#addActivityModal input[name="activity_at"]');
     if (!el) return;
-    const normalized = value.replace('T', ' ');
-    const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
-    const dateObj = match ? new Date(Number(match[1]), Number(match[2])-1, Number(match[3]), Number(match[4]), Number(match[5])) : new Date(normalized);
-    if (el._airDatepicker) {
-        el._airDatepicker.selectDate(dateObj);
-    } else {
-        el.value = normalized;
-    }
-    const hidden = el.parentElement ? el.parentElement.querySelector('input[type="hidden"][name="activity_at"]') : document.querySelector('input[type="hidden"][name="activity_at"]');
-    if (hidden) hidden.value = normalized;
+    const normalized = String(value || '').replace(' ', 'T').slice(0, 16);
+    el.value = normalized;
 }
 function clickDay(dateStr) {
-    // Add Activity hanya dilakukan dari menu Sales Activity.
-    // Klik tanggal di Calendar tidak membuka form tambah activity.
-    return false;
+    setAddActivityDate(dateStr + ' 09:00');
+    new bootstrap.Modal(document.getElementById('addActivityModal'), {backdrop:'static', keyboard:false}).show();
 }
+function openAddModal() {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth()+1).padStart(2,'0');
+    const dd = String(now.getDate()).padStart(2,'0');
+    const hh = String(now.getHours()).padStart(2,'0');
+    const mi = String(now.getMinutes()).padStart(2,'0');
+    setAddActivityDate(`${yyyy}-${mm}-${dd} ${hh}:${mi}`);
+    new bootstrap.Modal(document.getElementById('addActivityModal'), {backdrop:'static', keyboard:false}).show();
+}
+
 function formatDateDisplay(isoDate) {
     const m = String(isoDate || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!m) return isoDate || '-';

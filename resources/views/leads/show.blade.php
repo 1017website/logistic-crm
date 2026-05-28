@@ -27,6 +27,9 @@
         <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editLeadModal">
             <i class="fas fa-edit me-1"></i> Edit Lead
         </button>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addActivityModal">
+            <i class="fas fa-plus me-1"></i> Add Activity
+        </button>
     </div>
 </div>
 
@@ -143,6 +146,9 @@
         <div class="card mb-3">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <span>Activity Timeline</span>
+                <button class="btn btn-sm btn-outline-secondary" style="font-size:.72rem" data-bs-toggle="modal" data-bs-target="#addActivityModal">
+                    <i class="fas fa-plus me-1"></i> Add Activity
+                </button>
             </div>
             <div class="card-body p-3">
                 <div class="activity-timeline">
@@ -355,7 +361,16 @@
     </div>
 </div>
 
-{{-- 2. Edit Catatan Internal Modal --}}
+{{-- 2. Add Activity Modal --}}
+@include('components.shared-activity-modal', [
+    'activityModalTitle' => 'Add Activity — '.$lead->company_name,
+    'activityContextType' => 'lead',
+    'activityContextId' => $lead->id,
+    'activityContextLabel' => $lead->company_name.' (Lead)',
+    'activityContextStage' => $lead->pipeline_stage,
+])
+
+{{-- 3. Edit Catatan Internal Modal --}}
 <div class="modal fade" id="editCatatanModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
