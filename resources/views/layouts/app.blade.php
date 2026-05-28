@@ -1192,7 +1192,7 @@
         <a href="{{ route('dashboard') }}" class="sidebar-brand">
             @php
                 $companyLogo = \App\Models\Setting::get('company_logo');
-                $companyName = \App\Models\Setting::get('company_name', 'CHEMICAL CRM');
+                $companyName = \App\Models\Setting::get('company_name', 'LOGISTIC CRM');
             @endphp
             @if($companyLogo)
                 <img src="{{ Storage::url($companyLogo) }}" alt="{{ $companyName }}"

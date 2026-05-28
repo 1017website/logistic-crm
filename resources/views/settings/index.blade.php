@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Settings')
 @section('page-title', 'Settings')
-@section('page-subtitle', 'Konfigurasi sistem Chemical CRM')
+@section('page-subtitle', 'Konfigurasi sistem Logistic CRM')
 
 @push('styles')
     <style>
@@ -465,7 +465,7 @@
                                 style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.5px">
                                 Versi Aplikasi</div>
                             <div style="font-size:22px;font-weight:700;color:#0f1d35;margin-top:4px">v1.0.0</div>
-                            <div style="font-size:12px;color:#6b7280">Chemical CRM</div>
+                            <div style="font-size:12px;color:#6b7280">Logistic CRM</div>
                         </div>
                     </div>
                     <div class="col-md-6">

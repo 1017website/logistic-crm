@@ -204,7 +204,7 @@
                 <span style="color:#fff;font-weight:800;font-size:14pt">C</span>
             </div>
             <div>
-                <div style="font-size:14pt;font-weight:700;color:#1e3a5f">{{ \App\Models\Setting::get('company_name', 'Chemical CRM') }}</div>
+                <div style="font-size:14pt;font-weight:700;color:#1e3a5f">{{ \App\Models\Setting::get('company_name', 'Logistic CRM') }}</div>
                 <div style="font-size:9pt;color:#6b7280">Laporan: <strong>{{ ['sales'=>'Sales Report','customer'=>'Customer Report','pipeline'=>'Pipeline Report','performance'=>'Performance Report','po'=>'PO Report'][$reportType] ?? $reportType }}</strong></div>
             </div>
         </div>

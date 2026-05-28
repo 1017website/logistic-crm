@@ -230,8 +230,8 @@
                         </div>
                         <div class="col-6">
                             <div style="background:#f0fdf4;border-radius:8px;padding:10px">
-                                <div style="font-size:1rem;font-weight:800;color:#16a34a">{{ $selectedCustomer->purchaseOrders->count() }}</div>
-                                <div style="font-size:.65rem;color:var(--text-muted)">Total PO</div>
+                                <div style="font-size:1rem;font-weight:800;color:#16a34a">{{ $selectedCustomer->deliveryOrders->count() }}</div>
+                                <div style="font-size:.65rem;color:var(--text-muted)">Total DO</div>
                             </div>
                         </div>
                     </div>
@@ -349,7 +349,7 @@
                 {{-- Tab PO --}}
                 <div id="tab-transaction" style="display:none">
                     <strong style="font-size:.8rem;display:block;margin-bottom:10px">Purchase Orders</strong>
-                    @forelse($selectedCustomer->purchaseOrders->sortByDesc('order_date') as $do)
+                    @forelse($selectedCustomer->deliveryOrders->sortByDesc('order_date') as $do)
                     <div class="d-flex align-items-start gap-2 mb-3 pb-2" style="border-bottom:1px solid #f9fafb">
                         <div style="width:32px;height:32px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
                             <i class="fas fa-ship" style="font-size:.7rem;color:#2563eb"></i>

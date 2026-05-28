@@ -11,15 +11,27 @@ class Vendor extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'vendor_name', 'pic_name', 'pic_position', 'phone', 'email', 'address',
-        'vendor_type', 'service_type', 'service_mode',
-        'status', 'relationship_status', 'is_preferred', 'rating',
-        'payment_term', 'vendor_since', 'logo',
+        'vendor_name',
+        'pic_name',
+        'pic_position',
+        'phone',
+        'email',
+        'address',
+        'vendor_type',
+        'service_type',
+        'service_mode',
+        'status',
+        'relationship_status',
+        'is_preferred',
+        'rating',
+        'payment_term',
+        'vendor_since',
+        'logo',
     ];
 
     protected $casts = [
-        'vendor_since'  => 'date',
-        'is_preferred'  => 'boolean',
+        'vendor_since' => 'date',
+        'is_preferred' => 'boolean',
     ];
 
     /** Daftar enum (single source of truth) */
@@ -34,14 +46,35 @@ class Vendor extends Model
 
     public const SERVICE_MODES = ['Tracking', 'Kontainer', 'Wingbox'];
 
-    public function shipmentOrders(): HasMany { return $this->hasMany(ShipmentOrder::class); }
-    public function services(): HasMany       { return $this->hasMany(VendorService::class); }
-    public function pics(): HasMany           { return $this->hasMany(VendorPic::class); }
+    public function deliveryOrders(): HasMany
+    {
+        return $this->hasMany(DeliveryOrder::class);
+    }
+    public function services(): HasMany
+    {
+        return $this->hasMany(VendorService::class);
+    }
+    public function pics(): HasMany
+    {
+        return $this->hasMany(VendorPic::class);
+    }
 
-    public function isExisting(): bool  { return $this->relationship_status === 'Existing'; }
-    public function isPotential(): bool { return $this->relationship_status === 'Potential'; }
-    public function isExternal(): bool  { return $this->vendor_type === 'External'; }
-    public function isInternal(): bool  { return $this->vendor_type === 'Internal'; }
+    public function isExisting(): bool
+    {
+        return $this->relationship_status === 'Existing';
+    }
+    public function isPotential(): bool
+    {
+        return $this->relationship_status === 'Potential';
+    }
+    public function isExternal(): bool
+    {
+        return $this->vendor_type === 'External';
+    }
+    public function isInternal(): bool
+    {
+        return $this->vendor_type === 'Internal';
+    }
 
     /** Helper: service_mode disimpan comma-separated, expose sebagai array */
     public function getServiceModesArrayAttribute(): array

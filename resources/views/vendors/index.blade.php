@@ -577,7 +577,7 @@ function addVendorServiceRow(containerId, data = {}) {
 
 // Vendor Products (AJAX via form submit → reload)
 const vendorPics = @json($vendors->pluck('pics', 'id'));
-const vendorServices = @json($vendors->pluck(.services., .id.));
+const vendorServices = @json($vendors->pluck('services', 'id'));
 
 function openServiceModal(vendorId, vendorName) {
     document.getElementById('spModalName').textContent = vendorName;

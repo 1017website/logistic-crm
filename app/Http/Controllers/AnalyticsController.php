@@ -27,7 +27,7 @@ class AnalyticsController extends Controller
         $revenue     = $allDonePOs->sum(fn($po) => $po->total_revenue);
         $totalCost   = $allDonePOs->sum(fn($po) => $po->total_cost);
         $grossProfit = $revenue - $totalCost;
-        $nettProfit  = $grossProfit; // chemical: nett = gross (belum ada other_cost)
+        $nettProfit  = $grossProfit; // logistic: nett = gross (belum ada other_cost)
         $volumePo    = $allDonePOs->count();
 
         $leadsQuery = Lead::query();
@@ -98,7 +98,7 @@ class AnalyticsController extends Controller
         })->sortByDesc('revenue');
 
         // ── Top customers ──
-        $topCustomers = Customer::with('purchaseOrders.items')->get()->map(function($c) use ($startDate, $endDate, $salesId) {
+        $topCustomers = Customer::with('deliveryOrders.items')->get()->map(function($c) use ($startDate, $endDate, $salesId) {
             $poQuery = $c->deliveryOrders()->where('status', 'Done')->where('currency', 'IDR');
             if ($salesId) $poQuery->whereHas('lead', fn($q) => $q->where('user_id', $salesId));
             $pos = $poQuery->with('items')->get();
@@ -120,7 +120,7 @@ class AnalyticsController extends Controller
         $avgGrossMargin = count($marginData) > 0
             ? round(collect($marginData)->avg(fn($m) => $m['revenue'] > 0 ? (($m['gross_profit'] / $m['revenue']) * 100) : 0), 1)
             : 0;
-        $avgNettMargin = $avgGrossMargin; // chemical: nett = gross (belum ada other_cost)
+        $avgNettMargin = $avgGrossMargin; // logistic: nett = gross (belum ada other_cost)
         $serviceQuery = \App\Models\DeliveryOrderItem::join('delivery_orders', 'delivery_orders.id', '=', 'delivery_order_items.delivery_order_id')
             ->where('delivery_orders.status', 'Done')->where('delivery_orders.currency', 'IDR')
             ->whereBetween('delivery_orders.order_date', [$startDate, $endDate]);
@@ -128,7 +128,7 @@ class AnalyticsController extends Controller
         $revenueByService = $serviceQuery->selectRaw('service_name as service_type, SUM(qty * sell_price) as total')
             ->groupBy('service_name')->orderByDesc('total')->limit(5)->get();
 
-        // ── Revenue by route (tidak ada di chemical, kirim collection kosong) ──
+        // ── Revenue by route per delivery type ──
         $revenueByRoute = collect();
 
         $salesUsers = User::orderBy('name')->get();
