@@ -99,8 +99,8 @@
 
         <select class="form-select form-select-sm" style="width:130px;font-size:12px;border-radius:8px" onchange="location.href=this.value">
             <option value="{{ route('tasks.index', array_merge(request()->query(), ['type'=>''])) }}">All Type</option>
-            @foreach(['Call','Visit','Email','Note','Task'] as $t)
-            <option value="{{ route('tasks.index', array_merge(request()->query(), ['type'=>$t])) }}" {{ $type === $t ? 'selected' : '' }}>{{ $t }}</option>
+            @foreach(['Call'=>'Call','Visit'=>'Visit','Email'=>'Email','Note'=>'Note','Others'=>'Task'] as $value => $label)
+            <option value="{{ route('tasks.index', array_merge(request()->query(), ['type'=>$value])) }}" {{ $type === $value ? 'selected' : '' }}>{{ $label }}</option>
             @endforeach
         </select>
 
@@ -158,10 +158,12 @@
 
         <!-- Actions -->
         <div class="d-flex gap-1">
-            <button class="btn btn-sm" style="padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;color:#6b7280">
+            <button class="btn btn-sm" style="padding:4px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:11px;color:#6b7280"
+                onclick="openEditTask({{ $task->id }}, @js($task->subject), '{{ $task->status }}', '{{ $task->activity_at->format('Y-m-d\TH:i') }}', @js($task->description))">
                 <i class="fas fa-edit"></i>
             </button>
-            <form method="POST" action="{{ route('tasks.destroy', $task->id) }}" onsubmit="return confirm('Hapus task ini?')">
+            <form method="POST" action="{{ route('tasks.destroy', $task->id) }}"
+                onsubmit="return confirm('Apakah Anda yakin ingin menghapus task ini? Tindakan ini tidak dapat dibatalkan.')">
                 @csrf @method('DELETE')
                 <button type="submit" class="btn btn-sm" style="padding:4px 8px;border:1px solid #fecaca;border-radius:6px;font-size:11px;color:#dc2626">
                     <i class="fas fa-trash"></i>
@@ -191,14 +193,14 @@
                 <h6 class="modal-title fw-bold">Tambah Task / Reminder</h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form action="{{ route('tasks.store') }}" method="POST">
+            <form action="{{ route('tasks.store') }}" method="POST" id="addTaskForm">
                 @csrf
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Jenis</label>
                             <select name="type" class="form-select" required>
-                                <option>Call</option><option>Visit</option><option>Email</option><option>Note</option><option>Task</option>
+                                <option value="Call">Call</option><option value="Visit">Visit</option><option value="Email">Email</option><option value="Note">Note</option><option value="Others">Task</option>
                             </select>
                         </div>
                         <div class="col-md-6">
@@ -210,6 +212,16 @@
                         <div class="col-12">
                             <label class="form-label">Subject / Judul</label>
                             <input type="text" name="subject" class="form-control" required placeholder="Contoh: Follow up PT. Maju Bersama">
+                        </div>
+                        {{-- Linked to: Lead atau Customer --}}
+                        <div class="col-12">
+                            <label class="form-label">Terkait Customer Existing</label>
+                            <select name="customer_id" class="form-select">
+                                <option value="">- Pilih customer (opsional) -</option>
+                                @foreach($customers as $cust)
+                                <option value="{{ $cust->id }}">{{ $cust->company_name }} <span style="color:#9ca3af">— {{ $cust->salesUser?->name }}</span></option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Tanggal & Waktu</label>
@@ -236,4 +248,74 @@
         </div>
     </div>
 </div>
+
+<!-- Edit Task Modal -->
+<div class="modal fade" id="editTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">Edit Task</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editTaskForm" method="POST">
+                @csrf @method('PATCH')
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Subject</label>
+                        <input type="text" name="subject" id="editTaskSubject" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="status" id="editTaskStatus" class="form-select">
+                            <option value="Planned">Planned</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Done">Done</option>
+                            <option value="Overdue">Overdue</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tanggal & Waktu</label>
+                        <input type="datetime-local" name="activity_at" id="editTaskActivityAt" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Keterangan</label>
+                        <textarea name="description" id="editTaskDescription" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+function openEditTask(id, subject, status, activityAt, description) {
+    document.getElementById('editTaskForm').action = `/tasks/${id}`;
+    document.getElementById('editTaskSubject').value = subject || '';
+    document.getElementById('editTaskStatus').value = status || 'Planned';
+    document.getElementById('editTaskActivityAt').value = activityAt || '';
+    document.getElementById('editTaskDescription').value = description || '';
+    new bootstrap.Modal(document.getElementById('editTaskModal')).show();
+}
+// Prevent data loss
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('addTaskForm');
+    const modalEl = document.getElementById('addTaskModal');
+    if (!form || !modalEl) return;
+    modalEl.addEventListener('hide.bs.modal', function(e) {
+        const inputs = form.querySelectorAll('input[type=text],textarea');
+        let hasData = false;
+        inputs.forEach(i => { if (i.value.trim()) hasData = true; });
+        if (hasData && !confirm('Data yang sudah diisi akan hilang. Tutup form?')) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+@endpush
+
 @endsection

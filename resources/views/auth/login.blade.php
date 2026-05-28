@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login – CRM Logistic Service</title>
+    <title>Login – {{ \App\Models\Setting::get('company_name', 'Chemical CRM') }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -116,14 +116,23 @@
 <!-- LEFT -->
 <div class="left-panel">
     <div class="left-brand">
-        <div class="brand-logo"><i class="fas fa-truck-fast" style="color:#fff;font-size:20px"></i></div>
-        <div class="brand-name">LOGISTIC SERVICE</div>
+        @php
+            $loginLogo = \App\Models\Setting::get('company_login_logo');
+            $loginName = \App\Models\Setting::get('company_name', 'CHEMICAL CRM');
+        @endphp
+        @if($loginLogo)
+            <img src="{{ Storage::url($loginLogo) }}" alt="{{ $loginName }}"
+                 style="max-height:200px;max-width:480px;width:100%;object-fit:contain;object-position:left center;margin-bottom:24px;display:block">
+        @else
+            <div class="brand-logo"><i class="fas fa-flask" style="color:#fff;font-size:20px"></i></div>
+            <div class="brand-name">{{ $loginName }}</div>
+        @endif
         <div class="brand-sub">Customer Relationship Management</div>
     </div>
 
     <div class="left-hero">
         <h1>Kelola Sales &<br><span>Pipeline</span> dengan<br>Lebih Efisien</h1>
-        <p>Platform CRM khusus untuk bisnis logistik — dari tracking leads, pipeline penjualan, hingga analitik performa tim sales dalam satu dashboard.</p>
+        <p>Platform CRM khusus untuk bisnis trading chemical — dari tracking leads, pipeline penjualan, hingga analitik revenue dan profit dalam satu dashboard.</p>
         <div class="stats-row">
             <div><div class="stat-num">98%</div><div class="stat-label">Uptime System</div></div>
             <div><div class="stat-num">3x</div><div class="stat-label">Closing Lebih Cepat</div></div>
@@ -145,7 +154,7 @@
         </div>
     </div>
 
-    <div class="left-footer">&copy; {{ date('Y') }} CRM Logistic Service. All rights reserved.</div>
+    <div class="left-footer">&copy; {{ date('Y') }} {{ \App\Models\Setting::get('company_name', 'Chemical CRM') }}. All rights reserved.</div>
 </div>
 
 <!-- RIGHT -->

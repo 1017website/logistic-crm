@@ -3,57 +3,68 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DeliveryOrder extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
-        'do_number','customer_id','vendor_id','lead_id',
-        'service_type','route','amount','cost','other_cost',
-        'currency','status','order_date'
+        'do_number', 'customer_id', 'vendor_id', 'lead_id', 'user_id',
+        'currency', 'status', 'order_date', 'notes',
+        'delivery_type', 'origin', 'destination',
+        'tracking_number', 'estimated_arrival',
     ];
 
     protected $casts = [
-        'order_date'  => 'date',
-        'amount'      => 'decimal:0',
-        'cost'        => 'decimal:0',
-        'other_cost'  => 'decimal:0',
+        'order_date'        => 'date',
+        'estimated_arrival' => 'date',
     ];
 
-    public function customer(): BelongsTo { return $this->belongsTo(Customer::class); }
-    public function vendor(): BelongsTo   { return $this->belongsTo(Vendor::class); }
-    public function lead(): BelongsTo     { return $this->belongsTo(Lead::class); }
+    public const DELIVERY_TYPES = [
+        'Land Freight',
+        'Sea Freight',
+        'Air Freight',
+        'Pengiriman Kilat & Instan',
+    ];
 
-    /** Total biaya (vendor cost + other cost) */
+    public function customer(): BelongsTo  { return $this->belongsTo(Customer::class); }
+    public function vendor(): BelongsTo    { return $this->belongsTo(Vendor::class); }
+    public function lead(): BelongsTo      { return $this->belongsTo(Lead::class); }
+    public function salesUser(): BelongsTo { return $this->belongsTo(User::class, 'user_id'); }
+    public function items(): HasMany       { return $this->hasMany(DeliveryOrderItem::class); }
+
+    /** Total Revenue = SUM(qty × sell_price) */
+    public function getTotalRevenueAttribute(): float
+    {
+        return $this->items->sum(fn($i) => $i->qty * $i->sell_price);
+    }
+
+    /** Total HPP = SUM(qty × buy_price) */
     public function getTotalCostAttribute(): float
     {
-        return (float) $this->cost + (float) $this->other_cost;
+        return $this->items->sum(fn($i) => $i->qty * $i->buy_price);
     }
 
-    /** Gross Profit = Revenue - Cost Vendor */
     public function getGrossProfitAttribute(): float
     {
-        return (float) $this->amount - (float) $this->cost;
+        return $this->total_revenue - $this->total_cost;
     }
 
-    /** Nett Profit = Revenue - Total Cost */
-    public function getNettProfitAttribute(): float
-    {
-        return (float) $this->amount - $this->total_cost;
-    }
-
-    /** Gross Margin % */
     public function getGrossMarginAttribute(): float
     {
-        if ((float) $this->amount == 0) return 0;
-        return round(($this->gross_profit / (float) $this->amount) * 100, 1);
+        if ($this->total_revenue == 0) return 0;
+        return round(($this->gross_profit / $this->total_revenue) * 100, 1);
     }
 
-    /** Nett Margin % */
-    public function getNettMarginAttribute(): float
+    public static function generateDoNumber(): string
     {
-        if ((float) $this->amount == 0) return 0;
-        return round(($this->nett_profit / (float) $this->amount) * 100, 1);
+        $prefix = 'DO-' . date('Ym') . '-';
+        $last   = static::where('do_number', 'like', $prefix . '%')
+            ->orderByDesc('do_number')->value('do_number');
+        $seq    = $last ? (intval(substr($last, -4)) + 1) : 1;
+        return $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
     }
 }
-

@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Models\DeliveryOrder;
 use App\Models\Activity;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
 
 class AnalyticsController extends Controller
 {
@@ -18,16 +17,18 @@ class AnalyticsController extends Controller
         $endDate   = $request->get('end_date', now()->endOfMonth()->toDateString());
         $salesId   = $request->get('user_id');
 
-        // ── KPI Utama ──
-        $doQuery = DeliveryOrder::whereBetween('order_date', [$startDate, $endDate])->where('currency', 'IDR');
-        if ($salesId) $doQuery->whereHas('lead', fn($q) => $q->where('user_id', $salesId));
+        // ── KPI Utama dari PO Done ──
+        $doneDOs = DeliveryOrder::with('items')
+            ->whereBetween('order_date', [$startDate, $endDate])
+            ->where('status', 'Done')->where('currency', 'IDR');
+        if ($salesId) $doneDOs->where('user_id', $salesId);
 
-        $revenue     = (clone $doQuery)->where('status', 'Done')->sum('amount');
-        $totalCost   = (clone $doQuery)->where('status', 'Done')->selectRaw('SUM(cost + other_cost) as total')->value('total') ?? 0;
-        $vendorCost  = (clone $doQuery)->where('status', 'Done')->sum('cost');
-        $grossProfit = $revenue - $vendorCost;
-        $nettProfit  = $revenue - $totalCost;
-        $volumeDo    = (clone $doQuery)->where('status', 'Done')->count();
+        $allDonePOs  = (clone $doneDOs)->get();
+        $revenue     = $allDonePOs->sum(fn($po) => $po->total_revenue);
+        $totalCost   = $allDonePOs->sum(fn($po) => $po->total_cost);
+        $grossProfit = $revenue - $totalCost;
+        $nettProfit  = $grossProfit; // chemical: nett = gross (belum ada other_cost)
+        $volumePo    = $allDonePOs->count();
 
         $leadsQuery = Lead::query();
         if ($salesId) $leadsQuery->where('user_id', $salesId);
@@ -36,92 +37,108 @@ class AnalyticsController extends Controller
         $totalLeads     = (clone $leadsQuery)->whereBetween('created_at', [$startDate, $endDate])->count();
         $conversionRate = $totalLeads > 0 ? round(($dealsClosed / $totalLeads) * 100, 1) : 0;
 
-        // ── Revenue trend (6 bulan terakhir) ──
+        // ── Revenue trend (6 bulan) ──
         $revenueTrend = [];
         for ($i = 5; $i >= 0; $i--) {
-            $month = now()->subMonths($i);
-            $val   = DeliveryOrder::whereYear('order_date', $month->year)
-                ->whereMonth('order_date', $month->month)
-                ->where('currency', 'IDR')->where('status', 'Done')->sum('amount');
-            $revenueTrend[] = ['label' => $month->format('M Y'), 'value' => (float)($val / 1000000)];
+            $m   = now()->subMonths($i);
+            $q   = DeliveryOrder::with('items')
+                ->whereYear('order_date', $m->year)->whereMonth('order_date', $m->month)
+                ->where('currency', 'IDR')->where('status', 'Done');
+            if ($salesId) $q->where('user_id', $salesId);
+            $val = $q->get()->sum(fn($po) => $po->total_revenue);
+            $revenueTrend[] = ['label' => $m->format('M Y'), 'value' => round($val / 1000000, 2)];
         }
 
-        // ── Revenue by service type ──
-        $revenueByService = DeliveryOrder::whereBetween('order_date', [$startDate, $endDate])
-            ->where('currency', 'IDR')
-            ->selectRaw('service_type, SUM(amount) as total')
-            ->groupBy('service_type')->orderByDesc('total')->get();
+        // ── Profit analysis (6 bulan) ──
+        $profitAnalysis = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $m   = now()->subMonths($i);
+            $q   = DeliveryOrder::with('items')
+                ->whereYear('order_date', $m->year)->whereMonth('order_date', $m->month)
+                ->where('currency', 'IDR')->where('status', 'Done');
+            if ($salesId) $q->where('user_id', $salesId);
+            $pos   = $q->get();
+            $rev   = $pos->sum(fn($po) => $po->total_revenue);
+            $cost  = $pos->sum(fn($po) => $po->total_cost);
+            $gross = $rev - $cost;
+            $profitAnalysis[] = [
+                'label'        => $m->format('M'),
+                'revenue'      => round($rev   / 1000000, 2),
+                'cost'         => round($cost  / 1000000, 2),
+                'gross_profit' => round($gross / 1000000, 2),
+                'profit'       => round($gross / 1000000, 2),
+            ];
+        }
 
-        // ── Revenue by route (top 5) ──
-        $revenueByRoute = DeliveryOrder::whereBetween('order_date', [$startDate, $endDate])
-            ->where('currency', 'IDR')
-            ->selectRaw('route, SUM(amount) as total')
-            ->groupBy('route')->orderByDesc('total')->limit(5)->get();
+        // ── Revenue by product (top 5) ──
+        $productQuery = \App\Models\DeliveryOrderItem::join('delivery_orders', 'delivery_orders.id', '=', 'delivery_order_items.delivery_order_id')
+            ->where('delivery_orders.status', 'Done')->where('delivery_orders.currency', 'IDR')
+            ->whereBetween('delivery_orders.order_date', [$startDate, $endDate]);
+        if ($salesId) $productQuery->whereHas('deliveryOrder.lead', fn($q) => $q->where('user_id', $salesId));
+        $revenueByProduct = $productQuery->selectRaw('service_name, SUM(qty * sell_price) as total')
+            ->groupBy('service_name')->orderByDesc('total')->limit(5)->get();
 
         // ── Pipeline funnel ──
         $funnel = collect(['Identifying','Approaching','Follow Up','Closing','Won','Maintaining'])
             ->mapWithKeys(fn($s) => [$s => (clone $leadsQuery)->where('pipeline_stage', $s)->count()]);
 
-        // ── Sales performance ──
-        $salesPerformance = User::orderBy('name')->get()->map(function ($s) use ($startDate, $endDate) {
-            $total   = Lead::where('user_id', $s->id)->count();
-            $won     = Lead::where('user_id', $s->id)->where('pipeline_stage', 'Won')
-                ->whereBetween('updated_at', [$startDate, $endDate])->count();
-            $revenue = Lead::where('user_id', $s->id)->where('pipeline_stage', 'Won')->sum('potensi_revenue');
-            $s->deals_closed = $won;
-            $s->revenue      = $revenue;
-            $s->conversion   = $total > 0 ? round(($won / $total) * 100, 1) : 0;
-            return $s;
-        })->sortByDesc('revenue');
-
-        // ── Top customers ──
-        $topCustomers = Customer::all()->map(fn($c) => [
-            'customer' => $c,
-            'revenue'  => $c->total_revenue,
-            'deals'    => $c->deliveryOrders()->whereBetween('order_date', [$startDate, $endDate])->count(),
-            'repeat'   => $c->deliveryOrders()->count() > 1,
-        ])->sortByDesc('revenue')->take(5);
-
         // ── Lead sources ──
-        $leadSources = Lead::whereNotNull('lead_source')
+        $leadSources = (clone $leadsQuery)->whereNotNull('lead_source')
             ->selectRaw('lead_source, COUNT(*) as count')
             ->groupBy('lead_source')->orderByDesc('count')->get();
 
-        // ── Recent deals closed ──
-        $recentDeals = Lead::with(['salesUser'])
-            ->where('pipeline_stage', 'Won')
-            ->orderBy('updated_at', 'desc')
-            ->limit(5)->get();
+        // ── Sales performance ──
+        $salesPerformance = User::orderBy('name')->get()->map(function ($u) use ($startDate, $endDate) {
+            $total   = Lead::where('user_id', $u->id)->count();
+            $won     = Lead::where('user_id', $u->id)->where('pipeline_stage', 'Won')->whereBetween('updated_at', [$startDate, $endDate])->count();
+            $u->deals_closed = $won;
+            $u->revenue      = Lead::where('user_id', $u->id)->where('pipeline_stage', 'Won')->sum('potensi_revenue');
+            $u->conversion   = $total > 0 ? round(($won / $total) * 100, 1) : 0;
+            return $u;
+        })->sortByDesc('revenue');
 
-        // ── Profit analysis (6 bulan) ──
-        $profitAnalysis = [];
-        for ($i = 5; $i >= 0; $i--) {
-            $m    = now()->subMonths($i);
-            $rev  = DeliveryOrder::whereYear('order_date', $m->year)
-                ->whereMonth('order_date', $m->month)->where('currency', 'IDR')
-                ->where('status', 'Done')->sum('amount');
-            $cogs = DeliveryOrder::whereYear('order_date', $m->year)
-                ->whereMonth('order_date', $m->month)->where('currency', 'IDR')
-                ->where('status', 'Done')->selectRaw('SUM(cost) as vendor, SUM(cost + other_cost) as total')->first();
-            $grossP = $rev - ($cogs->vendor ?? 0);
-            $nettP  = $rev - ($cogs->total  ?? 0);
-            $profitAnalysis[] = [
-                'label'        => $m->format('M'),
-                'revenue'      => round($rev / 1000000, 2),
-                'cost'         => round(($cogs->total ?? 0) / 1000000, 2),
-                'gross_profit' => round($grossP / 1000000, 2),
-                'profit'       => round($nettP  / 1000000, 2),
+        // ── Top customers ──
+        $topCustomers = Customer::with('purchaseOrders.items')->get()->map(function($c) use ($startDate, $endDate, $salesId) {
+            $poQuery = $c->deliveryOrders()->where('status', 'Done')->where('currency', 'IDR');
+            if ($salesId) $poQuery->whereHas('lead', fn($q) => $q->where('user_id', $salesId));
+            $pos = $poQuery->with('items')->get();
+            return [
+                'customer' => $c,
+                'revenue'  => $pos->sum(fn($po) => $po->total_revenue),
+                'deals'    => $c->deliveryOrders()->whereBetween('order_date', [$startDate, $endDate])->count(),
+                'repeat'   => $pos->count() > 1,
             ];
-        }
+        })->sortByDesc('revenue')->take(5);
+
+        // ── Recent deals closed ──
+        $recentDealsQuery = Lead::with('salesUser')->where('pipeline_stage', 'Won');
+        if ($salesId) $recentDealsQuery->where('user_id', $salesId);
+        $recentDeals = $recentDealsQuery->orderBy('updated_at', 'desc')->limit(5)->get();
+
+        // ── Avg Gross Margin dari profit analysis 6 bulan ──
+        $marginData    = array_filter($profitAnalysis, fn($m) => $m['revenue'] > 0);
+        $avgGrossMargin = count($marginData) > 0
+            ? round(collect($marginData)->avg(fn($m) => $m['revenue'] > 0 ? (($m['gross_profit'] / $m['revenue']) * 100) : 0), 1)
+            : 0;
+        $avgNettMargin = $avgGrossMargin; // chemical: nett = gross (belum ada other_cost)
+        $serviceQuery = \App\Models\DeliveryOrderItem::join('delivery_orders', 'delivery_orders.id', '=', 'delivery_order_items.delivery_order_id')
+            ->where('delivery_orders.status', 'Done')->where('delivery_orders.currency', 'IDR')
+            ->whereBetween('delivery_orders.order_date', [$startDate, $endDate]);
+        if ($salesId) $serviceQuery->whereHas('deliveryOrder.lead', fn($q) => $q->where('user_id', $salesId));
+        $revenueByService = $serviceQuery->selectRaw('service_name as service_type, SUM(qty * sell_price) as total')
+            ->groupBy('service_name')->orderByDesc('total')->limit(5)->get();
+
+        // ── Revenue by route (tidak ada di chemical, kirim collection kosong) ──
+        $revenueByRoute = collect();
 
         $salesUsers = User::orderBy('name')->get();
 
         return view('analytics.index', compact(
-            'revenue', 'grossProfit', 'nettProfit', 'volumeDo', 'dealsClosed', 'conversionRate',
-            'revenueTrend', 'revenueByService', 'revenueByRoute',
-            'funnel', 'salesPerformance', 'topCustomers', 'leadSources',
-            'recentDeals', 'profitAnalysis', 'salesUsers', 'startDate', 'endDate', 'salesId'
+            'revenue','grossProfit','nettProfit','volumePo','dealsClosed','conversionRate',
+            'revenueTrend','profitAnalysis','revenueByProduct','revenueByService','revenueByRoute',
+            'avgGrossMargin','avgNettMargin',
+            'funnel','salesPerformance','topCustomers','leadSources',
+            'recentDeals','salesUsers','startDate','endDate','salesId'
         ));
     }
 }
-

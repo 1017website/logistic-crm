@@ -65,7 +65,7 @@
         <button class="filter-pill" onclick="filterType(this,'Visit')"><i class="fas fa-building me-1" style="font-size:10px"></i>Visit</button>
         <button class="filter-pill" onclick="filterType(this,'Email')"><i class="fas fa-envelope me-1" style="font-size:10px"></i>Email</button>
         <button class="filter-pill" onclick="filterType(this,'Note')"><i class="fas fa-sticky-note me-1" style="font-size:10px"></i>Note</button>
-        <button class="filter-pill" onclick="filterType(this,'Task')"><i class="fas fa-tasks me-1" style="font-size:10px"></i>Task</button>
+        <button class="filter-pill" onclick="filterType(this,'Others')"><i class="fas fa-tasks me-1" style="font-size:10px"></i>Task</button>
     </div>
     <div class="d-flex gap-2">
         <select class="form-select form-select-sm no-select2" style="width:150px;font-size:13px" onchange="filterSales(this.value)">
@@ -215,7 +215,7 @@
                         <div class="col-6">
                             <label class="form-label">Jenis Activity <span class="text-danger">*</span></label>
                             <select name="type" id="addActType" class="form-select" required>
-                                <option>Call</option><option>Visit</option><option>Email</option><option>Note</option><option>Task</option>
+                                <option value="Call">Call</option><option value="Visit">Visit</option><option value="Email">Email</option><option value="Note">Note</option><option value="Others">Task</option>
                             </select>
                         </div>
                         <div class="col-6">
@@ -411,8 +411,8 @@ function showEventDetail(id) {
     showPopup(e);
 }
 function showPopup(e) {
-    const typeColors = {Call:'#16a34a',Visit:'#1d4ed8',Email:'#92400e',Note:'#6d28d9',Task:'#b91c1c'};
-    const typeBgs    = {Call:'#dcfce7',Visit:'#dbeafe',Email:'#fef9c3',Note:'#f3e8ff',Task:'#fee2e2'};
+    const typeColors = {Call:'#16a34a',Visit:'#1d4ed8',Email:'#92400e',Note:'#6d28d9',Others:'#b91c1c'};
+    const typeBgs    = {Call:'#dcfce7',Visit:'#dbeafe',Email:'#fef9c3',Note:'#f3e8ff',Others:'#fee2e2'};
     const statusBgs  = {Done:'#dcfce7',Planned:'#dbeafe',Pending:'#fef9c3',Overdue:'#fee2e2'};
     const statusClr  = {Done:'#16a34a',Planned:'#2563eb',Pending:'#d97706',Overdue:'#dc2626'};
 

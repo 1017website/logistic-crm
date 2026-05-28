@@ -10,7 +10,7 @@ class PipelineController extends Controller
 {
     public function index(Request $request)
     {
-        $stages   = ['Identifying', 'Approaching', 'Follow Up', 'Closing', 'Won', 'Maintaining'];
+        $stages   = ['Identifying', 'Approaching', 'Follow Up', 'Won', 'Maintaining'];
         $pipeline = [];
         foreach ($stages as $stage) {
             $pipeline[$stage] = Lead::where('pipeline_stage', $stage)
@@ -21,7 +21,7 @@ class PipelineController extends Controller
 
         $totalValue      = Lead::whereNotIn('pipeline_stage', ['Lost'])->sum('potensi_revenue');
         $totalLeads      = Lead::count();
-        $potentialDeals  = Lead::whereIn('pipeline_stage', ['Follow Up', 'Closing'])->count();
+        $potentialDeals  = Lead::whereIn('pipeline_stage', ['Follow Up', 'Won'])->count();
         $winRate         = $totalLeads > 0
             ? round((Lead::where('pipeline_stage', 'Won')->count() / $totalLeads) * 100, 1)
             : 0;

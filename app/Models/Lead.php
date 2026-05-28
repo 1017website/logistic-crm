@@ -1,40 +1,38 @@
 <?php
+
 namespace App\Models;
+
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Lead extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
-        'lead_code','customer_id','company_name','pic_name','pic_position','phone','email',
-        'address','industry','pipeline_stage','temperature','service_type','route',
-        'commodity','volume_estimate','timeline','notes_kebutuhan','catatan_internal',
-        'potensi_revenue','probability','lead_score','lead_source','competitor',
-        'expected_closing','user_id','sales_user_id','next_follow_up','next_follow_up_time','next_follow_up_notes'
+        'lead_code','customer_id','company_name','pic_name','pic_position',
+        'phone','email','address','industry','location','pipeline_stage','temperature',
+        'product_interest','volume_estimate','timeline','notes_kebutuhan',
+        'catatan_internal','probability','lead_score',
+        'lead_source','competitor','expected_closing','user_id',
+        'next_follow_up','next_follow_up_time','next_follow_up_notes'
     ];
 
     protected $casts = [
         'expected_closing' => 'date',
-        'next_follow_up' => 'date',
-        'potensi_revenue' => 'decimal:0',
+        'next_follow_up'   => 'date',
+        'lead_score'       => 'decimal:1',
     ];
 
-    public function customer(): BelongsTo  { return $this->belongsTo(Customer::class); }
-    public function user(): BelongsTo      { return $this->belongsTo(User::class, 'user_id'); }
-    public function salesUser(): BelongsTo { return $this->belongsTo(User::class, 'user_id'); } // backward compat
-    public function activities(): HasMany  { return $this->hasMany(Activity::class); }
-    public function quotations(): HasMany  { return $this->hasMany(Quotation::class); }
-
-    public function getTemperatureColorAttribute(): string
-    {
-        return match($this->temperature) {
-            'Hot' => 'danger',
-            'Warm' => 'warning',
-            'Cold' => 'info',
-            default => 'secondary',
-        };
-    }
+    public function salesUser(): BelongsTo  { return $this->belongsTo(User::class, 'user_id'); }
+    public function user(): BelongsTo       { return $this->belongsTo(User::class, 'user_id'); }
+    public function customer(): BelongsTo   { return $this->belongsTo(Customer::class); }
+    public function activities(): HasMany   { return $this->hasMany(Activity::class); }
+    public function deliveryOrders(): HasMany { return $this->hasMany(DeliveryOrder::class); }
+    public function products(): HasMany     { return $this->hasMany(LeadProduct::class); }
+    public function pics(): HasMany         { return $this->hasMany(LeadPic::class); }
+    public function primaryPic(): HasMany   { return $this->hasMany(LeadPic::class)->where('is_primary', true); }
 
     public function getPipelineStageColorAttribute(): string
     {
@@ -52,15 +50,10 @@ class Lead extends Model
 
     public static function generateLeadCode(): string
     {
-        $year = date('Y');
-        $last = static::where('lead_code', 'like', "LEAD-{$year}-%")->orderBy('id', 'desc')->first();
-        $num = $last ? (int) substr($last->lead_code, -4) + 1 : 1;
-        return "LEAD-{$year}-" . str_pad($num, 4, '0', STR_PAD_LEFT);
-    }
-
-    public function getLogoInitialsAttribute(): string
-    {
-        $parts = explode(' ', $this->company_name);
-        return strtoupper(substr($parts[0], 0, 1) . (isset($parts[1]) ? substr($parts[1], 0, 1) : substr($parts[0], 1, 1)));
+        $prefix = 'LEAD-' . date('Y') . '-';
+        $last   = static::where('lead_code', 'like', $prefix . '%')
+            ->orderByDesc('lead_code')->value('lead_code');
+        $seq    = $last ? (intval(substr($last, -4)) + 1) : 1;
+        return $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
     }
 }

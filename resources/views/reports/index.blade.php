@@ -13,13 +13,108 @@
 .report-table th { font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;padding:10px 12px;border-bottom:2px solid #f0f0f0;background:#f9fafb;white-space:nowrap; }
 .report-table td { padding:11px 12px;border-bottom:1px solid #f9fafb;color:#374151;vertical-align:middle; }
 .report-table tr:hover td { background:#fafbfc; }
+
+/* ── PRINT STYLES ── */
+.print-header { display: none; }
+.print-kpi-grid { display: none; }
+
+@media print {
+    /* Sembunyikan semua elemen UI */
+    .sidebar, nav.sidebar,
+    .topbar, header,
+    .report-filters-section,
+    .report-tabs-section,
+    .export-section,
+    .pagination,
+    nav[aria-label="pagination"],
+    .card-footer,
+    a.report-tab,
+    button { display: none !important; }
+
+    /* Tampilkan print-only elements */
+    .print-header   { display: block !important; }
+    .print-kpi-grid { display: grid !important; }
+
+    /* Reset body & layout */
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    html, body { background: #fff !important; font-family: Arial, sans-serif !important; font-size: 10pt; }
+    body > * { margin: 0 !important; padding: 0 !important; }
+    .main-content, main, .content-wrapper, #app { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: 100% !important; }
+
+    /* Sembunyikan summary cards bawaan (kita ganti dengan print-kpi-grid) */
+    .row.g-3.mb-4 { display: none !important; }
+
+    /* Card wrapper */
+    .card { border: none !important; box-shadow: none !important; margin: 0 !important; }
+    .card-body { padding: 0 !important; }
+    .table-responsive { overflow: visible !important; }
+
+    /* Tabel */
+    .report-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 8pt !important;
+        margin-top: 6px !important;
+    }
+    .report-table thead tr { background: #1e3a5f !important; }
+    .report-table th {
+        background: #1e3a5f !important;
+        color: #fff !important;
+        padding: 5px 6px !important;
+        font-size: 7.5pt !important;
+        font-weight: 700 !important;
+        border: 1px solid #1e3a5f !important;
+        white-space: nowrap;
+    }
+    .report-table td {
+        padding: 4px 6px !important;
+        border: 1px solid #d1d5db !important;
+        font-size: 8pt !important;
+        vertical-align: middle !important;
+        color: #111 !important;
+    }
+    .report-table tr:nth-child(even) td { background: #f9fafb !important; }
+    .report-table a { color: #0f1d35 !important; text-decoration: none !important; font-weight: 600; }
+
+    /* Badges */
+    span[class*="badge"] {
+        border: 1px solid #ccc !important;
+        border-radius: 4px !important;
+        padding: 1px 5px !important;
+        font-size: 7pt !important;
+        font-weight: 600 !important;
+        background: #f3f4f6 !important;
+        color: #374151 !important;
+    }
+
+    /* Disclaimer */
+    .p-3.pt-0 { padding: 4px 0 0 0 !important; }
+
+    @page { size: A4 landscape; margin: 1.2cm 1cm; }
+}
+
+/* ── KPI grid khusus print ── */
+.print-kpi-grid {
+    display: none;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.print-kpi-grid .pkpi {
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 8px 10px;
+    text-align: center;
+}
+.print-kpi-grid .pkpi-label { font-size: 8pt; color: #6b7280; margin-bottom: 2px; }
+.print-kpi-grid .pkpi-value { font-size: 11pt; font-weight: 700; color: #0f1d35; }
 </style>
 @endpush
 
 @section('content')
 
 {{-- Filter --}}
-<form method="GET" action="{{ route('reports.index') }}" id="reportForm">
+<form method="GET" action="{{ route('reports.index') }}" id="reportForm" class="report-filters-section">
 <div class="row g-3 mb-4">
     <div class="col-md-9">
         <div class="card">
@@ -59,7 +154,7 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Search</label>
-                        <input type="text" name="search" class="form-control" placeholder="Cari nama company, nomor DO..." value="{{ $search }}">
+                        <input type="text" name="search" class="form-control" placeholder="Cari nama company, nomor PO..." value="{{ $search }}">
                     </div>
                     <div class="col-md-3 d-flex align-items-end">
                         <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search me-1"></i> Generate</button>
@@ -73,13 +168,13 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-3 export-section">
         <div class="card h-100">
             <div class="card-body p-3">
                 <div style="font-size:13px;font-weight:600;color:#0f1d35;margin-bottom:10px">Export Report</div>
                 <a href="{{ route('reports.export', array_merge(request()->query(), ['report_type'=>$reportType])) }}"
                     class="d-flex align-items-center gap-2 p-2 mb-2" style="border:1px solid #bbf7d0;border-radius:8px;text-decoration:none;color:#16a34a;background:#f0fdf4;font-size:13px;font-weight:500">
-                    <i class="fas fa-file-csv" style="font-size:16px"></i> Export CSV
+                    <i class="fas fa-file-excel" style="font-size:16px"></i> Export Excel
                 </a>
                 <button type="button" onclick="window.print()"
                     class="d-flex align-items-center gap-2 p-2 w-100" style="border:1px solid #bfdbfe;border-radius:8px;color:#2563eb;background:#eff6ff;font-size:13px;font-weight:500;cursor:pointer">
@@ -91,8 +186,8 @@
 </div>
 
 {{-- Report Type Tabs --}}
-<div class="d-flex gap-2 mb-4 flex-wrap">
-    @foreach(['sales'=>'Sales Report','customer'=>'Customer Report','pipeline'=>'Pipeline Report','performance'=>'Performance Report','do'=>'DO Report'] as $type => $label)
+<div class="d-flex gap-2 mb-4 flex-wrap report-tabs-section">
+    @foreach(['sales'=>'Sales Report','customer'=>'Customer Report','pipeline'=>'Pipeline Report','performance'=>'Performance Report','po'=>'PO Report'] as $type => $label)
     <a href="{{ route('reports.index', array_merge(request()->except('report_type','page'), ['report_type'=>$type])) }}"
         class="report-tab {{ $reportType === $type ? 'active' : '' }}">
         {{ $label }}
@@ -100,6 +195,35 @@
     @endforeach
 </div>
 </form>
+
+{{-- Print Header (hanya muncul saat print) --}}
+<div class="print-header" style="margin-bottom:10px;padding-bottom:10px;border-bottom:2px solid #1e3a5f">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:42px;height:42px;background:#1e3a5f;border-radius:8px;display:flex;align-items:center;justify-content:center">
+                <span style="color:#fff;font-weight:800;font-size:14pt">C</span>
+            </div>
+            <div>
+                <div style="font-size:14pt;font-weight:700;color:#1e3a5f">{{ \App\Models\Setting::get('company_name', 'Chemical CRM') }}</div>
+                <div style="font-size:9pt;color:#6b7280">Laporan: <strong>{{ ['sales'=>'Sales Report','customer'=>'Customer Report','pipeline'=>'Pipeline Report','performance'=>'Performance Report','po'=>'PO Report'][$reportType] ?? $reportType }}</strong></div>
+            </div>
+        </div>
+        <div style="text-align:right;font-size:9pt;color:#6b7280;line-height:1.6">
+            <div>Periode: <strong>{{ \Carbon\Carbon::parse($startDate)->format('d M Y') }}</strong> s/d <strong>{{ \Carbon\Carbon::parse($endDate)->format('d M Y') }}</strong></div>
+            <div>Dicetak: {{ now()->format('d M Y, H:i') }}</div>
+        </div>
+    </div>
+</div>
+
+{{-- Print KPI Grid (hanya muncul saat print, menggantikan summary cards) --}}
+<div class="print-kpi-grid">
+    <div class="pkpi"><div class="pkpi-label">Total Revenue</div><div class="pkpi-value">{{ idrm($revenue) }}</div></div>
+    <div class="pkpi"><div class="pkpi-label">Gross Profit</div><div class="pkpi-value">{{ idrm($grossProfit ?? 0) }}</div></div>
+    <div class="pkpi"><div class="pkpi-label">Nett Profit</div><div class="pkpi-value">{{ idrm($nettProfit ?? 0) }}</div></div>
+    <div class="pkpi"><div class="pkpi-label">Avg Deal Value</div><div class="pkpi-value">{{ idrm($avgDealValue) }}</div></div>
+    <div class="pkpi"><div class="pkpi-label">Conversion Rate</div><div class="pkpi-value">{{ $conversionRate }}%</div></div>
+    <div class="pkpi"><div class="pkpi-label">Win Rate</div><div class="pkpi-value">{{ $winRate }}%</div></div>
+</div>
 
 {{-- Summary KPI --}}
 <div class="row g-3 mb-4">
@@ -129,7 +253,7 @@
 <div class="card">
     <div class="d-flex align-items-center justify-content-between p-3 pb-0">
         <div style="font-size:14px;font-weight:600;color:#0f1d35">
-            @php $titles=['sales'=>'Sales Report Detail','customer'=>'Customer Report','pipeline'=>'Pipeline Report','performance'=>'Performance Report','do'=>'Delivery Order Report']; @endphp
+            @php $titles=['sales'=>'Sales Report Detail','customer'=>'Customer Report','pipeline'=>'Pipeline Report','performance'=>'Performance Report','po'=>'PO Report']; @endphp
             {{ $titles[$reportType] ?? 'Report Detail' }}
         </div>
         @if(method_exists($reportData,'total'))
@@ -138,6 +262,13 @@
     </div>
 
     <div class="card-body p-0 mt-3">
+        {{-- Section title saat print --}}
+        <div class="print-header" style="font-size:10pt;font-weight:700;color:#1e3a5f;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid #e5e7eb">
+            {{ ['sales'=>'Sales Report Detail','customer'=>'Customer Report','pipeline'=>'Pipeline Report','performance'=>'Performance Report','po'=>'PO Report'][$reportType] ?? 'Report Detail' }}
+            @if(method_exists($reportData,'total'))
+            <span style="font-size:9pt;color:#6b7280;font-weight:400"> — {{ $reportData->total() }} data</span>
+            @endif
+        </div>
         <div class="table-responsive">
 
         {{-- Sales Report --}}
@@ -145,7 +276,7 @@
         <table class="table report-table mb-0">
             <thead><tr>
                 <th>No</th><th>Tgl Dibuat</th><th>Company</th><th>PIC</th>
-                <th>Sales PIC</th><th>Stage</th><th>Service</th><th>Route</th>
+                <th>Sales PIC</th><th>Stage</th><th>Service</th><th>Volume Est.</th>
                 <th>Potensi Revenue</th><th>Probability</th><th>Exp. Closing</th>
             </tr></thead>
             <tbody>
@@ -162,8 +293,8 @@
                         @php $stageMap=['Identifying'=>'identifying','Approaching'=>'approaching','Follow Up'=>'follow-up','Closing'=>'closing','Won'=>'won','Lost'=>'lost']; @endphp
                         <span class="badge-stage badge-{{ $stageMap[$lead->pipeline_stage]??'identifying' }}" style="font-size:11px">{{ $lead->pipeline_stage }}</span>
                     </td>
-                    <td style="font-size:12px">{{ $lead->service_type ?? '-' }}</td>
-                    <td style="font-size:12px">{{ $lead->route ?? '-' }}</td>
+                    <td style="font-size:12px">{{ $lead->product_interest ?? "-" }}</td>
+                    <td style="font-size:12px">{{ $lead->volume_estimate ?? '-' }}</td>
                     <td style="font-size:12px;font-weight:600;color:var(--primary)">{{ idrm($lead->potensi_revenue) }}</td>
                     <td style="font-size:12px;text-align:center">{{ $lead->probability ?? 0 }}%</td>
                     <td style="font-size:12px;color:#6b7280">{{ $lead->expected_closing?->format('d M Y') ?? '-' }}</td>
@@ -208,7 +339,7 @@
         <table class="table report-table mb-0">
             <thead><tr>
                 <th>No</th><th>Company</th><th>Stage</th><th>Temperature</th>
-                <th>Service</th><th>Route</th><th>Revenue</th><th>Probability</th><th>Sales PIC</th><th>Last Updated</th>
+                <th>Service</th><th>Volume Est.</th><th>Revenue</th><th>Probability</th><th>Sales PIC</th><th>Last Updated</th>
             </tr></thead>
             <tbody>
                 @forelse($reportData as $i => $lead)
@@ -221,8 +352,8 @@
                     </td>
                     <td><span class="badge-stage badge-{{ $stageMap[$lead->pipeline_stage]??'identifying' }}" style="font-size:11px">{{ $lead->pipeline_stage }}</span></td>
                     <td><span class="badge-{{ strtolower($lead->temperature) }}" style="font-size:11px">{{ $lead->temperature }}</span></td>
-                    <td style="font-size:12px">{{ $lead->service_type ?? '-' }}</td>
-                    <td style="font-size:12px">{{ $lead->route ?? '-' }}</td>
+                    <td style="font-size:12px">{{ $lead->product_interest ?? "-" }}</td>
+                    <td style="font-size:12px">{{ $lead->volume_estimate ?? '-' }}</td>
                     <td style="font-size:12px;font-weight:600;color:var(--primary)">{{ idrm($lead->potensi_revenue) }}</td>
                     <td style="font-size:12px;text-align:center">{{ $lead->probability ?? 0 }}%</td>
                     <td style="font-size:12px">{{ $lead->salesUser?->name ?? '-' }}</td>
@@ -274,35 +405,33 @@
             </tbody>
         </table>
 
-        {{-- DO Report --}}
-        @elseif($reportType === 'do')
+        {{-- PO Report --}}
+        @elseif($reportType === 'po')
         <table class="table report-table mb-0">
             <thead><tr>
                 <th>No</th><th>No. DO</th><th>Customer</th><th>Vendor</th>
-                <th>Service Type</th><th>Route</th><th>Revenue</th><th>Cost Vendor</th><th>Gross Profit</th><th>Nett Profit</th><th>Status</th><th>Tgl Order</th>
+                <th>Produk Utama</th><th>Revenue</th><th>Gross Profit</th><th>Status</th><th>Tgl Order</th>
             </tr></thead>
             <tbody>
-                @forelse($reportData as $i => $do)
+                @forelse($reportData as $i => $po)
                 <tr>
                     <td style="color:#9ca3af;font-size:12px">{{ $reportData->firstItem() + $i }}</td>
-                    <td style="font-weight:600;font-size:12px">{{ $do->do_number }}</td>
-                    <td style="font-size:12px">{{ $do->customer?->company_name ?? '-' }}</td>
-                    <td style="font-size:12px;color:#6b7280">{{ $do->vendor?->vendor_name ?? '-' }}</td>
-                    <td style="font-size:12px">{{ $do->service_type }}</td>
-                    <td style="font-size:12px">{{ $do->route }}</td>
-                    <td style="font-size:12px;font-weight:600;color:var(--primary)">{{ idrm($do->amount) }}</td>
-                    <td style="font-size:12px;color:#dc2626">{{ idrm($do->cost) }}</td>
-                    <td style="font-size:12px;font-weight:600;color:#10b981">{{ idrm($do->gross_profit) }}</td>
-                    <td style="font-size:12px;font-weight:600;color:#7c3aed">{{ idrm($do->nett_profit) }}</td>
-                    <td style="font-size:12px">{{ $do->currency }}</td>
-                    <td>
-                        @php $sc=['Done'=>'badge-won','In Progress'=>'badge-follow-up','Pending'=>'badge-approaching','Cancelled'=>'badge-lost']; @endphp
-                        <span class="{{ $sc[$do->status]??'badge-stage' }}" style="font-size:11px">{{ $do->status }}</span>
+                    <td style="font-weight:600;font-size:12px">{{ $po->do_number }}</td>
+                    <td style="font-size:12px">{{ $po->customer?->company_name ?? '-' }}</td>
+                    <td style="font-size:12px;color:#6b7280">{{ $po->vendor?->vendor_name ?? '-' }}</td>
+                    <td style="font-size:12px">{{ $po->items->first()?->product_name ?? '-' }}
+                        @if($po->items->count() > 1)<span style="color:#9ca3af"> +{{ $po->items->count()-1 }}</span>@endif
                     </td>
-                    <td style="font-size:12px;color:#6b7280">{{ \Carbon\Carbon::parse($do->order_date)->format('d M Y') }}</td>
+                    <td style="font-size:12px;font-weight:600;color:var(--primary)">{{ idrm($po->total_revenue) }}</td>
+                    <td style="font-size:12px;font-weight:600;color:#10b981">{{ idrm($po->gross_profit) }}</td>
+                    <td>
+                        @php $sc=['Done'=>'badge-won','In Progress'=>'badge-follow-up','Cancelled'=>'badge-lost']; @endphp
+                        <span class="{{ $sc[$po->status]??'badge-stage' }}" style="font-size:11px">{{ $po->status }}</span>
+                    </td>
+                    <td style="font-size:12px;color:#6b7280">{{ \Carbon\Carbon::parse($po->order_date)->format('d M Y') }}</td>
                 </tr>
                 @empty
-                <tr><td colspan="10" class="text-center py-4" style="color:#9ca3af">Tidak ada data</td></tr>
+                <tr><td colspan="9" class="text-center py-4" style="color:#9ca3af">Tidak ada data</td></tr>
                 @endforelse
             </tbody>
         </table>

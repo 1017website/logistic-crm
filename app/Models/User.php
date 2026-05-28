@@ -31,11 +31,13 @@ class User extends Authenticatable
     public function canAccess(string $feature): bool
     {
         return match($feature) {
-            'settings'  => $this->isAdmin(),
-            'users'     => in_array($this->role, ['Admin', 'Sales Manager']),
-            'reports'   => in_array($this->role, ['Admin', 'Sales Manager']),
-            'analytics' => in_array($this->role, ['Admin', 'Sales Manager']),
-            default     => true,
+            'settings'        => $this->isAdmin(),
+            'users'           => in_array($this->role, ['Admin', 'Sales Manager']),
+            'reports'         => in_array($this->role, ['Admin', 'Sales Manager']),
+            'analytics'       => in_array($this->role, ['Admin', 'Sales Manager']),
+            'vendors'         => in_array($this->role, ['Admin', 'Sales Manager']),
+            'delivery_orders' => in_array($this->role, ['Admin', 'Sales Manager']),
+            default           => true,
         };
     }
 

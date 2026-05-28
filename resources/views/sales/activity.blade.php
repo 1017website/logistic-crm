@@ -4,6 +4,28 @@
 @section('page-title', 'Sales Activity')
 @section('page-subtitle', 'Kelola aktivitas harian dan follow up dengan customer')
 
+@push('styles')
+<style>
+/* Pipeline (Leads) summary — grid agar kolom sejajar antar baris */
+.pipeline-row{
+    display:grid;
+    grid-template-columns:10px 1fr auto auto;
+    align-items:center;
+    column-gap:10px;
+    padding:8px 0;
+    border-bottom:1px solid #f3f4f6;
+}
+.pipeline-row:last-child{border-bottom:none;}
+.pipeline-dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.pipeline-name{font-size:.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pipeline-count{font-size:.72rem;color:var(--text-muted);text-align:right;min-width:62px;white-space:nowrap;}
+.pipeline-value{font-size:.75rem;font-weight:600;text-align:right;min-width:78px;white-space:nowrap;}
+.pipeline-total{margin-top:4px;padding-top:10px;border-top:2px solid #e5e7eb;}
+.pipeline-total .pipeline-name strong,
+.pipeline-total .pipeline-value strong{font-size:.82rem;}
+</style>
+@endpush
+
 @section('content')
 <div class="row g-3">
     {{-- LEFT: Activity Timeline --}}
@@ -12,15 +34,6 @@
         <div class="d-flex gap-2 mb-3">
             <button class="btn btn-primary d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#addActivityModal">
                 <i class="fas fa-plus"></i> Add Activity
-            </button>
-            <button class="btn btn-outline-secondary d-flex align-items-center gap-2">
-                <i class="fas fa-phone" style="color:#059669"></i> Log Call
-            </button>
-            <button class="btn btn-outline-secondary d-flex align-items-center gap-2">
-                <i class="fas fa-building" style="color:#7c3aed"></i> Log Visit
-            </button>
-            <button class="btn btn-outline-secondary d-flex align-items-center gap-2">
-                <i class="fas fa-envelope" style="color:#d97706"></i> Send Email
             </button>
         </div>
 
@@ -116,7 +129,7 @@
                             @endif
 
                             <div class="activity-meta d-flex align-items-center gap-3 mt-1">
-                                <span><i class="fas fa-user me-1"></i>{{ $act->salesUser?->name ?? 'Unknown' }}</span>
+                                <span><i class="fas fa-user me-1"></i>{{ $act->salesUser?->name ?? $act->user?->name ?? '-' }}</span>
                                 @if($act->next_follow_up)
                                 <span style="color:#d97706"><i class="fas fa-calendar-check me-1"></i>Follow up: {{ $act->next_follow_up->format('d M Y') }}</span>
                                 @endif
@@ -199,19 +212,28 @@
                 <a href="{{ route('leads.index') }}" style="font-size:.75rem;color:var(--primary)">Lihat Semua</a>
             </div>
             <div class="card-body p-3">
-                @foreach($pipelineSummary as $stage => $data)
                 @php
-                $colors = ['Identifying'=>'#2563eb','Approaching'=>'#d97706','Follow Up'=>'#7c3aed','Closing'=>'#059669','Maintaining'=>'#6366f1'];
+                $pipeColors = [
+                    'Identifying' => '#2563eb',
+                    'Approaching' => '#d97706',
+                    'Follow Up'   => '#7c3aed',
+                    'Won/Closing' => '#059669',
+                    'Maintaining' => '#6366f1',
+                ];
                 @endphp
-                <div class="d-flex align-items-center justify-content-between py-2" style="border-bottom:1px solid #f3f4f6">
-                    <span style="font-size:.8rem;color:{{ $colors[$stage] ?? '#333' }};font-weight:600">{{ $stage }}</span>
-                    <span style="font-size:.75rem;color:var(--text-muted)">{{ $data['count'] }} Leads</span>
-                    <span style="font-size:.75rem;font-weight:600">{{ idrm($data['value']) }}</span>
+                @foreach($pipelineSummary as $stage => $data)
+                <div class="pipeline-row">
+                    <span class="pipeline-dot" style="background:{{ $pipeColors[$stage] ?? '#9ca3af' }}"></span>
+                    <span class="pipeline-name" style="color:{{ $pipeColors[$stage] ?? '#333' }}">{{ $stage }}</span>
+                    <span class="pipeline-count">{{ $data['count'] }} Leads</span>
+                    <span class="pipeline-value">{{ idrm($data['value']) }}</span>
                 </div>
                 @endforeach
-                <div class="d-flex justify-content-between pt-2">
-                    <strong style="font-size:.82rem">Total Pipeline Value</strong>
-                    <strong style="font-size:.82rem;color:var(--primary)">{{ idrm(collect($pipelineSummary)->sum(fn($d) => $d['value'])) }}</strong>
+                <div class="pipeline-row pipeline-total">
+                    <span class="pipeline-dot" style="background:transparent"></span>
+                    <span class="pipeline-name"><strong>Total Pipeline</strong></span>
+                    <span class="pipeline-count"></span>
+                    <span class="pipeline-value"><strong style="color:var(--primary)">{{ idrm(collect($pipelineSummary)->sum(fn($d) => $d['value'])) }}</strong></span>
                 </div>
             </div>
         </div>
@@ -225,7 +247,7 @@
                     <label class="form-label" style="font-size:.78rem">Lead</label>
                     <select id="stageLeadSelect" class="form-select form-select-sm">
                         <option value="">-- Pilih Lead --</option>
-                        @foreach(\App\Models\Lead::whereNotIn('pipeline_stage',['Won','Lost'])->orderBy('company_name')->get() as $l)
+                        @foreach(\App\Models\Lead::whereNotIn('pipeline_stage',['Won'])->orderBy('company_name')->get() as $l)
                         <option value="{{ $l->id }}" data-stage="{{ $l->pipeline_stage }}">{{ $l->company_name }}</option>
                         @endforeach
                     </select>
@@ -233,8 +255,8 @@
                 <div class="mb-3">
                     <label class="form-label" style="font-size:.78rem">Pipeline Stage</label>
                     <select id="stageSelect" class="form-select form-select-sm">
-                        @foreach(['Identifying','Approaching','Follow Up','Closing','Won','Maintaining'] as $s)
-                        <option value="{{ $s }}">{{ $s }}</option>
+                        @foreach(['Identifying'=>'Identifying','Approaching'=>'Approaching','Follow Up'=>'Follow Up','Won'=>'Won/Closing','Maintaining'=>'Maintaining'] as $val => $label)
+                        <option value="{{ $val }}">{{ $label }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -260,21 +282,35 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Client / Company <span class="text-danger">*</span></label>
-                        <select name="lead_id" class="form-select" id="actLeadSelect" onchange="onLeadChange(this)">
+                        <select name="client_ref" class="form-select" id="actLeadSelect" onchange="onLeadChange(this)">
                             <option value="">Pilih atau cari client</option>
-                            @foreach(\App\Models\Lead::orderBy('company_name')->get() as $lead)
-                            <option value="{{ $lead->id }}" data-stage="{{ $lead->pipeline_stage }}">{{ $lead->company_name }}</option>
+                            @php
+                                // ID customer existing yang berasal dari leads (sudah punya customer_id)
+                                $existingCustomerCompanyNames = \App\Models\Customer::where('status','Existing')->pluck('company_name')->map(fn($n) => strtolower(trim($n)))->toArray();
+                                // Leads yang belum jadi customer existing
+                                $leadsNotExisting = \App\Models\Lead::orderBy('company_name')->get()->filter(fn($l) => !in_array(strtolower(trim($l->company_name)), $existingCustomerCompanyNames));
+                                $existingCustomers = \App\Models\Customer::where('status','Existing')->orderBy('company_name')->get();
+                            @endphp
+                            <optgroup label="— Leads —">
+                            @foreach($leadsNotExisting as $lead)
+                            <option value="lead:{{ $lead->id }}" data-type="lead" data-id="{{ $lead->id }}" data-stage="{{ $lead->pipeline_stage }}">{{ $lead->company_name }} (Lead)</option>
                             @endforeach
+                            </optgroup>
+                            <optgroup label="— Customer Existing —">
+                            @foreach($existingCustomers as $cust)
+                            <option value="customer:{{ $cust->id }}" data-type="customer" data-id="{{ $cust->id }}" data-status="Existing" data-stage="">{{ $cust->company_name }} (Existing)</option>
+                            @endforeach
+                            </optgroup>
                         </select>
+                        <input type="hidden" name="lead_id" id="actLeadHidden" value="">
+                        <input type="hidden" name="customer_id" id="actCustomerHidden" value="">
                     </div>
 
-                    {{-- Pipeline Stage — muncul setelah lead dipilih --}}
+                    {{-- Pipeline Stage — muncul setelah client dipilih (lead atau customer) --}}
                     <div class="mb-3" id="stageWrap" style="display:none">
                         <label class="form-label">Update Pipeline Stage</label>
                         <select name="pipeline_stage" class="form-select" id="actStageSelect">
-                            @foreach(['Identifying','Approaching','Follow Up','Closing','Won','Lost','Maintaining'] as $s)
-                            <option value="{{ $s }}">{{ $s }}</option>
-                            @endforeach
+                            {{-- diisi via JS sesuai sumber --}}
                         </select>
                         <div class="form-text">Opsional — biarkan jika tidak ingin mengubah stage</div>
                     </div>
@@ -349,6 +385,15 @@
 
 @push('scripts')
 <script>
+function openActivityModal(type) {
+    const radio = document.getElementById('type_' + type);
+    if (radio) {
+        radio.checked = true;
+        const photoField = document.getElementById('photoField');
+        if (photoField) photoField.style.display = type === 'Visit' ? 'block' : 'none';
+    }
+}
+
     function onTypeChange(type) {
         document.getElementById('photoWrap').style.display = type === 'Visit' ? 'block' : 'none';
         if (type !== 'Visit') {
@@ -356,19 +401,70 @@
         }
     }
 
+    // Opsi stage sesuai sumber (revisi #4 & #5)
+    const STAGE_FULL = [
+        ['Identifying','Identifying'],
+        ['Approaching','Approaching'],
+        ['Follow Up','Follow Up'],
+        ['Won','Won/Closing'],
+        ['Lost','Lost'],
+        ['Maintaining','Maintaining'],
+    ];
+    const STAGE_EXISTING = [
+        ['Follow Up','Follow Up'],
+        ['Won','Won/Closing'],
+        ['Lost','Lost'],
+        ['Maintaining','Maintaining'],
+    ];
+
+    function fillStageOptions(list, currentStage) {
+        const stSel = document.getElementById('actStageSelect');
+        stSel.innerHTML = '';
+        list.forEach(function(pair) {
+            const opt = document.createElement('option');
+            opt.value = pair[0];
+            opt.textContent = pair[1];
+            if (currentStage && currentStage === pair[0]) opt.selected = true;
+            stSel.appendChild(opt);
+        });
+    }
+
     function onLeadChange(sel) {
         const wrap = document.getElementById('stageWrap');
-        const stSel = document.getElementById('actStageSelect');
-        if (sel.value) {
-            wrap.style.display = 'block';
-            const stage = sel.options[sel.selectedIndex].dataset.stage;
-            if (stage) {
-                for (let o of stSel.options) {
-                    o.selected = o.value === stage;
-                }
-            }
-        } else {
+        const leadHidden = document.getElementById('actLeadHidden');
+        const custHidden = document.getElementById('actCustomerHidden');
+
+        if (!sel.value) {
             wrap.style.display = 'none';
+            leadHidden.value = '';
+            custHidden.value = '';
+            return;
+        }
+
+        const opt    = sel.options[sel.selectedIndex];
+        const type   = opt.dataset.type;
+        const id     = opt.dataset.id;
+        const stage  = opt.dataset.stage || '';
+        const status = opt.dataset.status || '';
+
+        if (type === 'lead') {
+            // Lead / customer potential → opsi penuh
+            leadHidden.value = id;
+            custHidden.value = '';
+            fillStageOptions(STAGE_FULL, stage);
+            wrap.style.display = 'block';
+        } else {
+            // Customer
+            leadHidden.value = '';
+            custHidden.value = id;
+            if (status === 'Existing') {
+                // Revisi #5: customer existing → Follow Up, Won/Closing, Lost, Maintaining
+                fillStageOptions(STAGE_EXISTING, '');
+            } else {
+                // Revisi #4: customer potential → opsi penuh
+                fillStageOptions(STAGE_FULL, '');
+            }
+            wrap.style.display = 'block';
         }
     }
 

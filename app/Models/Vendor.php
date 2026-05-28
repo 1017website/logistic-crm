@@ -1,50 +1,51 @@
 <?php
+
 namespace App\Models;
+
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Vendor extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
-        'vendor_name','pic_name','pic_position','phone','email','address',
-        'vendor_type','service_type','coverage_area','status','relationship_status',
-        'is_preferred','rating','payment_term','vendor_since','logo'
+        'vendor_name', 'pic_name', 'pic_position', 'phone', 'email', 'address',
+        'vendor_type', 'service_type', 'service_mode',
+        'status', 'relationship_status', 'is_preferred', 'rating',
+        'payment_term', 'vendor_since', 'logo',
     ];
-    protected $casts = ['vendor_since' => 'date', 'is_preferred' => 'boolean'];
+
+    protected $casts = [
+        'vendor_since'  => 'date',
+        'is_preferred'  => 'boolean',
+    ];
+
+    /** Daftar enum (single source of truth) */
+    public const VENDOR_TYPES = ['External', 'Internal'];
+
+    public const SERVICE_TYPES = [
+        'Land Freight',
+        'Sea Freight',
+        'Air Freight',
+        'Pengiriman Kilat & Instan',
+    ];
+
+    public const SERVICE_MODES = ['Tracking', 'Kontainer', 'Wingbox'];
+
+    public function shipmentOrders(): HasMany { return $this->hasMany(ShipmentOrder::class); }
+    public function services(): HasMany       { return $this->hasMany(VendorService::class); }
+    public function pics(): HasMany           { return $this->hasMany(VendorPic::class); }
 
     public function isExisting(): bool  { return $this->relationship_status === 'Existing'; }
     public function isPotential(): bool { return $this->relationship_status === 'Potential'; }
+    public function isExternal(): bool  { return $this->vendor_type === 'External'; }
+    public function isInternal(): bool  { return $this->vendor_type === 'Internal'; }
 
-    /**
-     * Auto-upgrade ke Existing jika sudah ada DO yang selesai.
-     */
-    public function syncRelationshipStatus(): void
+    /** Helper: service_mode disimpan comma-separated, expose sebagai array */
+    public function getServiceModesArrayAttribute(): array
     {
-        $hasDone = $this->deliveryOrders()->where('status', 'Done')->exists();
-        if ($hasDone && $this->relationship_status !== 'Existing') {
-            $this->updateQuietly(['relationship_status' => 'Existing']);
-        }
-    }
-
-    public function deliveryOrders(): HasMany { return $this->hasMany(DeliveryOrder::class); }
-    public function rates(): HasMany { return $this->hasMany(VendorRate::class); }
-
-    public function getLogoInitialsAttribute(): string
-    {
-        $parts = explode(' ', $this->vendor_name);
-        $initials = '';
-        foreach (array_slice($parts, 0, 2) as $part) {
-            $initials .= strtoupper(substr($part, 0, 1));
-        }
-        return $initials;
-    }
-
-    public function getOnTimeDeliveryAttribute(): int
-    {
-        $total = $this->deliveryOrders()->count();
-        if ($total === 0) return 0;
-        $onTime = $this->deliveryOrders()->where('status', 'Done')->count();
-        return (int) round(($onTime / $total) * 100);
+        return $this->service_mode ? array_map('trim', explode(',', $this->service_mode)) : [];
     }
 }

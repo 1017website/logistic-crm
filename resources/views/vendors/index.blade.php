@@ -1,411 +1,611 @@
 @extends('layouts.app')
 @section('title', 'Database Vendor')
 @section('page-title', 'Database Vendor')
-@section('page-subtitle', 'Kelola data vendor & supplier perusahaan')
+@section('page-subtitle', 'Kelola data vendor Internal dan External')
 
 @section('content')
 <div class="row g-3">
+<div class="col-12">
 
-    <div class="col-lg-{{ $selectedVendor ? '8' : '12' }}">
-        <div class="d-flex align-items-center justify-content-between mb-3">
-            <div class="d-flex gap-2">
-                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addVendorModal">
-                    <i class="fas fa-plus me-1"></i> Add Vendor
-                </button>
-                <a href="{{ route('vendors.export') }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-download me-1"></i> Export CSV
-                </a>
-            </div>
-            <div class="d-flex gap-3">
-                @foreach([[$totalVendor,'Total','#111'],[$existingVendor,'Existing','#059669'],[$potentialVendor,'Potential','#2563eb'],[$preferredVendor,'Preferred','#d97706'],[$nonActiveVendor,'Non-Active','#dc2626']] as $s)
-                <div class="text-center {{ !$loop->first ? 'ps-3' : '' }}" style="{{ !$loop->first ? 'border-left:1px solid var(--border-color)' : '' }}">
-                    <div style="font-size:1.2rem;font-weight:800;color:{{ $s[2] }}">{{ $s[0] }}</div>
-                    <div style="font-size:.68rem;color:var(--text-muted)">{{ $s[1] }}</div>
-                </div>
-                @endforeach
-            </div>
+    {{-- Header --}}
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addVendorModal">
+                <i class="fas fa-plus me-1"></i> Tambah Vendor
+            </button>
+            <a href="{{ route('vendors.export', request()->query()) }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-download me-1"></i> Export Excel
+            </a>
         </div>
+        <div class="d-flex gap-3 flex-wrap">
+            @foreach([[$totalVendor,'Total','#111'],[$externalVendor,'Local','#2563eb'],[$internalVendor,'Import','#7c3aed'],[$existingVendor,'Existing','#059669'],[$potentialVendor,'Potential','#f97316']] as $s)
+            <div class="text-center {{ !$loop->first ? 'ps-3' : '' }}" style="{{ !$loop->first ? 'border-left:1px solid var(--border-color)' : '' }}">
+                <div style="font-size:1.2rem;font-weight:800;color:{{ $s[2] }}">{{ $s[0] }}</div>
+                <div style="font-size:.68rem;color:var(--text-muted)">{{ $s[1] }}</div>
+            </div>
+            @endforeach
+        </div>
+    </div>
 
-        <form method="GET" action="{{ route('vendors.index') }}">
-            <div class="card mb-3"><div class="card-body p-3">
-                <div class="row g-2 align-items-center">
-                    <div class="col-auto">
-                        <select name="vendor_type" class="form-select form-select-sm">
-                            <option value="all">All Type</option>
-                            @foreach(['Shipping Line','Trucking','Air Freight','EMKL','Others'] as $t)
-                            <option value="{{ $t }}" @selected($type==$t)>{{ $t }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-auto">
-                        <select name="relationship_status" class="form-select form-select-sm">
-                            <option value="all">All Relationship</option>
-                            <option value="Existing" @selected($relationshipStatus=='Existing')>Existing</option>
-                            <option value="Potential" @selected($relationshipStatus=='Potential')>Potential</option>
-                        </select>
-                    </div>
-                    <div class="col-auto">
-                        <select name="status" class="form-select form-select-sm">
-                            <option value="all">All Status</option>
-                            <option value="Active" @selected($status=='Active')>Active</option>
-                            <option value="Non-Active" @selected($status=='Non-Active')>Non-Active</option>
-                        </select>
-                    </div>
-                    <div class="col">
-                        <input type="text" name="search" class="form-control form-control-sm" placeholder="Cari vendor, PIC, phone..." value="{{ $search }}">
-                    </div>
-                    <div class="col-auto">
-                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-search me-1"></i> Filter</button>
-                        <a href="{{ route('vendors.index') }}" class="btn btn-sm btn-outline-secondary ms-1">Reset</a>
-                    </div>
+    {{-- Filter --}}
+    <form method="GET" action="{{ route('vendors.index') }}">
+        <div class="card mb-3"><div class="card-body p-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <select name="vendor_type" class="form-select form-select-sm">
+                        <option value="all">All Type</option>
+                        <option value="External"  @selected($vendorType=='External')>Local</option>
+                        <option value="Internal" @selected($vendorType=='Internal')>Import</option>
+                    </select>
                 </div>
-            </div></div>
-        </form>
+                <div class="col-md-3">
+                    <select name="relationship_status" class="form-select form-select-sm">
+                        <option value="all">All Relationship</option>
+                        <option value="Existing"  @selected($relationshipStatus=='Existing')>Existing</option>
+                        <option value="Potential" @selected($relationshipStatus=='Potential')>Potential</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="status" class="form-select form-select-sm">
+                        <option value="all">All Status</option>
+                        <option value="Active"     @selected($status=='Active')>Active</option>
+                        <option value="Non-Active" @selected($status=='Non-Active')>Non-Active</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Cari vendor, produk..." value="{{ $search }}">
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary btn-sm w-100"><i class="fas fa-search"></i></button>
+                </div>
+            </div>
+        </div></div>
+    </form>
 
-        <div class="card">
-            <div class="card-body p-0">
-                <table class="table crm-table mb-0">
-                    <thead><tr>
-                        <th>No.</th><th>Vendor</th><th>PIC</th><th>Contact</th>
-                        <th>Type</th><th>Coverage</th><th>Rating</th><th>On-Time</th><th>Status</th><th>Action</th>
-                    </tr></thead>
-                    <tbody>
-                        @forelse($vendors as $i => $v)
+    {{-- Table --}}
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" style="font-size:13px">
+                    <thead style="background:#f8f9fa">
                         <tr>
-                            <td style="color:#9ca3af;font-size:.75rem">{{ $vendors->firstItem() + $i }}</td>
-                            <td>
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="user-avatar" style="width:30px;height:30px;font-size:.65rem;border-radius:6px;background:#374151;flex-shrink:0">{{ $v->logo_initials }}</div>
-                                    <div>
-                                        <a href="{{ route('vendors.index', array_merge(request()->query(), ['selected_id'=>$v->id])) }}"
-                                            style="font-weight:600;color:#111;text-decoration:none;font-size:.82rem">{{ $v->vendor_name }}</a>
-                                        @if($v->is_preferred)<div><span style="background:#fef3c7;color:#b45309;font-size:.6rem;padding:1px 6px;border-radius:10px;font-weight:600">⭐ Preferred</span></div>@endif
-                                    </div>
-                                </div>
+                            <th class="px-3 py-2">Vendor</th>
+                            <th class="py-2">PIC</th>
+                            <th class="py-2">Phone</th>
+                            <th class="py-2">Service Type</th>
+                            <th class="py-2">Layanan Vendor</th>
+                            <th class="py-2">Type</th>
+                            <th class="py-2">Relationship</th>
+                            <th class="py-2">Status</th>
+                            <th class="py-2">Rating</th>
+                            <th class="py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($vendors as $s)
+                        <tr>
+                            <td class="px-3 py-2">
+                                <div style="font-weight:700">{{ $s->vendor_name }}</div>
+                                @if($s->is_preferred)<span style="font-size:10px;color:#d97706">⭐ Preferred</span>@endif
                             </td>
-                            <td style="font-size:.75rem">{{ $v->pic_name }}@if($v->pic_position)<div style="color:var(--text-muted)">{{ $v->pic_position }}</div>@endif</td>
-                            <td style="font-size:.75rem">{{ $v->phone }}@if($v->email)<div style="color:var(--primary);font-size:.7rem">{{ $v->email }}</div>@endif</td>
-                            <td>
-                                @php $tc=['Shipping Line'=>['#dbeafe','#1d4ed8'],'Trucking'=>['#d1fae5','#059669'],'Air Freight'=>['#fef3c7','#b45309'],'EMKL'=>['#ede9fe','#7c3aed']][$v->vendor_type]??['#f3f4f6','#374151']; @endphp
-                                <span style="font-size:.7rem;padding:2px 7px;border-radius:20px;font-weight:600;background:{{ $tc[0] }};color:{{ $tc[1] }}">{{ $v->vendor_type }}</span>
+                            <td class="py-2">
+                                <div>{{ $s->pic_name }}</div>
+                                <div style="font-size:11px;color:#6b7280">{{ $s->pic_position }}</div>
                             </td>
-                            <td style="font-size:.75rem">{{ $v->coverage_area ?? '-' }}</td>
-                            <td><div class="d-flex align-items-center gap-1"><span style="color:#f59e0b">★</span><span style="font-size:.78rem;font-weight:600">{{ $v->rating ?? '-' }}</span></div></td>
-                            <td>
-                                @php $ot=$v->on_time_delivery; @endphp
-                                <div style="font-size:.75rem;font-weight:600;color:{{ $ot>=90?'#059669':($ot>=70?'#d97706':'#dc2626') }}">{{ $ot }}%</div>
-                                <div style="background:#e5e7eb;border-radius:3px;height:4px;width:50px;margin-top:2px">
-                                    <div style="width:{{ $ot }}%;height:4px;border-radius:3px;background:{{ $ot>=90?'#10b981':($ot>=70?'#f59e0b':'#ef4444') }}"></div>
-                                </div>
+                            <td class="py-2" style="font-size:12px">{{ $s->phone }}</td>
+                            <td class="py-2" style="font-size:12px">{{ $s->service_type ?? '-' }}</td>
+                            <td class="py-2" style="font-size:12px;max-width:220px">
+                                @php
+                                    $serviceNames = $s->services->map(function ($p) {
+                                        $name = trim($p->service_name ?? '');
+                                        $unit = trim($p->unit ?? '');
+
+                                        if ($name === '') {
+                                            return null;
+                                        }
+
+                                        return $unit !== '' ? $name . ' (' . $unit . ')' : $name;
+                                    })->filter()->values();
+                                @endphp
+                                @if($serviceNames->count() > 0)
+                                    <div title="{{ $serviceNames->implode(', ') }}">{{ \Illuminate\Support\Str::limit($serviceNames->implode(', '), 70) }}</div>
+                                @else
+                                    <span style="color:#9ca3af">-</span>
+                                @endif
                             </td>
-                            <td><span class="{{ $v->status==='Active'?'badge-existing':'badge-overdue' }}">{{ $v->status }}</span>
-                                <div class="mt-1"><span style="font-size:.65rem;padding:2px 7px;border-radius:20px;font-weight:600;background:{{ $v->relationship_status==='Existing'?'#d1fae5':'#dbeafe' }};color:{{ $v->relationship_status==='Existing'?'#059669':'#1d4ed8' }}">{{ $v->relationship_status }}</span></div>
+                            <td class="py-2">
+                                <span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;
+                                    background:{{ $s->vendor_type==='External'?'#dbeafe':'#ede9fe' }};
+                                    color:{{ $s->vendor_type==='External'?'#1d4ed8':'#7c3aed' }}">
+                                    {{ $s->vendor_type }}
+                                    @if($s->vendor_type==='Internal' && $s->origin_country)
+                                    <span style="font-size:10px">({{ $s->origin_country }})</span>
+                                    @endif
+                                </span>
                             </td>
-                            <td>
-                                <div class="d-flex gap-1">
-                                    <a href="{{ route('vendors.index', array_merge(request()->query(), ['selected_id'=>$v->id])) }}" class="btn btn-sm btn-outline-primary" style="padding:3px 7px">
-                                        <i class="fas fa-eye" style="font-size:.7rem"></i>
-                                    </a>
-                                    <button class="btn btn-sm btn-outline-secondary" style="padding:3px 7px"
-                                        onclick="openEditVendor({{ $v->id }},'{{ addslashes($v->vendor_name) }}','{{ $v->vendor_type }}','{{ addslashes($v->pic_name) }}','{{ $v->phone }}','{{ $v->email }}','{{ $v->coverage_area }}','{{ $v->status }}','{{ $v->relationship_status }}','{{ $v->is_preferred?1:0 }}','{{ $v->rating }}')">
-                                        <i class="fas fa-edit" style="font-size:.7rem"></i>
+                            <td class="py-2">
+                                <span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;
+                                    background:{{ $s->relationship_status==='Existing'?'#d1fae5':'#fff7ed' }};
+                                    color:{{ $s->relationship_status==='Existing'?'#059669':'#ea580c' }}">
+                                    {{ $s->relationship_status }}
+                                </span>
+                            </td>
+                            <td class="py-2">
+                                <span class="{{ $s->status==='Active'?'badge-existing':'badge-overdue' }}">{{ $s->status }}</span>
+                            </td>
+                            <td class="py-2" style="font-size:12px">{{ $s->rating > 0 ? $s->rating : '-' }}</td>
+                            <td class="py-2">
+                                <button class="btn btn-sm btn-outline-secondary" style="padding:3px 7px"
+                                    onclick="openEditVendor({{ $s->id }})">
+                                    <i class="fas fa-pencil-alt"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-info" style="padding:3px 7px" title="Produk"
+                                    onclick="openServiceModal({{ $s->id }}, '{{ addslashes($s->vendor_name) }}')">
+                                    <i class="fas fa-boxes" style="font-size:.7rem"></i>
+                                </button>
+                                <form method="POST" action="{{ route('vendors.destroy', $s) }}" class="d-inline"
+                                    onsubmit="return confirm('Apakah Anda yakin ingin menghapus vendor {{ addslashes($s->vendor_name) }}? Tindakan ini tidak dapat dibatalkan.')">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:3px 7px">
+                                        <i class="fas fa-trash"></i>
                                     </button>
-                                    <form method="POST" action="{{ route('vendors.destroy',$v) }}" class="d-inline" onsubmit="return confirm('Hapus {{ addslashes($v->vendor_name) }}?')">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:3px 7px"><i class="fas fa-trash" style="font-size:.7rem"></i></button>
-                                    </form>
-                                </div>
+                                </form>
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="10" class="text-center py-4" style="color:var(--text-muted)">
-                            <i class="fas fa-handshake" style="font-size:2rem;display:block;margin-bottom:8px;opacity:.2"></i>Tidak ada data vendor.
-                        </td></tr>
+                        <tr><td colspan="10" class="text-center py-4" style="color:#9ca3af">Belum ada data vendor</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             @if($vendors->hasPages())
-            <div class="card-footer p-3 d-flex justify-content-between align-items-center">
-                <span style="font-size:.78rem;color:var(--text-muted)">Showing {{ $vendors->firstItem() }}–{{ $vendors->lastItem() }} of {{ $vendors->total() }}</span>
-                {{ $vendors->links('pagination::bootstrap-5') }}
-            </div>
+            <div class="px-3 py-2">{{ $vendors->links() }}</div>
             @endif
         </div>
     </div>
+</div>
+</div>
 
-    @if($selectedVendor)
-    <div class="col-lg-4">
-        <div class="card" style="position:sticky;top:70px"><div class="card-body p-3">
-            <div class="d-flex align-items-start justify-content-between mb-3">
-                <div class="d-flex align-items-center gap-2">
-                    <div class="user-avatar" style="width:44px;height:44px;border-radius:8px;background:#374151;font-size:.85rem">{{ $selectedVendor->logo_initials }}</div>
-                    <div>
-                        <div style="font-weight:700;font-size:.9rem">{{ $selectedVendor->vendor_name }}</div>
-                        <div class="d-flex gap-1 mt-1 flex-wrap">
-                            @if($selectedVendor->is_preferred)<span style="background:#fef3c7;color:#b45309;font-size:.65rem;padding:2px 7px;border-radius:20px;font-weight:600">⭐ Preferred</span>@endif
-                            <span class="{{ $selectedVendor->status==='Active'?'badge-existing':'badge-overdue' }}">{{ $selectedVendor->status }}</span>
-                            <span style="font-size:.65rem;padding:2px 7px;border-radius:20px;font-weight:600;background:{{ $selectedVendor->relationship_status==='Existing'?'#d1fae5':'#dbeafe' }};color:{{ $selectedVendor->relationship_status==='Existing'?'#059669':'#1d4ed8' }}">{{ $selectedVendor->relationship_status }}</span>
-                        </div>
-                    </div>
-                </div>
-                <a href="{{ route('vendors.index', request()->except('selected_id')) }}" style="color:var(--text-muted)"><i class="fas fa-times"></i></a>
+{{-- Modal Tambah --}}
+<div class="modal fade" id="addVendorModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">Tambah Vendor</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
+            <form method="POST" action="{{ route('vendors.store') }}">
+                @csrf
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nama Vendor <span class="text-danger">*</span></label>
+                            <input type="text" name="vendor_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Vendor Type <span class="text-danger">*</span></label>
+                            <select name="vendor_type" class="form-select">
+                                <option value="External">External</option>
+                                <option value="Internal">Internal</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Service Type</label>
+                            <select name="service_type" class="form-select">
+                                <option value="">- Pilih -</option>
+                                @foreach(\App\Models\Vendor::SERVICE_TYPES as $st)
+                                    <option value="{{ $st }}">{{ $st }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Service Mode</label>
+                            <div class="d-flex gap-3 pt-2">
+                                @foreach(\App\Models\Vendor::SERVICE_MODES as $sm)
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="service_mode[]" value="{{ $sm }}" id="addSm{{ $loop->index }}">
+                                    <label class="form-check-label" for="addSm{{ $loop->index }}">{{ $sm }}</label>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Payment Term</label>
+                            <input type="text" name="payment_term" class="form-control" placeholder="Net 30, COD, dll">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">PIC Name <span class="text-danger">*</span></label>
+                            <input type="text" name="pic_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Posisi PIC</label>
+                            <input type="text" name="pic_position" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Phone <span class="text-danger">*</span></label>
+                            <input type="text" name="phone" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Rating (0-5)</label>
+                            <input type="number" name="rating" class="form-control" min="0" max="5" step="0.1" value="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="Active">Active</option>
+                                <option value="Non-Active">Non-Active</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Relationship</label>
+                            <select name="relationship_status" class="form-select">
+                                <option value="Potential">Potential</option>
+                                <option value="Existing">Existing</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <div class="form-check">
+                                <input type="hidden" name="is_preferred" value="0">
+                                <input type="checkbox" name="is_preferred" value="1" class="form-check-input" id="addPreferred">
+                                <label class="form-check-label" for="addPreferred">Preferred Vendor</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Alamat</label>
+                            <textarea name="address" class="form-control" rows="2"></textarea>
+                        </div>
 
-            <ul class="nav nav-tabs mb-3" style="font-size:.75rem" id="vendorTabs">
-                <li class="nav-item"><a class="nav-link active" href="#" onclick="showVTab('info',this);return false" style="padding:5px 8px">Info</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" onclick="showVTab('rates',this);return false" style="padding:5px 8px">Rates</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" onclick="showVTab('do',this);return false" style="padding:5px 8px">DO</a></li>
-                <li class="nav-item"><a class="nav-link" href="#" onclick="showVTab('perf',this);return false" style="padding:5px 8px">Performa</a></li>
-            </ul>
+                        {{-- Inline PICs --}}
+                        <div class="col-12 mt-2">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div style="font-size:.78rem;font-weight:600;color:var(--primary)"><i class="fas fa-users me-1"></i> PIC Perusahaan</div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:2px 8px" onclick="addSupPicRow('addSupPicsContainer')"><i class="fas fa-plus me-1"></i> Add PIC</button>
+                            </div>
+                            <div id="addSupPicsContainer"></div>
+                        </div>
 
-            <div id="vtab-info">
-                @foreach([['PIC',$selectedVendor->pic_name],['Jabatan',$selectedVendor->pic_position??'\-'],['Phone',$selectedVendor->phone??'\-'],['Email',$selectedVendor->email??'\-'],['Coverage',$selectedVendor->coverage_area??'\-'],['Payment Term',$selectedVendor->payment_term??'\-'],['Vendor Since',$selectedVendor->vendor_since?->format('d M Y')??'\-']] as $f)
-                <div class="d-flex justify-content-between py-1" style="border-bottom:1px solid #f9fafb;font-size:.77rem">
-                    <span style="color:var(--text-muted);min-width:90px">{{ $f[0] }}</span>
-                    <span style="font-weight:500;text-align:right;max-width:55%">{{ $f[1] }}</span>
-                </div>
-                @endforeach
-                <div class="row g-2 mt-3 mb-3 text-center">
-                    <div class="col-6"><div style="background:#eff6ff;border-radius:8px;padding:10px">
-                        <div style="font-size:1.1rem;font-weight:800;color:var(--primary)">{{ $selectedVendor->deliveryOrders->count() }}</div>
-                        <div style="font-size:.65rem;color:var(--text-muted)">Total DO</div>
-                    </div></div>
-                    <div class="col-6"><div style="background:#f0fdf4;border-radius:8px;padding:10px">
-                        <div style="font-size:1.1rem;font-weight:800;color:#16a34a">{{ $selectedVendor->on_time_delivery }}%</div>
-                        <div style="font-size:.65rem;color:var(--text-muted)">On-Time</div>
-                    </div></div>
-                    <div class="col-6"><div style="background:#fefce8;border-radius:8px;padding:10px">
-                        <div style="font-size:1.1rem;font-weight:800;color:#d97706">{{ $selectedVendor->rating??'\-' }} <span style="color:#f59e0b;font-size:.8rem">★</span></div>
-                        <div style="font-size:.65rem;color:var(--text-muted)">Rating</div>
-                    </div></div>
-                    <div class="col-6"><div style="background:#faf5ff;border-radius:8px;padding:10px">
-                        <div style="font-size:1.1rem;font-weight:800;color:#7c3aed">{{ $selectedVendor->rates->count() }}</div>
-                        <div style="font-size:.65rem;color:var(--text-muted)">Rate Entries</div>
-                    </div></div>
-                </div>
-                <div class="row g-1">
-                    @foreach([['phone','Log Call','#d1fae5','#059669',''],['envelope','Email','#fef3c7','#d97706',''],['table','Add Rate','#ede9fe','#7c3aed',"new bootstrap.Modal(document.getElementById('addRateModal')).show()"],['star','Update Rating','#fef3c7','#f59e0b',"openUpdateRating({{ $selectedVendor->id }},{{ $selectedVendor->rating??0 }})"]] as $qa)
-                    <div class="col-3">
-                        <div class="quick-action-btn" onclick="{{ $qa[4] }}" style="padding:8px 4px;cursor:pointer">
-                            <div class="qa-icon" style="width:28px;height:28px;background:{{ $qa[2] }}"><i class="fas fa-{{ $qa[0] }}" style="color:{{ $qa[3] }};font-size:.7rem"></i></div>
-                            <span class="qa-label" style="font-size:.62rem">{{ $qa[1] }}</span>
+                        {{-- Inline Products --}}
+                        <div class="col-12 mt-1">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div style="font-size:.78rem;font-weight:600;color:var(--primary)"><i class="fas fa-box me-1"></i> Layanan Vendor</div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:2px 8px" onclick="addVendorServiceRow('addSupProductsContainer')"><i class="fas fa-plus me-1"></i> Add Produk</button>
+                            </div>
+                            <div id="addSupProductsContainer"></div>
                         </div>
                     </div>
-                    @endforeach
                 </div>
-                <div class="d-flex gap-2 mt-3">
-                    <button class="btn btn-sm btn-outline-secondary flex-fill" style="font-size:.75rem"
-                        onclick="openEditVendor({{ $selectedVendor->id }},'{{ addslashes($selectedVendor->vendor_name) }}','{{ $selectedVendor->vendor_type }}','{{ addslashes($selectedVendor->pic_name) }}','{{ $selectedVendor->phone }}','{{ $selectedVendor->email }}','{{ $selectedVendor->coverage_area }}','{{ $selectedVendor->status }}','{{ $selectedVendor->relationship_status }}','{{ $selectedVendor->is_preferred?1:0 }}','{{ $selectedVendor->rating }}')">
-                        <i class="fas fa-edit me-1"></i> Edit
-                    </button>
-                    <form method="POST" action="{{ route('vendors.destroy',$selectedVendor) }}" class="flex-fill" onsubmit="return confirm('Hapus vendor ini?')">
-                        @csrf @method('DELETE')
-                        <button type="submit" class="btn btn-sm btn-outline-danger w-100" style="font-size:.75rem"><i class="fas fa-trash me-1"></i> Hapus</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Edit --}}
+<div class="modal fade" id="editVendorModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">Edit Vendor</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="editVendorForm">
+                @csrf @method('PUT')
+                <input type="hidden" name="pics_submitted" value="1">
+                <input type="hidden" name="services_submitted" value="1">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nama Vendor <span class="text-danger">*</span></label>
+                            <input type="text" name="vendor_name" id="esName" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Vendor Type</label>
+                            <select name="vendor_type" id="esVendorType" class="form-select">
+                                <option value="External">External</option>
+                                <option value="Internal">Internal</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Service Type</label>
+                            <select name="service_type" id="esServiceType" class="form-select">
+                                <option value="">- Pilih -</option>
+                                @foreach(\App\Models\Vendor::SERVICE_TYPES as $st)
+                                    <option value="{{ $st }}">{{ $st }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Service Mode</label>
+                            <div class="d-flex gap-3">
+                                @foreach(\App\Models\Vendor::SERVICE_MODES as $sm)
+                                <div class="form-check">
+                                    <input class="form-check-input es-service-mode" type="checkbox" name="service_mode[]" value="{{ $sm }}" id="esSm{{ $loop->index }}">
+                                    <label class="form-check-label" for="esSm{{ $loop->index }}">{{ $sm }}</label>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">PIC Name</label>
+                            <input type="text" name="pic_name" id="esPic" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Phone</label>
+                            <input type="text" name="phone" id="esPhone" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" id="esEmail" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Rating</label>
+                            <input type="number" name="rating" id="esRating" class="form-control" min="0" max="5" step="0.1">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Status</label>
+                            <select name="status" id="esStatus" class="form-select">
+                                <option value="Active">Active</option>
+                                <option value="Non-Active">Non-Active</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Relationship</label>
+                            <select name="relationship_status" id="esRelationship" class="form-select">
+                                <option value="Potential">Potential</option>
+                                <option value="Existing">Existing</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <div class="form-check">
+                                <input type="hidden" name="is_preferred" value="0">
+                                <input type="checkbox" name="is_preferred" value="1" class="form-check-input" id="esPreferred">
+                                <label class="form-check-label" for="esPreferred">Preferred Vendor</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Inline PICs (edit) --}}
+                    <div class="mt-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div style="font-size:.78rem;font-weight:600;color:var(--primary)"><i class="fas fa-users me-1"></i> PIC Perusahaan</div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:2px 8px" onclick="addSupPicRow('editSupPicsContainer')"><i class="fas fa-plus me-1"></i> Add PIC</button>
+                        </div>
+                        <div id="editSupPicsContainer"></div>
+                        <div id="editSupPicsExisting" class="mt-2"></div>
+                    </div>
+
+                    {{-- Inline Products (edit) --}}
+                    <div class="mt-2">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div style="font-size:.78rem;font-weight:600;color:var(--primary)"><i class="fas fa-box me-1"></i> Layanan Vendor</div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" style="font-size:.7rem;padding:2px 8px" onclick="addVendorServiceRow('editVendorServicesContainer')"><i class="fas fa-plus me-1"></i> Add Produk</button>
+                        </div>
+                        <div id="editSupProductsExisting" class="mt-1 mb-2"></div>
+                        <div id="editVendorServicesContainer"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Simpan Perubahan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{-- Modal Layanan Vendor --}}
+<div class="modal fade" id="vendorServiceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">Layanan Vendor — <span id="spModalName"></span></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {{-- List produk existing --}}
+                <div id="spProductList" class="mb-3"></div>
+                {{-- Form tambah produk --}}
+                <div style="background:#f9fafb;border-radius:8px;padding:12px">
+                    <div style="font-size:.78rem;font-weight:600;margin-bottom:8px">Tambah Produk</div>
+                    <form id="addVendorServiceForm" method="POST">
+                        @csrf
+                        <div class="row g-2">
+                            <div class="col-5">
+                                <input type="text" name="service_name" class="form-control form-control-sm" placeholder="Nama produk *" required>
+                            </div>
+                            <div class="col-3">
+                                <select name="unit" class="form-select form-select-sm">
+                                    <option value="ton">ton</option>
+                                    <option value="kg">kg</option>
+                                    <option value="liter">liter</option>
+                                    <option value="drum">drum</option>
+                                    <option value="pcs">pcs</option>
+                                </select>
+                            </div>
+                            <div class="col-4">
+                                <button type="submit" class="btn btn-primary btn-sm w-100">
+                                    <i class="fas fa-plus me-1"></i> Tambah
+                                </button>
+                            </div>
+                            <div class="col-12">
+                                <input type="text" name="description" class="form-control form-control-sm" placeholder="Keterangan (opsional)">
+                            </div>
+                        </div>
                     </form>
                 </div>
             </div>
-
-            <div id="vtab-rates" style="display:none">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <strong style="font-size:.8rem">Rate List</strong>
-                    <button class="btn btn-sm btn-primary" style="font-size:.72rem;padding:3px 8px" data-bs-toggle="modal" data-bs-target="#addRateModal">
-                        <i class="fas fa-plus me-1"></i> Add Rate
-                    </button>
-                </div>
-                @forelse($selectedVendor->rates->sortByDesc('last_updated') as $rate)
-                <div class="d-flex align-items-center gap-2 mb-2 p-2" style="background:#f9fafb;border-radius:6px;font-size:.75rem">
-                    <div style="flex:1">
-                        <div style="font-weight:600">{{ $rate->route }}</div>
-                        <div style="color:var(--text-muted)">{{ $rate->container_type }}</div>
-                    </div>
-                    <div class="text-end">
-                        <div style="font-weight:700;color:var(--primary)">{{ $rate->currency }} {{ number_format($rate->price,0) }}</div>
-                        <div style="font-size:.68rem;color:var(--text-muted)">{{ $rate->last_updated?->format('d M Y') }}</div>
-                    </div>
-                </div>
-                @empty
-                <div class="text-center py-3" style="color:var(--text-muted);font-size:.8rem">Belum ada rate.</div>
-                @endforelse
-            </div>
-
-            <div id="vtab-do" style="display:none">
-                <strong style="font-size:.8rem;display:block;margin-bottom:10px">Delivery Orders</strong>
-                @forelse($selectedVendor->deliveryOrders->sortByDesc('order_date')->take(10) as $do)
-                <div class="d-flex align-items-start gap-2 mb-2 pb-2" style="border-bottom:1px solid #f9fafb">
-                    <div style="width:30px;height:30px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                        <i class="fas fa-ship" style="font-size:.65rem;color:#2563eb"></i>
-                    </div>
-                    <div style="flex:1;min-width:0">
-                        <div style="font-size:.75rem;font-weight:600">{{ $do->do_number }}</div>
-                        <div style="font-size:.7rem;color:var(--text-muted)">{{ $do->service_type }} · {{ $do->route }}</div>
-                    </div>
-                    <div class="text-end" style="flex-shrink:0">
-                        <div style="font-size:.72rem;font-weight:600">{{ idrm($do->amount) }}</div>
-                        <span class="badge-{{ strtolower($do->status) }}" style="font-size:.62rem">{{ $do->status }}</span>
-                    </div>
-                </div>
-                @empty
-                <div class="text-center py-3" style="color:var(--text-muted);font-size:.8rem">Belum ada DO.</div>
-                @endforelse
-            </div>
-
-            <div id="vtab-perf" style="display:none">
-                @php $ot=$selectedVendor->on_time_delivery; $delay=100-$ot; @endphp
-                <strong style="font-size:.8rem;display:block;margin-bottom:12px">Performance Overview</strong>
-                <div class="row g-2 text-center mb-3">
-                    <div class="col-6"><div style="background:#f9fafb;border-radius:8px;padding:12px">
-                        <div style="font-size:1.5rem;font-weight:800;color:#2563eb">{{ $selectedVendor->deliveryOrders->count() }}</div>
-                        <div style="font-size:.7rem;color:var(--text-muted)">Total Shipment</div>
-                    </div></div>
-                    <div class="col-6"><div style="background:#f9fafb;border-radius:8px;padding:12px">
-                        <div style="font-size:1.5rem;font-weight:800;color:#16a34a">{{ $selectedVendor->deliveryOrders->where('status','Done')->count() }}</div>
-                        <div style="font-size:.7rem;color:var(--text-muted)">Completed</div>
-                    </div></div>
-                </div>
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-1" style="font-size:.75rem"><span>On-Time Delivery</span><span style="font-weight:600;color:#16a34a">{{ $ot }}%</span></div>
-                    <div style="background:#e5e7eb;border-radius:20px;height:8px"><div style="width:{{ $ot }}%;height:8px;border-radius:20px;background:#10b981"></div></div>
-                </div>
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-1" style="font-size:.75rem"><span>Delay Rate</span><span style="font-weight:600;color:#ef4444">{{ $delay }}%</span></div>
-                    <div style="background:#e5e7eb;border-radius:20px;height:8px"><div style="width:{{ $delay }}%;height:8px;border-radius:20px;background:#ef4444"></div></div>
-                </div>
-                <div class="d-flex align-items-center justify-content-between p-3" style="background:#fefce8;border-radius:8px">
-                    <span style="font-size:.8rem;font-weight:600">Overall Rating</span>
-                    <div class="d-flex align-items-center gap-1">
-                        @for($i=1;$i<=5;$i++)<i class="fas fa-star" style="color:{{ $i<=($selectedVendor->rating??0)?'#f59e0b':'#e5e7eb' }};font-size:.9rem"></i>@endfor
-                        <span style="font-size:.85rem;font-weight:700;margin-left:4px">{{ $selectedVendor->rating??'\-' }}</span>
-                    </div>
-                </div>
-            </div>
-
-        </div></div>
+        </div>
     </div>
-    @endif
 </div>
 
-{{-- MODALS --}}
-<div class="modal fade" id="addVendorModal" tabindex="-1">
-    <div class="modal-dialog modal-lg"><div class="modal-content">
-        <div class="modal-header"><h6 class="modal-title fw-bold">Add Vendor Baru</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <form method="POST" action="{{ route('vendors.store') }}">@csrf
-            <div class="modal-body"><div class="row g-3">
-                <div class="col-md-6"><label class="form-label">Vendor Name <span class="text-danger">*</span></label><input type="text" name="vendor_name" class="form-control" required></div>
-                <div class="col-md-6"><label class="form-label">Vendor Type <span class="text-danger">*</span></label>
-                    <select name="vendor_type" class="form-select" required>@foreach(['Shipping Line','Trucking','Air Freight','EMKL','Others'] as $t)<option>{{ $t }}</option>@endforeach</select></div>
-                <div class="col-md-6"><label class="form-label">PIC Name <span class="text-danger">*</span></label><input type="text" name="pic_name" class="form-control" required></div>
-                <div class="col-md-6"><label class="form-label">Jabatan PIC</label><input type="text" name="pic_position" class="form-control"></div>
-                <div class="col-md-4"><label class="form-label">Phone <span class="text-danger">*</span></label><input type="text" name="phone" class="form-control" required></div>
-                <div class="col-md-4"><label class="form-label">Email</label><input type="email" name="email" class="form-control"></div>
-                <div class="col-md-4"><label class="form-label">Coverage Area</label><input type="text" name="coverage_area" class="form-control"></div>
-                <div class="col-md-4"><label class="form-label">Payment Term</label><input type="text" name="payment_term" class="form-control" placeholder="NET 30"></div>
-                <div class="col-md-4"><label class="form-label">Status</label>
-                    <select name="status" class="form-select"><option value="Active">Active</option><option value="Non-Active">Non-Active</option></select></div>
-                <div class="col-md-4"><label class="form-label">Relationship</label>
-                    <select name="relationship_status" class="form-select"><option value="Potential">Potential</option><option value="Existing">Existing</option></select></div>
-                <div class="col-md-4"><label class="form-label">Rating (0-5)</label><input type="number" name="rating" class="form-control" min="0" max="5" step="0.1"></div>
-                <div class="col-12"><label class="form-label">Alamat</label><textarea name="address" class="form-control" rows="2"></textarea></div>
-                <div class="col-12"><div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="is_preferred" value="1">
-                    <label class="form-check-label" style="font-size:13px">Tandai sebagai Preferred Vendor</label>
-                </div></div>
-            </div></div>
-            <div class="modal-footer"><button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary btn-sm">Simpan Vendor</button></div>
-        </form>
-    </div></div>
-</div>
 
-<div class="modal fade" id="editVendorModal" tabindex="-1">
-    <div class="modal-dialog modal-lg"><div class="modal-content">
-        <div class="modal-header"><h6 class="modal-title fw-bold">Edit Vendor</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <form method="POST" id="editVendorForm">@csrf @method('PUT')
-            <div class="modal-body"><div class="row g-3">
-                <div class="col-md-6"><label class="form-label">Vendor Name</label><input type="text" name="vendor_name" id="evName" class="form-control" required></div>
-                <div class="col-md-6"><label class="form-label">Vendor Type</label>
-                    <select name="vendor_type" id="evType" class="form-select">@foreach(['Shipping Line','Trucking','Air Freight','EMKL','Others'] as $t)<option>{{ $t }}</option>@endforeach</select></div>
-                <div class="col-md-6"><label class="form-label">PIC Name</label><input type="text" name="pic_name" id="evPic" class="form-control"></div>
-                <div class="col-md-6"><label class="form-label">Phone</label><input type="text" name="phone" id="evPhone" class="form-control"></div>
-                <div class="col-md-6"><label class="form-label">Email</label><input type="email" name="email" id="evEmail" class="form-control"></div>
-                <div class="col-md-6"><label class="form-label">Coverage Area</label><input type="text" name="coverage_area" id="evCoverage" class="form-control"></div>
-                <div class="col-md-4"><label class="form-label">Status</label>
-                    <select name="status" id="evStatus" class="form-select"><option value="Active">Active</option><option value="Non-Active">Non-Active</option></select></div>
-                <div class="col-md-4"><label class="form-label">Relationship</label>
-                    <select name="relationship_status" id="evRelationship" class="form-select"><option value="Potential">Potential</option><option value="Existing">Existing</option></select></div>
-                <div class="col-md-4"><label class="form-label">Rating</label><input type="number" name="rating" id="evRating" class="form-control" min="0" max="5" step="0.1"></div>
-                <div class="col-md-4 d-flex align-items-end pb-1"><div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="is_preferred" id="evPreferred" value="1">
-                    <label class="form-check-label" for="evPreferred" style="font-size:13px">Preferred</label>
-                </div></div>
-            </div></div>
-            <div class="modal-footer"><button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary btn-sm">Simpan</button></div>
-        </form>
-    </div></div>
-</div>
-
-@if($selectedVendor)
-<div class="modal fade" id="addRateModal" tabindex="-1">
-    <div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header"><h6 class="modal-title fw-bold">Add Rate — {{ $selectedVendor->vendor_name }}</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <form method="POST" action="{{ route('vendors.rates.store',$selectedVendor) }}">@csrf
-            <div class="modal-body"><div class="row g-3">
-                <div class="col-12"><label class="form-label">Route <span class="text-danger">*</span></label><input type="text" name="route" class="form-control" required placeholder="Jakarta – Shanghai"></div>
-                <div class="col-md-6"><label class="form-label">Container/Type</label><input type="text" name="container_type" class="form-control" placeholder="20GP, 40HC"></div>
-                <div class="col-md-3"><label class="form-label">Currency</label>
-                    <select name="currency" class="form-select"><option>IDR</option><option>USD</option><option>SGD</option><option>EUR</option></select></div>
-                <div class="col-md-3"><label class="form-label">Price <span class="text-danger">*</span></label><input type="text" name="price" class="form-control idr-input" required></div>
-                <div class="col-12"><label class="form-label">Tanggal Update</label><input type="date" name="last_updated" class="form-control" value="{{ now()->format('Y-m-d') }}"></div>
-            </div></div>
-            <div class="modal-footer"><button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary btn-sm">Simpan Rate</button></div>
-        </form>
-    </div></div>
-</div>
-@endif
-
-<div class="modal fade" id="updateRatingModal" tabindex="-1">
-    <div class="modal-dialog modal-sm"><div class="modal-content">
-        <div class="modal-header"><h6 class="modal-title fw-bold">Update Rating</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <form method="POST" id="updateRatingForm">@csrf @method('PUT')
-            <div class="modal-body">
-                <label class="form-label">Rating (0 - 5)</label>
-                <input type="number" name="rating" id="newRating" class="form-control" min="0" max="5" step="0.1" required>
-                <div style="font-size:12px;color:var(--text-muted);margin-top:6px">5 = Sangat Baik · 1 = Buruk</div>
-            </div>
-            <div class="modal-footer"><button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary btn-sm">Update</button></div>
-        </form>
-    </div></div>
-</div>
-
-@endsection
+@php
+    $vendorEditData = $vendors->mapWithKeys(function ($s) {
+        return [$s->id => [
+            'id' => $s->id,
+            'vendor_name' => $s->vendor_name,
+            'vendor_type' => $s->vendor_type,
+            'pic_name' => $s->pic_name,
+            'phone' => $s->phone,
+            'email' => $s->email,
+            'service_type' => $s->service_type,
+            'service_mode' => $s->service_mode,
+            'status' => $s->status,
+            'relationship_status' => $s->relationship_status,
+            'is_preferred' => (bool) $s->is_preferred,
+            'rating' => $s->rating,
+            'pics' => $s->pics->map(function ($pic) {
+                return [
+                    'pic_name' => $pic->pic_name,
+                    'pic_position' => $pic->pic_position,
+                    'phone' => $pic->phone,
+                    'email' => $pic->email,
+                ];
+            })->values(),
+            'services' => $s->services->map(function ($service) {
+                return [
+                    'service_name'      => $service->service_name,
+                    'unit'              => $service->unit,
+                    'tariff'            => $service->tariff,
+                    'tariff_unit'       => $service->tariff_unit,
+                    'route_origin'      => $service->route_origin,
+                    'route_destination' => $service->route_destination,
+                    'description'       => $service->description,
+                ];
+            })->values(),
+        ]];
+    });
+@endphp
 
 @push('scripts')
 <script>
-function showVTab(tab, el) {
-    document.querySelectorAll('#vendorTabs .nav-link').forEach(a => a.classList.remove('active'));
-    el.classList.add('active');
-    ['info','rates','do','perf'].forEach(t => {
-        const d = document.getElementById('vtab-'+t);
-        if(d) d.style.display = t===tab?'block':'none';
-    });
-}
-function openEditVendor(id,name,type,pic,phone,email,coverage,status,relationship,preferred,rating) {
+const vendorEditData = @json($vendorEditData);
+
+function openEditVendor(id) {
+    const data = vendorEditData[id];
+    if (!data) return;
+
     document.getElementById('editVendorForm').action = `/vendors/${id}`;
-    document.getElementById('evName').value = name;
-    document.getElementById('evType').value = type;
-    document.getElementById('evPic').value = pic;
-    document.getElementById('evPhone').value = phone;
-    document.getElementById('evEmail').value = email;
-    document.getElementById('evCoverage').value = coverage;
-    document.getElementById('evStatus').value = status;
-    document.getElementById('evRelationship').value = relationship;
-    document.getElementById('evPreferred').checked = preferred=='1';
-    document.getElementById('evRating').value = rating;
+    document.getElementById('esName').value          = data.vendor_name || '';
+    document.getElementById('esVendorType').value    = data.vendor_type || 'External';
+    document.getElementById('esServiceType').value   = data.service_type || '';
+    document.getElementById('esPic').value           = data.pic_name || '';
+    document.getElementById('esPhone').value         = data.phone || '';
+    document.getElementById('esEmail').value         = data.email || '';
+    document.getElementById('esStatus').value        = data.status || 'Active';
+    document.getElementById('esRelationship').value  = data.relationship_status || 'Potential';
+    document.getElementById('esPreferred').checked   = !!data.is_preferred;
+    document.getElementById('esRating').value        = data.rating || 0;
+
+    // Service mode checkboxes
+    const selectedModes = (data.service_mode || '').split(',').map(s => s.trim()).filter(Boolean);
+    document.querySelectorAll('.es-service-mode').forEach(cb => {
+        cb.checked = selectedModes.includes(cb.value);
+    });
+
+    const editSupPicsExisting = document.getElementById('editSupPicsExisting');
+    const editSupProductsExisting = document.getElementById('editSupProductsExisting');
+    const editSupPicsContainer = document.getElementById('editSupPicsContainer');
+    const editVendorServicesContainer = document.getElementById('editVendorServicesContainer');
+
+    editSupPicsExisting.innerHTML = '';
+    editSupProductsExisting.innerHTML = '';
+    editSupPicsContainer.innerHTML = '';
+    editVendorServicesContainer.innerHTML = '';
+
+    (data.pics || []).forEach(function(pic) {
+        addSupPicRow('editSupPicsContainer', pic);
+    });
+
+    (data.services || []).forEach(function(service) {
+        addVendorServiceRow('editVendorServicesContainer', service);
+    });
+
+    if ((data.pics || []).length === 0) {
+        editSupPicsExisting.innerHTML = '<div style="font-size:.75rem;color:#9ca3af"><i>Belum ada PIC tambahan.</i></div>';
+    }
+
+    if ((data.services || []).length === 0) {
+        editSupProductsExisting.innerHTML = '<div style="font-size:.75rem;color:#9ca3af"><i>Belum ada produk vendor.</i></div>';
+    }
+
     new bootstrap.Modal(document.getElementById('editVendorModal')).show();
 }
-function openUpdateRating(id, current) {
-    document.getElementById('updateRatingForm').action = `/vendors/${id}`;
-    document.getElementById('newRating').value = current;
-    new bootstrap.Modal(document.getElementById('updateRatingModal')).show();
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+// ── Inline Vendor PIC rows ──
+let supPicIdx = 0;
+function addSupPicRow(containerId, data = {}) {
+    const i = supPicIdx++;
+    const html = `<div class="row g-2 mb-2 align-items-center" id="supPic_${i}">
+        <div class="col-4"><input type="text" name="pics[${i}][pic_name]" class="form-control form-control-sm" placeholder="Nama PIC *" value="${escapeHtml(data.pic_name)}" required></div>
+        <div class="col-3"><input type="text" name="pics[${i}][pic_position]" class="form-control form-control-sm" placeholder="Jabatan" value="${escapeHtml(data.pic_position)}"></div>
+        <div class="col-2"><input type="text" name="pics[${i}][phone]" class="form-control form-control-sm" placeholder="Phone" value="${escapeHtml(data.phone)}"></div>
+        <div class="col-2"><input type="email" name="pics[${i}][email]" class="form-control form-control-sm" placeholder="Email" value="${escapeHtml(data.email)}"></div>
+        <div class="col-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger p-1" onclick="document.getElementById('supPic_${i}').remove()"><i class="fas fa-times"></i></button></div>
+    </div>`;
+    document.getElementById(containerId).insertAdjacentHTML('beforeend', html);
+}
+
+// ── Inline Vendor Product rows ──
+let supProdIdx = 0;
+function addVendorServiceRow(containerId, data = {}) {
+    const i = supProdIdx++;
+    const html = `<div class="row g-2 mb-2 align-items-center" id="supProd_${i}">
+        <div class="col-5"><input type="text" name="services[${i}][service_name]" class="form-control form-control-sm" placeholder="Nama Layanan *" value="${escapeHtml(data.service_name)}" required></div>
+        <div class="col-3"><input type="text" name="services[${i}][unit]" class="form-control form-control-sm" placeholder="Satuan (kg, m³, kontainer...)" value="${escapeHtml(data.unit)}"></div>
+        <div class="col-3"><input type="text" name="services[${i}][description]" class="form-control form-control-sm" placeholder="Keterangan" value="${escapeHtml(data.description)}"></div>
+        <div class="col-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger p-1" onclick="document.getElementById('supProd_${i}').remove()"><i class="fas fa-times"></i></button></div>
+    </div>`;
+    document.getElementById(containerId).insertAdjacentHTML('beforeend', html);
+}
+
+// Vendor Products (AJAX via form submit → reload)
+const vendorPics = @json($vendors->pluck('pics', 'id'));
+const vendorServices = @json($vendors->pluck(.services., .id.));
+
+function openServiceModal(vendorId, vendorName) {
+    document.getElementById('spModalName').textContent = vendorName;
+    document.getElementById('addVendorServiceForm').action = `/vendors/${vendorId}/products`;
+
+    // Render existing products
+    const services = vendorServices[vendorId] || [];
+    const list = document.getElementById('spProductList');
+    if (products.length === 0) {
+        list.innerHTML = '<div style="font-size:.8rem;color:#9ca3af">Belum ada produk.</div>';
+    } else {
+        list.innerHTML = products.map(p => `
+            <div class="d-flex align-items-center justify-content-between mb-2 pb-2" style="border-bottom:1px solid #f3f4f6">
+                <div>
+                    <div style="font-size:.82rem;font-weight:600">${p.service_name}</div>
+                    <div style="font-size:.72rem;color:#6b7280">${p.unit}${p.description ? ' · ' + p.description : ''}</div>
+                </div>
+                <form method="POST" action="/vendors/${vendorId}/products/${p.id}" onsubmit="return confirm('Hapus produk ${p.service_name}?')" style="display:inline">
+                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <button type="submit" style="color:#ef4444;background:none;border:none;cursor:pointer"><i class="fas fa-times"></i></button>
+                </form>
+            </div>
+        `).join('');
+    }
+
+    new bootstrap.Modal(document.getElementById('vendorServiceModal')).show();
 }
 </script>
 @endpush
+@endsection

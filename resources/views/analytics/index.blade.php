@@ -59,9 +59,9 @@
     @php
     $kpis = [
         ['bg'=>'#eff6ff','icon'=>'fas fa-dollar-sign','ico_color'=>'#3b82f6','label'=>'Revenue (Omzet)','value'=>idr($revenue),'sub'=>'Total periode ini'],
-        ['bg'=>'#f0fdf4','icon'=>'fas fa-chart-line','ico_color'=>'#10b981','label'=>'Gross Profit','value'=>idr($grossProfit),'sub'=>'Revenue - Biaya Vendor'],
+        ['bg'=>'#f0fdf4','icon'=>'fas fa-chart-line','ico_color'=>'#10b981','label'=>'Gross Profit','value'=>idr($grossProfit),'sub'=>'Revenue - HPP'],
         ['bg'=>'#faf5ff','icon'=>'fas fa-wallet','ico_color'=>'#7c3aed','label'=>'Nett Profit','value'=>idr($nettProfit),'sub'=>'Revenue - Total Biaya'],
-        ['bg'=>'#f0fdfa','icon'=>'fas fa-file-invoice','ico_color'=>'#0d9488','label'=>'Volume DO','value'=>$volumeDo,'sub'=>'DO Done periode ini'],
+        ['bg'=>'#f0fdfa','icon'=>'fas fa-file-invoice','ico_color'=>'#0d9488','label'=>'Volume PO','value'=>$volumePo,'sub'=>'PO Done periode ini'],
         ['bg'=>'#fff7ed','icon'=>'fas fa-handshake','ico_color'=>'#f97316','label'=>'Deals Closed','value'=>$dealsClosed,'sub'=>'Won periode ini'],
         ['bg'=>'#fef9c3','icon'=>'fas fa-bullseye','ico_color'=>'#ca8a04','label'=>'Conversion Rate','value'=>$conversionRate.'%','sub'=>'Lead → Won'],
     ];
@@ -155,7 +155,7 @@
     <div class="col-md-4">
         <div class="chart-card">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <div class="chart-title">Revenue by Service Type</div>
+                <div class="chart-title">Revenue by Product (Top 5)</div>
             </div>
             @if($revenueByService->count())
             <div class="d-flex align-items-center gap-3">
@@ -168,7 +168,7 @@
                     <div class="d-flex align-items-center gap-2 mb-2">
                         <div style="width:8px;height:8px;border-radius:2px;background:{{ $svcColors[$idx%count($svcColors)] }};flex-shrink:0"></div>
                         <div style="flex:1;min-width:0">
-                            <div style="font-size:12px;font-weight:600;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $svc->service_type ?: 'Lainnya' }}</div>
+                            <div style="font-size:12px;font-weight:600;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ ($svc->product_name ?? "Lainnya") }}</div>
                             <div style="font-size:11px;color:#6b7280">{{ idrm($svc->total) }}</div>
                         </div>
                         <span style="font-size:11px;font-weight:600;color:#0f1d35;flex-shrink:0">{{ $totalSvc > 0 ? round(($svc->total/$totalSvc)*100,1) : 0 }}%</span>
@@ -179,7 +179,7 @@
             @else
             <div class="text-center py-4" style="color:#9ca3af;font-size:12px">
                 <i class="fas fa-chart-pie" style="font-size:2rem;display:block;margin-bottom:8px;opacity:.2"></i>
-                Belum ada data DO periode ini
+                Belum ada data PO periode ini
             </div>
             @endif
         </div>
@@ -188,13 +188,13 @@
     {{-- Revenue by Route --}}
     <div class="col-md-4">
         <div class="chart-card">
-            <div class="chart-title mb-3">Revenue by Route (Top 5)</div>
+            <div class="chart-title mb-3">Top Produk by Volume</div>
             @if($revenueByRoute->count())
             @php $maxRoute = $revenueByRoute->max('total') ?: 1; @endphp
             @foreach($revenueByRoute as $r)
             @php $pct = round(($r->total/$maxRoute)*100); @endphp
             <div class="d-flex align-items-center gap-2 mb-3">
-                <div style="font-size:11px;color:#374151;width:130px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{{ $r->route }}">{{ $r->route }}</div>
+                <div style="font-size:11px;color:#374151;width:130px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{{ $r->product_name ?? "" }}">{{ $r->product_name ?? "-" }}</div>
                 <div style="flex:1">
                     <div style="height:7px;border-radius:4px;background:#3b82f6;width:{{ $pct }}%"></div>
                 </div>
@@ -218,7 +218,7 @@
                 </div>
                 <div style="flex:1;min-width:0">
                     <div style="font-size:12px;font-weight:600;color:#0f1d35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $tc['customer']->company_name }}</div>
-                    <div style="font-size:11px;color:#6b7280">{{ $tc['deals'] }} DO · {{ $tc['repeat'] ? 'Repeat' : 'New' }}</div>
+                    <div style="font-size:11px;color:#6b7280">{{ $tc['deals'] }} PO · {{ $tc['repeat'] ? 'Repeat' : 'New' }}</div>
                 </div>
                 <span style="font-size:12px;font-weight:600;color:var(--primary);flex-shrink:0">{{ idrm($tc['revenue']) }}</span>
             </div>
@@ -239,13 +239,13 @@
                 <div class="col-6">
                     <div style="background:#f9fafb;border-radius:8px;padding:10px;text-align:center">
                         <div style="font-size:11px;color:#6b7280">Avg Gross Margin</div>
-                        <div style="font-size:18px;font-weight:700;color:#10b981">32%</div>
+                        <div style="font-size:18px;font-weight:700;color:#10b981">{{ $avgGrossMargin }}%</div>
                     </div>
                 </div>
                 <div class="col-6">
                     <div style="background:#f9fafb;border-radius:8px;padding:10px;text-align:center">
                         <div style="font-size:11px;color:#6b7280">Avg Nett Margin</div>
-                        <div style="font-size:18px;font-weight:700;color:#3b82f6">19%</div>
+                        <div style="font-size:18px;font-weight:700;color:#3b82f6">{{ $avgNettMargin }}%</div>
                     </div>
                 </div>
             </div>
@@ -294,7 +294,7 @@
                 </div>
                 <div style="flex:1;min-width:0">
                     <div style="font-size:13px;font-weight:600;color:#0f1d35">{{ $deal->company_name }}</div>
-                    <div style="font-size:11px;color:#6b7280">{{ $deal->service_type ?: 'N/A' }} · {{ $deal->salesUser?->name ?? '-' }}</div>
+                    <div style="font-size:11px;color:#6b7280">{{ $deal->product_interest ?? 'N/A' }} · {{ $deal->salesUser?->name ?? '-' }}</div>
                 </div>
                 <div style="text-align:right;flex-shrink:0">
                     <div style="font-size:12px;font-weight:600;color:#0f1d35">{{ idrm($deal->potensi_revenue) }}</div>
@@ -320,7 +320,7 @@ $trendLabels  = array_column($revenueTrend, 'label');
 $trendRevenue = array_column($revenueTrend, 'value');
 $trendProfit  = array_map(fn($v) => round($v*0.19,1), $trendRevenue);
 
-$svcLabels = $revenueByService->pluck('service_type')->map(fn($s) => $s ?: 'Lainnya')->toArray();
+$svcLabels = $revenueByService->map(fn($s) => $s->product_name ?? "Lainnya")->toArray();
 $svcValues = $revenueByService->pluck('total')->map(fn($v) => (float)($v/1000000))->toArray();
 
 $srcLabels = $leadSources->pluck('lead_source')->map(fn($s) => $s ?: 'Lainnya')->toArray();

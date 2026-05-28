@@ -21,27 +21,26 @@ class DashboardController extends Controller
         $prevLabel  = $now->copy()->subMonth()->format('M Y');
 
         // ── KPI bulan ini ──
-        $revenue     = DeliveryOrder::whereBetween('order_date', [$startMonth, $endMonth])->where('status','Done')->where('currency','IDR')->sum('amount');
-        $totalDo     = DeliveryOrder::whereBetween('order_date', [$startMonth, $endMonth])->count();
+        $doneDOs    = DeliveryOrder::with('items')->whereBetween('order_date', [$startMonth, $endMonth])->where('status','Done')->where('currency','IDR')->get();
+        $revenue    = $doneDOs->sum(fn($po) => $po->total_revenue);
+        $totalDo    = DeliveryOrder::whereBetween('order_date', [$startMonth, $endMonth])->count();
         $activeLeads = Lead::whereNotIn('pipeline_stage', ['Won','Lost'])->count();
         $dealClosed  = Lead::where('pipeline_stage','Won')->whereBetween('updated_at', [$startMonth, $endMonth])->count();
         $totalLeads  = Lead::count();
         $conversionRate = $totalLeads > 0 ? round(($dealClosed / max($totalLeads, 1)) * 100, 1) : 0;
 
-        // ── KPI bulan lalu (untuk growth %) ──
-        $revenuePrev     = DeliveryOrder::whereBetween('order_date', [$startPrev, $endPrev])->where('status','Done')->where('currency','IDR')->sum('amount');
-        $totalDoPrev     = DeliveryOrder::whereBetween('order_date', [$startPrev, $endPrev])->count();
-        $dealClosedPrev  = Lead::where('pipeline_stage','Won')->whereBetween('updated_at', [$startPrev, $endPrev])->count();
+        // ── KPI bulan lalu (growth %) ──
+        $doneDOsPrev    = DeliveryOrder::with('items')->whereBetween('order_date', [$startPrev, $endPrev])->where('status','Done')->where('currency','IDR')->get();
+        $revenuePrev    = $doneDOsPrev->sum(fn($po) => $po->total_revenue);
+        $totalDoPrev    = DeliveryOrder::whereBetween('order_date', [$startPrev, $endPrev])->count();
+        $dealClosedPrev = Lead::where('pipeline_stage','Won')->whereBetween('updated_at', [$startPrev, $endPrev])->count();
         $activeLeadsPrev = Lead::whereNotIn('pipeline_stage', ['Won','Lost'])->where('created_at','<',$startMonth)->count();
 
-        // Helper growth %
         $growth = fn($now, $prev) => $prev > 0 ? round((($now - $prev) / $prev) * 100, 1) : ($now > 0 ? 100 : 0);
-
-        $revenueGrowth     = $growth($revenue, $revenuePrev);
-        $doGrowth          = $growth($totalDo, $totalDoPrev);
-        $dealGrowth        = $growth($dealClosed, $dealClosedPrev);
-        $leadsGrowth       = $growth($activeLeads, $activeLeadsPrev);
-        $conversionGrowth  = 0; // hanya tampilkan angka aktual
+        $revenueGrowth = $growth($revenue, $revenuePrev);
+        $doGrowth      = $growth($totalDo, $totalDoPrev);
+        $dealGrowth    = $growth($dealClosed, $dealClosedPrev);
+        $leadsGrowth   = $growth($activeLeads, $activeLeadsPrev);
 
         // ── Pipeline by stage ──
         $pipelineStages = [
@@ -58,26 +57,24 @@ class DashboardController extends Controller
             })->orWhere('status','Overdue')
             ->with(['lead','customer','salesUser'])
             ->orderBy('activity_at')
-            ->limit(5)
-            ->get();
+            ->limit(5)->get();
 
         // ── Recent activities ──
         $recentActivities = Activity::with(['lead','customer','salesUser'])
-            ->orderBy('activity_at','desc')
-            ->limit(5)
-            ->get();
+            ->orderBy('activity_at','desc')->limit(5)->get();
 
         // ── Top sales ──
         $topSales = User::withCount(['leads as deals_closed' => fn($q) => $q->where('pipeline_stage','Won')])
             ->get()->sortByDesc('deals_closed')->take(5);
 
-        // ── Revenue chart (30 hari terakhir, dari DB) ──
+        // ── Revenue chart (30 hari terakhir) ──
         $revenueChart = [];
         for ($i = 30; $i >= 0; $i--) {
-            $date = $now->copy()->subDays($i);
+            $date    = $now->copy()->subDays($i);
+            $dayDOs  = DeliveryOrder::with('items')->whereDate('order_date', $date)->where('status','Done')->where('currency','IDR')->get();
             $revenueChart[] = [
                 'date'  => $date->format('d M'),
-                'value' => DeliveryOrder::whereDate('order_date', $date)->where('status','Done')->where('currency','IDR')->sum('amount'),
+                'value' => $dayDOs->sum(fn($po) => $po->total_revenue),
             ];
         }
 
@@ -91,7 +88,7 @@ class DashboardController extends Controller
             ];
         }
 
-        // ── Trend closing chart (30 hari terakhir) ──
+        // ── Trend closing chart ──
         $trendWon  = [];
         $trendLost = [];
         for ($i = 30; $i >= 0; $i--) {

@@ -48,7 +48,7 @@ class SalesActivityController extends Controller
             'Identifying' => ['count' => Lead::where('pipeline_stage', 'Identifying')->count(), 'value' => Lead::where('pipeline_stage', 'Identifying')->sum('potensi_revenue')],
             'Approaching' => ['count' => Lead::where('pipeline_stage', 'Approaching')->count(), 'value' => Lead::where('pipeline_stage', 'Approaching')->sum('potensi_revenue')],
             'Follow Up'   => ['count' => Lead::where('pipeline_stage', 'Follow Up')->count(), 'value' => Lead::where('pipeline_stage', 'Follow Up')->sum('potensi_revenue')],
-            'Closing'     => ['count' => Lead::where('pipeline_stage', 'Closing')->count(), 'value' => Lead::where('pipeline_stage', 'Closing')->sum('potensi_revenue')],
+            'Won/Closing' => ['count' => Lead::where('pipeline_stage', 'Won')->count(), 'value' => Lead::where('pipeline_stage', 'Won')->sum('potensi_revenue')],
             'Maintaining' => ['count' => Lead::where('pipeline_stage', 'Maintaining')->count(), 'value' => Lead::where('pipeline_stage', 'Maintaining')->sum('potensi_revenue')],
         ];
 
@@ -76,26 +76,117 @@ class SalesActivityController extends Controller
             'activity_at'    => 'required|date',
             'status'         => 'required|in:Done,Pending,Planned,Overdue',
             'next_follow_up' => 'nullable|date',
+            'pipeline_stage' => 'nullable|in:Identifying,Approaching,Follow Up,Won,Lost,Maintaining',
             'photo'          => 'nullable|image|mimes:jpg,jpeg,png,webp|max:3072',
         ]);
 
         // Selalu pakai auth user
-        $validated['user_id'] = auth()->id();
+        $validated['user_id']       = auth()->id();
+        $validated['sales_user_id'] = $validated['sales_user_id'] ?? auth()->id();
 
-        // Foto: file upload tidak masuk $validated secara otomatis di Laravel
-        // harus di-handle manual setelah validate()
-        unset($validated['photo']);
-        if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
-            $validated['photo'] = $request->file('photo')->store('activity-photos', 'public');
+        // Resolusi target: lead langsung, atau lead yang terhubung ke customer.
+        // Revisi #3: activity bisa dari (lead / customer potential) & (customer existing).
+        $targetLead = null;
+
+        if (!empty($validated['lead_id'])) {
+            $targetLead = Lead::find($validated['lead_id']);
+        } elseif (!empty($validated['customer_id'])) {
+            $customer = Customer::find($validated['customer_id']);
+            // Cari lead terbaru yang terhubung ke customer ini untuk update stage.
+            if ($customer) {
+                $targetLead = Lead::where('customer_id', $customer->id)
+                    ->orderByDesc('updated_at')
+                    ->first();
+            }
         }
 
-        // Update pipeline_stage lead jika dikirim
-        if (!empty($validated['lead_id']) && $request->filled('pipeline_stage')) {
-            \App\Models\Lead::where('id', $validated['lead_id'])
-                ->update(['pipeline_stage' => $request->pipeline_stage]);
+        // Update pipeline_stage bila dikirim & ada lead target.
+        // Revisi #4 & #5: validasi stage sesuai sumber dilakukan di server.
+        if ($request->filled('pipeline_stage') && $targetLead) {
+            $requested  = $request->pipeline_stage;
+            $isExisting = !empty($validated['customer_id'])
+                && optional(Customer::find($validated['customer_id']))->status === 'Existing';
+
+            $allowed = $isExisting
+                ? ['Follow Up', 'Won', 'Lost', 'Maintaining']                                  // customer existing
+                : ['Identifying', 'Approaching', 'Follow Up', 'Won', 'Lost', 'Maintaining'];   // lead / customer potential
+
+            if (in_array($requested, $allowed, true)) {
+                $targetLead->update(['pipeline_stage' => $requested]);
+                \App\Http\Controllers\LeadsController::syncToCustomer($targetLead->fresh());
+            }
+        }
+
+        // Foto: compress ke maks 500KB sebelum simpan
+        unset($validated['photo'], $validated['pipeline_stage']);
+        if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
+            $validated['photo'] = self::compressAndStore($request->file('photo'));
         }
 
         Activity::create($validated);
         return redirect()->back()->with('success', 'Aktivitas berhasil disimpan.');
+    }
+
+    /**
+     * Compress image menggunakan GD, simpan ke storage/app/public/activity-photos
+     * Target: file size ≤ 500KB. Iterasi quality dari 85 turun ke 40.
+     */
+    private static function compressAndStore(\Illuminate\Http\UploadedFile $file): string
+    {
+        $maxBytes  = 500 * 1024; // 500 KB
+        $mime      = $file->getMimeType();
+        $src       = null;
+
+        // Load image sesuai tipe
+        if ($mime === 'image/jpeg' || $mime === 'image/jpg') {
+            $src = @imagecreatefromjpeg($file->getRealPath());
+        } elseif ($mime === 'image/png') {
+            $src = @imagecreatefrompng($file->getRealPath());
+        } elseif ($mime === 'image/webp') {
+            $src = @imagecreatefromwebp($file->getRealPath());
+        }
+
+        // Fallback: simpan as-is jika GD gagal
+        if (!$src) {
+            return $file->store('activity-photos', 'public');
+        }
+
+        // Resize jika lebar > 1200px (pertahankan rasio)
+        $origW = imagesx($src);
+        $origH = imagesy($src);
+        $maxW  = 1200;
+        if ($origW > $maxW) {
+            $newH = (int) round($origH * ($maxW / $origW));
+            $dst  = imagecreatetruecolor($maxW, $newH);
+            // Pertahankan transparansi PNG
+            imagealphablending($dst, false);
+            imagesavealpha($dst, true);
+            imagecopyresampled($dst, $src, 0, 0, 0, 0, $maxW, $newH, $origW, $origH);
+            imagedestroy($src);
+            $src = $dst;
+        }
+
+        // Tentukan nama file & path
+        $filename  = 'activity-photos/' . \Illuminate\Support\Str::random(40) . '.jpg';
+        $storagePath = storage_path('app/public/' . $filename);
+
+        // Pastikan direktori ada
+        if (!is_dir(dirname($storagePath))) {
+            mkdir(dirname($storagePath), 0755, true);
+        }
+
+        // Iterasi quality hingga ukuran ≤ 500KB
+        $quality = 85;
+        do {
+            ob_start();
+            imagejpeg($src, null, $quality);
+            $data = ob_get_clean();
+            $quality -= 10;
+        } while (strlen($data) > $maxBytes && $quality >= 30);
+
+        file_put_contents($storagePath, $data);
+        imagedestroy($src);
+
+        return $filename;
     }
 }

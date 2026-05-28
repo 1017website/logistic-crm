@@ -84,9 +84,8 @@
             'Identifying' => ['slug'=>'identifying','num'=>'01','desc'=>'Mencari informasi'],
             'Approaching' => ['slug'=>'approaching','num'=>'02','desc'=>'Menghubungi lead'],
             'Follow Up' => ['slug'=>'follow-up','num'=>'03','desc'=>'Follow up & penawaran'],
-            'Closing' => ['slug'=>'closing','num'=>'04','desc'=>'Negosiasi / Closing'],
-            'Won' => ['slug'=>'won','num'=>'05','desc'=>'Deal berhasil'],
-            'Maintaining' => ['slug'=>'maintaining','num'=>'06','desc'=>'Mempertahankan pelanggan'],
+            'Won' => ['slug'=>'won','num'=>'04','desc'=>'Negosiasi / Deal Closed'],
+            'Maintaining' => ['slug'=>'maintaining','num'=>'05','desc'=>'Mempertahankan pelanggan'],
             ];
             @endphp
             @foreach($pipeline as $stageName => $leads)
@@ -94,7 +93,7 @@
             <div class="col">
                 <div class="kanban-header kanban-{{ $cfg['slug'] }}">
                     <div>
-                        <div>{{ $cfg['num'] }}. {{ $stageName }}</div>
+                        <div>{{ $cfg['num'] }}. {{ $stageName === 'Won' ? 'Won/Closing' : $stageName }}</div>
                         <div style="font-size:.65rem;font-weight:400;opacity:.8">{{ $cfg['desc'] }}</div>
                     </div>
                     <span class="badge" style="background:rgba(0,0,0,.15);font-size:.65rem">{{ $leads->count() }}</span>
@@ -118,10 +117,10 @@
                             <span style="color:var(--text-muted)"> · {{ $lead->pic_position }}</span>
                             @endif
                         </div>
-                        @if($lead->service_type)
+                        @if($lead->product_interest)
                         <div class="kc-service">
-                            <i class="fas fa-ship me-1" style="font-size:.6rem"></i>{{ $lead->service_type }}
-                            @if($lead->route) · {{ $lead->route }} @endif
+                            <i class="fas fa-flask me-1" style="font-size:.6rem"></i>{{ $lead->product_interest }}
+                            
                         </div>
                         @endif
                         <div class="kc-footer mt-2">
@@ -161,11 +160,11 @@
                 <canvas id="pipelinePie" height="150"></canvas>
                 <div class="mt-3">
                     @foreach($pipeline as $sn => $leads)
-                    @php $colors = ['Identifying'=>'#3b82f6','Approaching'=>'#10b981','Follow Up'=>'#f59e0b','Closing'=>'#ef4444','Won'=>'#8b5cf6','Maintaining'=>'#6366f1']; @endphp
+                    @php $colors = ['Identifying'=>'#3b82f6','Approaching'=>'#10b981','Follow Up'=>'#f59e0b','Won'=>'#8b5cf6','Maintaining'=>'#6366f1']; @endphp
                     <div class="d-flex align-items-center justify-content-between py-1" style="border-bottom:1px solid #f9fafb">
                         <div class="d-flex align-items-center gap-2">
                             <div style="width:8px;height:8px;border-radius:2px;background:{{ $colors[$sn] ?? '#999' }}"></div>
-                            <span style="font-size:.75rem">{{ $sn }} ({{ $leads->count() }})</span>
+                            <span style="font-size:.75rem">{{ $sn === 'Won' ? 'Won/Closing' : $sn }} ({{ $leads->count() }})</span>
                         </div>
                         <span style="font-size:.75rem;font-weight:600">{{ idrm($leads->sum('potensi_revenue')) }}</span>
                     </div>
@@ -240,19 +239,14 @@
                             <input type="email" name="email" class="form-control">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Service Type</label>
-                            <select name="service_type" class="form-select">
-                                <option value="">- Pilih -</option>
-                                @foreach(['Sea Freight Import','Sea Freight Export','Air Freight Import','Air Freight Export','Trucking Domestic','Custom Clearance'] as $svc)
-                                <option value="{{ $svc }}">{{ $svc }}</option>
-                                @endforeach
-                            </select>
+                            <label class="form-label">Product Interest</label>
+                            <input type="text" name="product_interest" class="form-control" placeholder="Solvent, Resin, Pigment, dll">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Pipeline Stage <span class="text-danger">*</span></label>
                             <select name="pipeline_stage" class="form-select" id="modalPipelineStage">
-                                @foreach(['Identifying','Approaching','Follow Up','Closing','Maintaining'] as $s)
-                                <option value="{{ $s }}">{{ $s }}</option>
+                                @foreach(['Identifying','Approaching','Follow Up','Won','Maintaining'] as $s)
+                                <option value="{{ $s }}">{{ $s === 'Won' ? 'Won/Closing' : $s }}</option>
                                 @endforeach
                             </select>
                         </div>

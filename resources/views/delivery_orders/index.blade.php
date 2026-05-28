@@ -1,428 +1,878 @@
 @extends('layouts.app')
 @section('title', 'Delivery Orders')
 @section('page-title', 'Delivery Orders')
-@section('page-subtitle', 'Kelola data DO, revenue, dan biaya operasional')
+@section('page-subtitle', 'Kelola data PO, revenue, dan profit per produk')
 
 @section('content')
-<div class="row g-3">
-<div class="col-12">
+    <div class="row g-3">
+        <div class="col-12">
 
-    {{-- Header --}}
-    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-        <div class="d-flex gap-2">
-            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addDoModal">
-                <i class="fas fa-plus me-1"></i> Tambah DO
-            </button>
-            <a href="{{ route('delivery-orders.export', request()->query()) }}" class="btn btn-outline-secondary btn-sm">
-                <i class="fas fa-download me-1"></i> Export CSV
-            </a>
-        </div>
-        <div class="d-flex gap-3 flex-wrap">
-            @foreach([[$totalDo,'Total DO','#111'],[$doneDo,'Done','#059669'],[$revenue,'Revenue','#2563eb'],[$grossProfit,'Gross Profit','#10b981'],[$nettProfit,'Nett Profit','#7c3aed']] as $s)
-            <div class="text-center {{ !$loop->first ? 'ps-3' : '' }}" style="{{ !$loop->first ? 'border-left:1px solid var(--border-color)' : '' }}">
-                <div style="font-size:{{ $loop->index >= 2 ? '1rem' : '1.2rem' }};font-weight:800;color:{{ $s[2] }}">
-                    {{ $loop->index >= 2 ? idrm($s[0]) : $s[0] }}
+            {{-- Header + KPI --}}
+            <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addPoModal">
+                        <i class="fas fa-plus me-1"></i> Tambah DO
+                    </button>
+                    <a href="{{ route('delivery-orders.export', request()->query()) }}"
+                        class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-download me-1"></i> Export Excel
+                    </a>
                 </div>
-                <div style="font-size:.68rem;color:var(--text-muted)">{{ $s[1] }}</div>
+                <div class="d-flex gap-3 flex-wrap">
+                    @foreach([[$volumeDo, 'Volume PO', '#111'], [$revenue, 'Revenue', '#2563eb'], [$grossProfit, 'Gross Profit', '#10b981']] as $s)
+                        <div class="text-center {{ !$loop->first ? 'ps-3' : '' }}"
+                            style="{{ !$loop->first ? 'border-left:1px solid var(--border-color)' : '' }}">
+                            <div style="font-size:{{ $loop->index >= 1 ? '1rem' : '1.2rem' }};font-weight:800;color:{{ $s[2] }}">
+                                {{ $loop->index >= 1 ? idr($s[0]) : $s[0] }}
+                            </div>
+                            <div style="font-size:.68rem;color:var(--text-muted)">{{ $s[1] }}</div>
+                        </div>
+                    @endforeach
+                </div>
             </div>
-            @endforeach
+
+            {{-- Filter --}}
+            <form method="GET" action="{{ route('delivery-orders.index') }}">
+                <div class="card mb-3">
+                    <div class="card-body p-3">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-2"><input type="date" name="start_date" class="form-control form-control-sm"
+                                    value="{{ $startDate }}"></div>
+                            <div class="col-md-2"><input type="date" name="end_date" class="form-control form-control-sm"
+                                    value="{{ $endDate }}"></div>
+                            <div class="col-md-2">
+                                <select name="status" class="form-select form-select-sm">
+                                    <option value="all">All Status</option>
+                                    @foreach(['Done', 'In Progress', 'Cancelled'] as $st)
+                                        <option value="{{ $st }}" @selected($status == $st)>{{ $st }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" name="search" class="form-control form-control-sm"
+                                    placeholder="Cari PO, customer, produk..." value="{{ $search }}">
+                            </div>
+                            <div class="col-md-2"><button type="submit" class="btn btn-primary btn-sm w-100"><i
+                                        class="fas fa-search"></i></button></div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            {{-- Table --}}
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" style="font-size:13px">
+                            <thead style="background:#f8f9fa">
+                                <tr>
+                                    <th class="px-3 py-2" style="width:28px"></th>
+                                    <th class="px-3 py-2">No. DO</th>
+                                    <th class="py-2">Customer</th>
+                                    <th class="py-2">Vendor</th>
+                                    <th class="py-2">Sales PIC</th>
+                                    <th class="py-2">Revenue</th>
+                                    <th class="py-2">HPP</th>
+                                    <th class="py-2">Gross Profit</th>
+                                    <th class="py-2">Margin</th>
+                                    <th class="py-2">Status</th>
+                                    <th class="py-2">Tgl Order</th>
+                                    <th class="py-2">Type / Tracking</th>
+                                    <th class="py-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($dos as $po)
+                                    @php
+                                        $sc = ['Done' => ['#d1fae5', '#059669'], 'In Progress' => ['#dbeafe', '#2563eb'], 'Cancelled' => ['#fee2e2', '#dc2626']];
+                                        $c = $sc[$po->status] ?? ['#f3f4f6', '#6b7280'];
+                                    @endphp
+                                    <tr id="po-row-{{ $po->id }}">
+                                        <td class="px-3 py-2" style="text-align:center">
+                                            <button class="btn btn-sm" style="padding:2px 6px;border:none;background:none;color:#6b7280"
+                                                onclick="toggleDetail({{ $po->id }}, this)" title="Lihat detail item">
+                                                <i class="fas fa-chevron-right" style="font-size:10px;transition:.2s"></i>
+                                            </button>
+                                        </td>
+                                        <td class="px-3 py-2" style="font-weight:700;color:var(--primary)">{{ $po->do_number }}</td>
+                                        <td class="py-2" style="font-size:12px">{{ $po->customer?->company_name ?? '-' }}</td>
+                                        <td class="py-2" style="color:#6b7280;font-size:12px">{{ $po->vendor?->vendor_name ?? '-' }}</td>
+                                        <td class="py-2" style="font-size:12px;font-weight:600">{{ $po->salesUser?->name ?? '-' }}</td>
+                                        <td class="py-2" style="font-weight:600;color:var(--primary);white-space:nowrap">{{ idr($po->total_revenue) }}</td>
+                                        <td class="py-2" style="color:#dc2626;font-size:12px;white-space:nowrap">{{ idr($po->total_cost) }}</td>
+                                        <td class="py-2" style="font-weight:600;color:#10b981;white-space:nowrap">{{ idr($po->gross_profit) }}</td>
+                                        <td class="py-2" style="font-size:12px;color:#6b7280">{{ $po->gross_margin }}%</td>
+                                        <td class="py-2">
+                                            <span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;background:{{ $c[0] }};color:{{ $c[1] }}">{{ $po->status }}</span>
+                                        </td>
+                                        <td class="py-2" style="color:#6b7280;font-size:12px">{{ $po->order_date?->format('d M Y') }}</td>
+                                        <td class="py-2" style="color:#6b7280;font-size:11px">
+                                            {{ $po->delivery_type ?? '-' }}<br>
+                                            @if($po->tracking_number)
+                                            <span style="font-size:10px;color:#2563eb">{{ $po->tracking_number }}</span>
+                                            @endif
+                                        </td>
+                                        <td class="py-2">
+                                            <button class="btn btn-sm btn-outline-secondary" style="padding:3px 7px" onclick="openEditPo({{ $po->id }})">
+                                                <i class="fas fa-pencil-alt"></i>
+                                            </button>
+                                            <form method="POST" action="{{ route('delivery-orders.destroy', $po) }}" class="d-inline"
+                                                onsubmit="return confirm('Hapus DO {{ $po->do_number }}?')">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:3px 7px">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {{-- Detail row (collapsed) --}}
+                                    <tr id="po-detail-{{ $po->id }}" style="display:none;background:#f8faff">
+                                        <td></td>
+                                        <td colspan="11" class="px-3 py-2">
+                                            <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">
+                                                Detail Item — {{ $po->do_number }}
+                                                @if($po->notes) <span style="font-weight:400;color:#9ca3af;margin-left:8px"><i class="fas fa-sticky-note me-1"></i>{{ $po->notes }}</span> @endif
+                                            </div>
+                                            <table style="width:100%;font-size:12px;border-collapse:collapse">
+                                                <thead>
+                                                    <tr style="background:#e8f0fe">
+                                                        <th style="padding:5px 8px;text-align:left;font-size:11px;color:#3b4a6b">Produk</th>
+                                                        <th style="padding:5px 8px;text-align:center;font-size:11px;color:#3b4a6b">Satuan</th>
+                                                        <th style="padding:5px 8px;text-align:right;font-size:11px;color:#3b4a6b">Qty</th>
+                                                        <th style="padding:5px 8px;text-align:right;font-size:11px;color:#3b4a6b">Harga Beli</th>
+                                                        <th style="padding:5px 8px;text-align:right;font-size:11px;color:#3b4a6b">Harga Jual</th>
+                                                        <th style="padding:5px 8px;text-align:right;font-size:11px;color:#3b4a6b">Subtotal Revenue</th>
+                                                        <th style="padding:5px 8px;text-align:right;font-size:11px;color:#3b4a6b">Gross Profit</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($po->items as $item)
+                                                    <tr style="border-bottom:1px solid #e5e7eb">
+                                                        <td style="padding:5px 8px;font-weight:600">{{ $item->service_name }}</td>
+                                                        <td style="padding:5px 8px;text-align:center;color:#6b7280">{{ $item->unit }}</td>
+                                                        <td style="padding:5px 8px;text-align:right">{{ number_format($item->qty, 2, ',', '.') }}</td>
+                                                        <td style="padding:5px 8px;text-align:right;color:#dc2626">{{ idr($item->buy_price) }}</td>
+                                                        <td style="padding:5px 8px;text-align:right;color:var(--primary)">{{ idr($item->sell_price) }}</td>
+                                                        <td style="padding:5px 8px;text-align:right;font-weight:600;color:var(--primary)">{{ idr($item->qty * $item->sell_price) }}</td>
+                                                        <td style="padding:5px 8px;text-align:right;font-weight:600;color:#10b981">{{ idr(($item->sell_price - $item->buy_price) * $item->qty) }}</td>
+                                                    </tr>
+                                                    @endforeach
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr style="background:#f0f4ff;font-weight:700">
+                                                        <td colspan="5" style="padding:5px 8px;text-align:right;font-size:11px;color:#6b7280">TOTAL</td>
+                                                        <td style="padding:5px 8px;text-align:right;color:var(--primary)">{{ idr($po->total_revenue) }}</td>
+                                                        <td style="padding:5px 8px;text-align:right;color:#10b981">{{ idr($po->gross_profit) }}</td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="11" class="text-center py-4" style="color:#9ca3af">Belum ada data PO pada
+                                            periode ini</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    @if($dos->hasPages())
+                    <div class="px-3 py-2">{{ $dos->links() }}</div>@endif
+                </div>
+            </div>
         </div>
     </div>
 
-    {{-- Filter --}}
-    <form method="GET" action="{{ route('delivery-orders.index') }}">
-        <div class="card mb-3"><div class="card-body p-3">
-            <div class="row g-2 align-items-end">
-                <div class="col-md-2">
-                    <input type="date" name="start_date" class="form-control form-control-sm" value="{{ $startDate }}">
+    {{-- Modal Tambah DO --}}
+    <div class="modal fade" id="addPoModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title fw-bold">Tambah Delivery Order</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="col-md-2">
-                    <input type="date" name="end_date" class="form-control form-control-sm" value="{{ $endDate }}">
-                </div>
-                <div class="col-md-2">
-                    <select name="status" class="form-select form-select-sm">
-                        <option value="all">All Status</option>
-                        @foreach(['Done','In Progress','Cancelled'] as $s)
-                        <option value="{{ $s }}" @selected($status==$s)>{{ $s }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <select name="service_type" class="form-select form-select-sm">
-                        <option value="all">All Service</option>
-                        @foreach($serviceTypes as $t)
-                        <option value="{{ $t }}" @selected($serviceType==$t)>{{ $t }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Cari DO, customer, route..." value="{{ $search }}">
-                </div>
-                <div class="col-md-1">
-                    <button type="submit" class="btn btn-primary btn-sm w-100"><i class="fas fa-search"></i></button>
-                </div>
-            </div>
-        </div></div>
-    </form>
+                <form method="POST" action="{{ route('delivery-orders.store') }}">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Customer</label>
+                                <select name="customer_id" id="addCustomerSelect" class="form-select" onchange="onCustomerChange(this,'addLeadDisplay')">
+                                    <option value="">-- Pilih Customer --</option>
+                                    @foreach($customers as $c)
+                                        <option value="{{ $c->id }}" data-name="{{ strtolower(trim($c->company_name)) }}">{{ $c->company_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Vendor</label>
+                                <select name="vendor_id" class="form-select" id="addVendorSelect" onchange="onVendorChange(this,'addItemsBody')">
+                                    <option value="">-- Pilih Vendor --</option>
+                                    @foreach($vendors as $s)
+                                        <option value="{{ $s->id }}">{{ $s->vendor_name }} ({{ $s->source_type }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Linked Lead</label>
+                                <input type="text" id="addLeadDisplay" class="form-control"
+                                    placeholder="Otomatis dari Customer" readonly
+                                    style="background:#f9fafb;cursor:default;color:#374151">
+                                <input type="hidden" name="lead_id" id="addLeadHidden" value="">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Tgl Order <span class="text-danger">*</span></label>
+                                <input type="date" name="order_date" class="form-control" value="{{ date('Y-m-d') }}"
+                                    required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Status <span class="text-danger">*</span></label>
+                                <select name="status" class="form-select" required>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Done">Done</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Currency</label>
+                                <select name="currency" class="form-select">
+                                    <option value="IDR">IDR</option>
+                                    <option value="USD">USD</option>
+                                    <option value="SGD">SGD</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Notes</label>
+                                <input type="text" name="notes" class="form-control" placeholder="Keterangan tambahan">
+                            </div>
+                        </div>
 
-    {{-- Table --}}
-    <div class="card">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0" style="font-size:13px">
-                    <thead style="background:#f8f9fa">
-                        <tr>
-                            <th class="px-3 py-2">No. DO</th>
-                            <th class="py-2">Customer</th>
-                            <th class="py-2">Vendor</th>
-                            <th class="py-2">Service / Route</th>
-                            <th class="py-2">Revenue</th>
-                            <th class="py-2">Cost Vendor</th>
-                            <th class="py-2">Other Cost</th>
-                            <th class="py-2">Gross Profit</th>
-                            <th class="py-2">Nett Profit</th>
-                            <th class="py-2">Status</th>
-                            <th class="py-2">Tgl Order</th>
-                            <th class="py-2"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($dos as $do)
-                        @php
-                            $statusColor = match($do->status) {
-                                'Done'        => ['#d1fae5','#059669'],
-                                'In Progress' => ['#dbeafe','#2563eb'],
-                                'Cancelled'   => ['#fee2e2','#dc2626'],
-                                default       => ['#f3f4f6','#6b7280'],
-                            };
-                        @endphp
-                        <tr>
-                            <td class="px-3 py-2" style="font-weight:700;color:var(--primary)">{{ $do->do_number }}</td>
-                            <td class="py-2">{{ $do->customer?->company_name ?? '-' }}</td>
-                            <td class="py-2" style="color:#6b7280">{{ $do->vendor?->vendor_name ?? '-' }}</td>
-                            <td class="py-2">
-                                <div style="font-size:12px">{{ $do->service_type }}</div>
-                                <div style="font-size:11px;color:#6b7280">{{ $do->route }}</div>
-                            </td>
-                            <td class="py-2" style="font-weight:600;color:var(--primary)">{{ idrm($do->amount) }}</td>
-                            <td class="py-2" style="color:#dc2626">{{ $do->cost > 0 ? idrm($do->cost) : '-' }}</td>
-                            <td class="py-2" style="color:#f97316">{{ $do->other_cost > 0 ? idrm($do->other_cost) : '-' }}</td>
-                            <td class="py-2" style="font-weight:600;color:#10b981">{{ idrm($do->gross_profit) }}</td>
-                            <td class="py-2" style="font-weight:600;color:#7c3aed">{{ idrm($do->nett_profit) }}</td>
-                            <td class="py-2">
-                                <span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;background:{{ $statusColor[0] }};color:{{ $statusColor[1] }}">
-                                    {{ $do->status }}
-                                </span>
-                            </td>
-                            <td class="py-2" style="color:#6b7280;font-size:12px">{{ $do->order_date?->format('d M Y') }}</td>
-                            <td class="py-2">
-                                <button class="btn btn-sm btn-outline-secondary" style="padding:3px 7px"
-                                    onclick="openEditDo(
-                                        {{ $do->id }},
-                                        '{{ $do->customer_id }}','{{ $do->vendor_id }}','{{ $do->lead_id }}',
-                                        '{{ addslashes($do->service_type) }}','{{ addslashes($do->route) }}',
-                                        '{{ $do->amount }}','{{ $do->cost }}','{{ $do->other_cost }}',
-                                        '{{ $do->currency }}','{{ $do->status }}','{{ $do->order_date?->format('Y-m-d') }}'
-                                    )">
-                                    <i class="fas fa-pencil-alt"></i>
-                                </button>
-                                <form method="POST" action="{{ route('delivery-orders.destroy', $do) }}" class="d-inline"
-                                    onsubmit="return confirm('Hapus DO {{ $do->do_number }}?')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:3px 7px">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="12" class="text-center py-4" style="color:#9ca3af">Belum ada data DO pada periode ini</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                        {{-- Logistic Fields --}}
+                        <hr class="my-2">
+                        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">DETAIL PENGIRIMAN</div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Delivery Type</label>
+                                <select name="delivery_type" class="form-select form-select-sm">
+                                    <option value="">- Pilih -</option>
+                                    @foreach(\App\Models\DeliveryOrder::DELIVERY_TYPES as $dt)
+                                        <option value="{{ $dt }}">{{ $dt }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Origin</label>
+                                <input type="text" name="origin" class="form-control form-control-sm" placeholder="Kota asal">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Destination</label>
+                                <input type="text" name="destination" class="form-control form-control-sm" placeholder="Kota tujuan">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Tracking Number</label>
+                                <input type="text" name="tracking_number" class="form-control form-control-sm" placeholder="Nomor resi / tracking">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Estimasi Tiba (ETA)</label>
+                                <input type="date" name="estimated_arrival" class="form-control form-control-sm">
+                            </div>
+                        </div>
+
+                        {{-- Line Items --}}
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div style="font-size:12px;font-weight:700;color:#374151">ITEM LAYANAN</div>
+                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                onclick="addItemRow('addItemsBody')">
+                                <i class="fas fa-plus me-1"></i> Tambah Item
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-bordered mb-2" style="font-size:12px">
+                                <thead style="background:#f8f9fa">
+                                    <tr>
+                                        <th style="min-width:200px">Nama Layanan <span class="text-danger">*</span></th>
+                                        <th style="width:80px">Satuan <span class="text-danger">*</span></th>
+                                        <th style="width:100px">Qty <span class="text-danger">*</span></th>
+                                        <th style="width:140px">Harga Beli (HPP) <span class="text-danger">*</span></th>
+                                        <th style="width:140px">Harga Jual <span class="text-danger">*</span></th>
+                                        <th style="width:110px">Gross Profit</th>
+                                        <th style="width:40px"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="addItemsBody">
+                                    {{-- Diisi via JS addItemRow() saat modal dibuka --}}
+                                </tbody>
+                                <tfoot>
+                                    <tr style="background:#f8f9fa;font-weight:700">
+                                        <td colspan="4" class="text-end">Total:</td>
+                                        <td id="addTotalRevenue" class="text-end" style="color:var(--primary)">Rp 0</td>
+                                        <td id="addTotalProfit" class="text-end" style="color:#10b981">Rp 0</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Simpan PO</button>
+                    </div>
+                </form>
             </div>
-            @if($dos->hasPages())
-            <div class="px-3 py-2">{{ $dos->links() }}</div>
+        </div>
+    </div>
+
+    {{-- Modal Edit PO --}}
+    <div class="modal fade" id="editPoModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title fw-bold">Edit Delivery Order — <span id="editPoNumber"></span></h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" id="editPoForm">
+                    @csrf @method('PUT')
+                    <div class="modal-body">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Customer</label>
+                                <select name="customer_id" id="epCustomer" class="form-select" onchange="onCustomerChange(this,'epLeadDisplay')">
+                                    <option value="">-- Pilih Customer --</option>
+                                    @foreach($customers as $c)
+                                        <option value="{{ $c->id }}" data-name="{{ strtolower(trim($c->company_name)) }}">{{ $c->company_name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Vendor</label>
+                                <select name="vendor_id" id="epVendor" class="form-select">
+                                    <option value="">-- Pilih Vendor --</option>
+                                    @foreach($vendors as $s)
+                                        <option value="{{ $s->id }}">{{ $s->vendor_name }} ({{ $s->source_type }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Linked Lead</label>
+                                <input type="text" id="epLeadDisplay" class="form-control"
+                                    placeholder="Otomatis dari Customer" readonly
+                                    style="background:#f9fafb;cursor:default;color:#374151">
+                                <input type="hidden" name="lead_id" id="epLeadHidden" value="">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Tgl Order <span class="text-danger">*</span></label>
+                                <input type="date" name="order_date" id="epDate" class="form-control" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Status <span class="text-danger">*</span></label>
+                                <select name="status" id="epStatus" class="form-select" required>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Done">Done</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Currency</label>
+                                <select name="currency" id="epCurrency" class="form-select">
+                                    <option value="IDR">IDR</option>
+                                    <option value="USD">USD</option>
+                                    <option value="SGD">SGD</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Notes</label>
+                                <input type="text" name="notes" id="epNotes" class="form-control">
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div style="font-size:12px;font-weight:700;color:#374151">ITEM PRODUK</div>
+                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                onclick="addItemRow('editItemsBody')">
+                                <i class="fas fa-plus me-1"></i> Tambah Item
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-bordered mb-2" style="font-size:12px">
+                                <thead style="background:#f8f9fa">
+                                    <tr>
+                                        <th style="min-width:200px">Nama Produk</th>
+                                        <th style="width:80px">Satuan</th>
+                                        <th style="width:100px">Qty</th>
+                                        <th style="width:140px">Harga Beli (HPP)</th>
+                                        <th style="width:140px">Harga Jual</th>
+                                        <th style="width:110px">Gross Profit</th>
+                                        <th style="width:40px"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="editItemsBody"></tbody>
+                                <tfoot>
+                                    <tr style="background:#f8f9fa;font-weight:700">
+                                        <td colspan="4" class="text-end">Total:</td>
+                                        <td id="editTotalRevenue" class="text-end" style="color:var(--primary)">Rp 0</td>
+                                        <td id="editTotalProfit" class="text-end" style="color:#10b981">Rp 0</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    @push('scripts')
+        <script>
+            let itemIndex = 1;
+
+            function formatNum(n) {
+                if (!n && n !== 0) return '';
+                return Math.round(n).toLocaleString('id-ID');
+            }
+
+            function parseNum(str) {
+                if (!str) return 0;
+                return parseFloat(String(str).replace(/\./g, '').replace(',', '.')) || 0;
+            }
+
+            function formatPriceInput(el) {
+                const raw = parseNum(el.value);
+                if (raw > 0) el.value = formatNum(raw);
+                calcRow(el);
+            }
+
+            function formatRp(n) { return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
+
+            function syncHidden(el, hiddenClass) {
+                const row = el.closest('tr');
+                const hidden = row.querySelector('.' + hiddenClass);
+                // Simpan posisi cursor
+                const pos = el.selectionStart;
+                const raw = el.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                const formatted = raw ? parseInt(raw).toLocaleString('id-ID') : '';
+                const diff = formatted.length - el.value.length;
+                el.value = formatted;
+                // Restore cursor
+                try { el.setSelectionRange(pos + diff, pos + diff); } catch (e) { }
+                if (hidden) hidden.value = raw || 0;
+            }
+
+            function calcRow(el) {
+                const row = el.closest('tr');
+                const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
+                const buy = parseNum(row.querySelector('.item-buy')?.value);
+                const sell = parseNum(row.querySelector('.item-sell')?.value);
+                const profit = (sell - buy) * qty;
+                row.querySelector('.item-profit').textContent = formatRp(profit);
+                row.querySelector('.item-profit').style.color = profit >= 0 ? '#10b981' : '#dc2626';
+                recalcTotal(row.closest('tbody').id);
+            }
+
+            function recalcTotal(bodyId) {
+                const body = document.getElementById(bodyId);
+                const prefix = bodyId === 'addItemsBody' ? 'add' : 'edit';
+                let revenue = 0, profit = 0;
+                body.querySelectorAll('tr').forEach(row => {
+                    const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
+                    const buy = parseNum(row.querySelector('.item-buy')?.value);
+                    const sell = parseNum(row.querySelector('.item-sell')?.value);
+                    revenue += qty * sell;
+                    profit += (sell - buy) * qty;
+                });
+                document.getElementById(prefix + 'TotalRevenue').textContent = formatRp(revenue);
+                document.getElementById(prefix + 'TotalProfit').textContent = formatRp(profit);
+                document.getElementById(prefix + 'TotalProfit').style.color = profit >= 0 ? '#10b981' : '#dc2626';
+            }
+
+            // Map vendor_id → products dari controller
+            const vendorServicesMap = @json($vendorServices->groupBy('vendor_id'));
+
+            // Map customer_id & company_name → lead info untuk Linked Lead
+            const leadsByCustomerId = {};
+            const leadsByName       = {};
+            @foreach($leads as $l)
+            @if($l->customer_id)
+            leadsByCustomerId['{{ $l->customer_id }}'] = { id: {{ $l->id }}, label: '[{{ $l->lead_code }}] {{ addslashes($l->company_name) }}' };
             @endif
-        </div>
-    </div>
+            leadsByName['{{ strtolower(trim($l->company_name)) }}'] = { id: {{ $l->id }}, label: '[{{ $l->lead_code }}] {{ addslashes($l->company_name) }}' };
+            @endforeach
 
-</div>
-</div>
+            function onVendorChange(sel, bodyId) {
+                // Reset dropdown produk di semua rows body tersebut
+                const vendorId = sel.value;
+                const body = document.getElementById(bodyId);
+                if (!body) return;
+                body.querySelectorAll('.po-product-select').forEach(function(s) {
+                    const svcs = vendorId && vendorServicesMap[vendorId] ? vendorServicesMap[vendorId] : [];
+                    const hiddenName = s.getAttribute('data-hidden-name');
+                    const unitInput  = s.closest('tr').querySelector('.po-unit-input');
+                    // Rebuild options
+                    s.innerHTML = '<option value="">-- Pilih atau ketik --</option>';
+                    products.forEach(p => {
+                        const o = document.createElement('option');
+                        o.value = p.service_name;
+                        o.dataset.unit = p.unit || '';
+                        o.textContent = p.service_name;
+                        s.appendChild(o);
+                    });
+                    // Tambah opsi manual jika belum ada
+                    const manualOpt = document.createElement('option');
+                    manualOpt.value = '__manual__';
+                    manualOpt.textContent = '+ Ketik manual...';
+                    s.appendChild(manualOpt);
+                });
+            }
 
-{{-- Modal Tambah DO --}}
-<div class="modal fade" id="addDoModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h6 class="modal-title fw-bold">Tambah Delivery Order</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ route('delivery-orders.store') }}">
-                @csrf
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Customer</label>
-                            <select name="customer_id" class="form-select">
-                                <option value="">-- Pilih Customer --</option>
-                                @foreach($customers as $c)
-                                <option value="{{ $c->id }}">{{ $c->company_name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Vendor</label>
-                            <select name="vendor_id" class="form-select">
-                                <option value="">-- Pilih Vendor --</option>
-                                @foreach($vendors as $v)
-                                <option value="{{ $v->id }}">{{ $v->vendor_name }} ({{ $v->vendor_type }})</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Linked Lead <span style="color:#9ca3af;font-size:11px">(opsional)</span></label>
-                            <select name="lead_id" class="form-select">
-                                <option value="">-- Pilih Lead --</option>
-                                @foreach($leads as $l)
-                                <option value="{{ $l->id }}">[{{ $l->lead_code }}] {{ $l->company_name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Tgl Order <span class="text-danger">*</span></label>
-                            <input type="date" name="order_date" class="form-control" value="{{ date('Y-m-d') }}" required>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Status <span class="text-danger">*</span></label>
-                            <select name="status" class="form-select" required>
-                                <option value="In Progress">In Progress</option>
-                                <option value="Done">Done</option>
-                                <option value="Cancelled">Cancelled</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Service Type <span class="text-danger">*</span></label>
-                            <input type="text" name="service_type" class="form-control" placeholder="Shipping Line, Trucking, Air, dll" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Route <span class="text-danger">*</span></label>
-                            <input type="text" name="route" class="form-control" placeholder="Surabaya - Jakarta" required>
-                        </div>
+            function onProductSelect(sel) {
+                const tr = sel.closest('tr');
+                const hiddenInput = tr.querySelector('.po-product-hidden');
+                const unitInput = tr.querySelector('.po-unit-input');
 
-                        <div class="col-12"><hr class="my-1"><div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:-4px">FINANSIAL</div></div>
+                if (!hiddenInput) return;
 
-                        <div class="col-md-4">
-                            <label class="form-label">Revenue (Amount) <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="font-size:12px">Rp</span>
-                                <input type="number" name="amount" class="form-control" placeholder="0" min="0" required oninput="calcProfit()">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Biaya Vendor / HPP</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="font-size:12px">Rp</span>
-                                <input type="number" name="cost" id="addCost" class="form-control" placeholder="0" min="0" oninput="calcProfit()">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Biaya Operasional Lain</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="font-size:12px">Rp</span>
-                                <input type="number" name="other_cost" id="addOtherCost" class="form-control" placeholder="0" min="0" oninput="calcProfit()">
-                            </div>
-                        </div>
+                if (sel.value === '__manual__') {
+                    const manual = prompt('Nama produk:', '');
+                    const productName = manual ? manual.trim() : '';
 
-                        {{-- Preview Profit --}}
-                        <div class="col-12">
-                            <div class="d-flex gap-3 p-2 rounded" style="background:#f8f9fa;font-size:12px">
-                                <div>Gross Profit: <strong id="previewGross" style="color:#10b981">Rp 0</strong></div>
-                                <div style="border-left:1px solid #e5e7eb;padding-left:12px">Nett Profit: <strong id="previewNett" style="color:#7c3aed">Rp 0</strong></div>
-                                <div style="border-left:1px solid #e5e7eb;padding-left:12px">Margin: <strong id="previewMargin" style="color:#6b7280">0%</strong></div>
-                            </div>
-                        </div>
+                    if (productName !== '') {
+                        hiddenInput.value = productName;
 
-                        <div class="col-md-3">
-                            <label class="form-label">Currency</label>
-                            <select name="currency" class="form-select">
-                                <option value="IDR">IDR</option>
-                                <option value="USD">USD</option>
-                                <option value="SGD">SGD</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary btn-sm">Simpan DO</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+                        let existingOpt = Array.from(sel.options).find(o => o.value === productName);
+                        if (!existingOpt) {
+                            existingOpt = new Option(productName, productName, true, true);
+                            const manualOpt = Array.from(sel.options).find(o => o.value === '__manual__');
+                            if (manualOpt) {
+                                sel.insertBefore(existingOpt, manualOpt);
+                            } else {
+                                sel.appendChild(existingOpt);
+                            }
+                        }
 
-{{-- Modal Edit DO --}}
-<div class="modal fade" id="editDoModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h6 class="modal-title fw-bold">Edit Delivery Order</h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" id="editDoForm">
-                @csrf @method('PUT')
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Customer</label>
-                            <select name="customer_id" id="edCustomer" class="form-select">
-                                <option value="">-- Pilih Customer --</option>
-                                @foreach($customers as $c)
-                                <option value="{{ $c->id }}">{{ $c->company_name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Vendor</label>
-                            <select name="vendor_id" id="edVendor" class="form-select">
-                                <option value="">-- Pilih Vendor --</option>
-                                @foreach($vendors as $v)
-                                <option value="{{ $v->id }}">{{ $v->vendor_name }} ({{ $v->vendor_type }})</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Linked Lead</label>
-                            <select name="lead_id" id="edLead" class="form-select">
-                                <option value="">-- Pilih Lead --</option>
-                                @foreach($leads as $l)
-                                <option value="{{ $l->id }}">[{{ $l->lead_code }}] {{ $l->company_name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Tgl Order <span class="text-danger">*</span></label>
-                            <input type="date" name="order_date" id="edDate" class="form-control" required>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Status <span class="text-danger">*</span></label>
-                            <select name="status" id="edStatus" class="form-select" required>
-                                <option value="In Progress">In Progress</option>
-                                <option value="Done">Done</option>
-                                <option value="Cancelled">Cancelled</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Service Type <span class="text-danger">*</span></label>
-                            <input type="text" name="service_type" id="edService" class="form-control" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Route <span class="text-danger">*</span></label>
-                            <input type="text" name="route" id="edRoute" class="form-control" required>
-                        </div>
+                        existingOpt.selected = true;
+                        sel.value = productName;
 
-                        <div class="col-12"><hr class="my-1"><div style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:-4px">FINANSIAL</div></div>
+                        if (unitInput && !unitInput.value) {
+                            unitInput.value = 'kg';
+                        }
 
-                        <div class="col-md-4">
-                            <label class="form-label">Revenue (Amount) <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="font-size:12px">Rp</span>
-                                <input type="number" name="amount" id="edAmount" class="form-control" min="0" required oninput="calcProfitEdit()">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Biaya Vendor / HPP</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="font-size:12px">Rp</span>
-                                <input type="number" name="cost" id="edCost" class="form-control" min="0" oninput="calcProfitEdit()">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Biaya Operasional Lain</label>
-                            <div class="input-group">
-                                <span class="input-group-text" style="font-size:12px">Rp</span>
-                                <input type="number" name="other_cost" id="edOtherCost" class="form-control" min="0" oninput="calcProfitEdit()">
-                            </div>
-                        </div>
+                        // Penting: trigger "change" penuh agar Select2 refresh tampilan text-nya.
+                        if (window.jQuery && $(sel).data('select2')) {
+                            $(sel).val(productName).trigger('change');
+                            $(sel).select2('close');
+                        }
+                    } else {
+                        hiddenInput.value = '';
+                        sel.value = '';
 
-                        <div class="col-12">
-                            <div class="d-flex gap-3 p-2 rounded" style="background:#f8f9fa;font-size:12px">
-                                <div>Gross Profit: <strong id="edPreviewGross" style="color:#10b981">Rp 0</strong></div>
-                                <div style="border-left:1px solid #e5e7eb;padding-left:12px">Nett Profit: <strong id="edPreviewNett" style="color:#7c3aed">Rp 0</strong></div>
-                                <div style="border-left:1px solid #e5e7eb;padding-left:12px">Margin: <strong id="edPreviewMargin" style="color:#6b7280">0%</strong></div>
-                            </div>
-                        </div>
+                        if (window.jQuery && $(sel).data('select2')) {
+                            $(sel).val('').trigger('change');
+                            $(sel).select2('close');
+                        }
+                    }
 
-                        <div class="col-md-3">
-                            <label class="form-label">Currency</label>
-                            <select name="currency" id="edCurrency" class="form-select">
-                                <option value="IDR">IDR</option>
-                                <option value="USD">USD</option>
-                                <option value="SGD">SGD</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary btn-sm">Simpan Perubahan</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+                    return;
+                }
 
-@push('scripts')
-<script>
-function formatRp(n) {
-    return 'Rp ' + Math.round(n).toLocaleString('id-ID');
-}
+                hiddenInput.value = sel.value || '';
 
-function calcProfit() {
-    const amt   = parseFloat(document.querySelector('[name=amount]')?.value) || 0;
-    const cost  = parseFloat(document.getElementById('addCost')?.value) || 0;
-    const other = parseFloat(document.getElementById('addOtherCost')?.value) || 0;
-    const gross = amt - cost;
-    const nett  = amt - cost - other;
-    const margin = amt > 0 ? Math.round((nett / amt) * 100) : 0;
-    document.getElementById('previewGross').textContent  = formatRp(gross);
-    document.getElementById('previewNett').textContent   = formatRp(nett);
-    document.getElementById('previewMargin').textContent = margin + '%';
-    document.getElementById('previewGross').style.color  = gross >= 0 ? '#10b981' : '#dc2626';
-    document.getElementById('previewNett').style.color   = nett  >= 0 ? '#7c3aed' : '#dc2626';
-}
+                const opt = sel.options[sel.selectedIndex];
+                if (opt && opt.dataset.unit && unitInput) {
+                    unitInput.value = opt.dataset.unit;
+                }
+            }
 
-function calcProfitEdit() {
-    const amt   = parseFloat(document.getElementById('edAmount')?.value) || 0;
-    const cost  = parseFloat(document.getElementById('edCost')?.value) || 0;
-    const other = parseFloat(document.getElementById('edOtherCost')?.value) || 0;
-    const gross = amt - cost;
-    const nett  = amt - cost - other;
-    const margin = amt > 0 ? Math.round((nett / amt) * 100) : 0;
-    document.getElementById('edPreviewGross').textContent  = formatRp(gross);
-    document.getElementById('edPreviewNett').textContent   = formatRp(nett);
-    document.getElementById('edPreviewMargin').textContent = margin + '%';
-    document.getElementById('edPreviewGross').style.color  = gross >= 0 ? '#10b981' : '#dc2626';
-    document.getElementById('edPreviewNett').style.color   = nett  >= 0 ? '#7c3aed' : '#dc2626';
-}
+            function addItemRow(bodyId, data = {}) {
+                const idx = itemIndex++;
+                const body = document.getElementById(bodyId);
+                const prefix = bodyId === 'addItemsBody' ? 'items' : 'items';
+                // Cari vendor yang dipilih
+                const vendorSel = bodyId === 'addItemsBody' ? document.getElementById('addVendorSelect') : document.getElementById('epVendor');
+                const vendorId = vendorSel ? vendorSel.value : null;
+                const svcs = vendorId && vendorServicesMap[vendorId] ? vendorServicesMap[vendorId] : [];
 
-function openEditDo(id, customerId, vendorId, leadId, service, route, amount, cost, otherCost, currency, status, date) {
-    document.getElementById('editDoForm').action = `/delivery-orders/${id}`;
-    document.getElementById('edCustomer').value  = customerId  || '';
-    document.getElementById('edVendor').value    = vendorId    || '';
-    document.getElementById('edLead').value      = leadId      || '';
-    document.getElementById('edService').value   = service;
-    document.getElementById('edRoute').value     = route;
-    document.getElementById('edAmount').value    = amount;
-    document.getElementById('edCost').value      = cost;
-    document.getElementById('edOtherCost').value = otherCost;
-    document.getElementById('edCurrency').value  = currency;
-    document.getElementById('edStatus').value    = status;
-    document.getElementById('edDate').value      = date;
-    calcProfitEdit();
-    new bootstrap.Modal(document.getElementById('editDoModal')).show();
-}
-</script>
-@endpush
+                // Build product options
+                let productOptions = '<option value="">-- Pilih atau ketik --</option>';
+                let productExists = false;
+                products.forEach(p => {
+                    const selected = data.service_name === p.service_name ? 'selected' : '';
+                    if (data.service_name === p.service_name) productExists = true;
+                    productOptions += `<option value="${p.service_name}" data-unit="${p.unit||''}" ${selected}>${p.service_name}</option>`;
+                });
+
+                // Jika product berasal dari input manual / product lama, tetap tampilkan di dropdown saat edit.
+                if (data.service_name && !productExists) {
+                    productOptions += `<option value="${data.service_name}" selected>${data.service_name}</option>`;
+                }
+
+                productOptions += '<option value="__manual__">+ Ketik manual...</option>';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                <td>
+                    <input type="hidden" name="${prefix}[${idx}][service_name]" class="po-product-hidden" value="${data.service_name || ''}" required>
+                    <select class="form-select form-select-sm po-product-select" onchange="onProductSelect(this)" data-hidden-name="${prefix}[${idx}][service_name]">
+                        ${productOptions}
+                    </select>
+                </td>
+                <td><input type="text" name="${prefix}[${idx}][unit]" class="form-control form-control-sm po-unit-input" value="${data.unit || 'kg'}"></td>
+                <td><input type="number" name="${prefix}[${idx}][qty]" class="form-control form-control-sm item-qty" step="0.001" min="0" value="${data.qty || ''}" required oninput="calcRow(this)"></td>
+                <td>
+                    <input type="hidden" name="${prefix}[${idx}][buy_price]" class="item-buy-hidden" value="${data.buy_price || 0}">
+                    <input type="text" class="form-control form-control-sm item-buy" value="${data.buy_price ? formatNum(data.buy_price) : ''}" placeholder="0"
+                        oninput="syncHidden(this,'item-buy-hidden');calcRow(this)"
+                        onblur="formatPriceInput(this)">
+                </td>
+                <td>
+                    <input type="hidden" name="${prefix}[${idx}][sell_price]" class="item-sell-hidden" value="${data.sell_price || 0}">
+                    <input type="text" class="form-control form-control-sm item-sell" value="${data.sell_price ? formatNum(data.sell_price) : ''}" placeholder="0"
+                        oninput="syncHidden(this,'item-sell-hidden');calcRow(this)"
+                        onblur="formatPriceInput(this)">
+                </td>
+                <td class="item-profit text-end" style="font-weight:600;color:#10b981;vertical-align:middle">Rp 0</td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this)" style="padding:2px 6px"><i class="fas fa-times"></i></button></td>
+            `;
+                body.appendChild(tr);
+
+                // Row ditambahkan secara dinamis, jadi Select2 perlu di-init ulang khusus row baru.
+                if (typeof initSelect2 === 'function') {
+                    initSelect2(tr);
+                }
+
+                // Jika row berasal dari edit / manual product, paksa Select2 menampilkan value yang sudah ada.
+                if (data.service_name) {
+                    const productSelect = tr.querySelector('.po-product-select');
+                    const hiddenInput = tr.querySelector('.po-product-hidden');
+
+                    if (productSelect) {
+                        let opt = Array.from(productSelect.options).find(o => o.value === data.service_name);
+                        if (!opt) {
+                            opt = new Option(data.service_name, data.service_name, true, true);
+                            productSelect.appendChild(opt);
+                        }
+
+                        opt.selected = true;
+                        productSelect.value = data.service_name;
+                    }
+
+                    if (hiddenInput) {
+                        hiddenInput.value = data.service_name;
+                    }
+
+                    if (window.jQuery && productSelect && $(productSelect).data('select2')) {
+                        $(productSelect).val(data.service_name).trigger('change');
+                    }
+                }
+
+                if (data.qty && data.buy_price && data.sell_price) {
+                    calcRow(tr.querySelector('.item-qty'));
+                }
+            }
+
+            function removeRow(btn) {
+                const row = btn.closest('tr');
+                const body = row.closest('tbody');
+                if (body.querySelectorAll('tr').length <= 1) { alert('Minimal 1 item produk'); return; }
+                row.remove();
+                recalcTotal(body.id);
+            }
+
+            function normalizeDateForInput(value) {
+                if (!value) return '';
+                const str = String(value).trim();
+
+                // Jika dari backend sudah Y-m-d, langsung pakai.
+                const ymd = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                if (ymd) return `${ymd[1]}-${ymd[2]}-${ymd[3]}`;
+
+                // Fallback untuk format seperti "24 May 2026" / Date string browser.
+                const parsed = new Date(str);
+                if (!isNaN(parsed.getTime())) {
+                    const yyyy = parsed.getFullYear();
+                    const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+                    const dd = String(parsed.getDate()).padStart(2, '0');
+                    return `${yyyy}-${mm}-${dd}`;
+                }
+
+                return '';
+            }
+
+            function setDateInputValue(id, value) {
+                const el = document.getElementById(id);
+                if (!el) return;
+
+                const dateValue = normalizeDateForInput(value);
+
+                // Set native input value
+                el.value = dateValue;
+                el.setAttribute('value', dateValue);
+                el.dataset.pendingDate = dateValue;
+
+                // Jika project memakai Flatpickr / datepicker dengan altInput,
+                // value harus diset lewat instance agar UI ikut terisi.
+                if (el._flatpickr && dateValue) {
+                    el._flatpickr.setDate(dateValue, true, 'Y-m-d');
+                }
+
+                // Fallback untuk datepicker lain yang mendengar event input/change.
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+
+                // Fallback khusus flatpickr altInput jika ada tapi instance belum sync.
+                if (el._flatpickr && el._flatpickr.altInput && dateValue) {
+                    el._flatpickr.altInput.value = el._flatpickr.formatDate(
+                        el._flatpickr.selectedDates[0] || new Date(dateValue),
+                        el._flatpickr.config.altFormat || 'd F Y'
+                    );
+                }
+            }
+
+            async function openEditPo(id) {
+                const res = await fetch(`/delivery-orders/${id}/edit`);
+                const po  = await res.json();
+
+                document.getElementById('editPoForm').action = `/delivery-orders/${id}`;
+                document.getElementById('editPoNumber').textContent = po.do_number;
+
+                document.getElementById('epStatus').value   = po.status;
+                document.getElementById('epCurrency').value = po.currency;
+                document.getElementById('epNotes').value    = po.notes || '';
+
+                const setSelect2 = (elId, val) => {
+                    const el = document.getElementById(elId);
+                    if (!el) return;
+                    if ($(el).data('select2')) {
+                        $(el).val(val || null).trigger('change');
+                    } else {
+                        el.value = val || '';
+                    }
+                };
+
+                setSelect2('epCustomer', po.customer_id);
+                setSelect2('epVendor', po.vendor_id);
+
+                // Auto-fill linked lead berdasarkan customer
+                const epCustEl = document.getElementById('epCustomer');
+                if (epCustEl) onCustomerChange(epCustEl, 'epLeadDisplay');
+                // Override jika PO punya lead_id spesifik
+                if (po.lead_id) {
+                    const epLeadHid  = document.getElementById('epLeadHidden');
+                    const epLeadDisp = document.getElementById('epLeadDisplay');
+                    if (epLeadHid) epLeadHid.value = po.lead_id;
+                    // Cari label lead
+                    let label = '';
+                    for (const key in leadsByCustomerId) {
+                        if (String(leadsByCustomerId[key].id) === String(po.lead_id)) {
+                            label = leadsByCustomerId[key].label; break;
+                        }
+                    }
+                    if (!label) {
+                        for (const key in leadsByName) {
+                            if (String(leadsByName[key].id) === String(po.lead_id)) {
+                                label = leadsByName[key].label; break;
+                            }
+                        }
+                    }
+                    if (epLeadDisp && label) epLeadDisp.value = label;
+                }
+
+                const body = document.getElementById('editItemsBody');
+                body.innerHTML = '';
+                itemIndex = 1000;
+                po.items.forEach(item => addItemRow('editItemsBody', item));
+                recalcTotal('editItemsBody');
+
+                // Tgl Order harus di-set langsung sebelum modal tampil dan setelah modal tampil.
+                // Ini menghindari case input date kosong karena re-render modal / plugin select2.
+                setDateInputValue('epDate', po.order_date);
+
+                const modalEl = document.getElementById('editPoModal');
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+                const oldHandler = modalEl._shownHandler;
+                if (oldHandler) modalEl.removeEventListener('shown.bs.modal', oldHandler);
+
+                const shownHandler = function () {
+                    setDateInputValue('epDate', po.order_date);
+                    setTimeout(function () {
+                        setDateInputValue('epDate', po.order_date);
+                    }, 50);
+                };
+
+                modalEl._shownHandler = shownHandler;
+                modalEl.addEventListener('shown.bs.modal', shownHandler, { once: true });
+
+                modal.show();
+            }
+
+            // ── Filter Linked Lead berdasarkan Customer yang dipilih ──
+            function onCustomerChange(custSel, displayId) {
+                const customerId   = String(custSel.value || '').trim();
+                const customerName = String(custSel.options[custSel.selectedIndex]?.dataset?.name || '').trim();
+                const isAdd        = displayId === 'addLeadDisplay';
+                const display      = document.getElementById(displayId);
+                const hiddenId     = isAdd ? 'addLeadHidden' : 'epLeadHidden';
+                const hidden       = document.getElementById(hiddenId);
+
+                if (!customerId) {
+                    if (display) { display.value = ''; display.placeholder = 'Otomatis dari Customer'; }
+                    if (hidden)  hidden.value = '';
+                    return;
+                }
+
+                // Cari lead: by customer_id dulu, fallback by nama
+                let lead = leadsByCustomerId[customerId]
+                        || leadsByName[customerName]
+                        || null;
+
+                if (lead) {
+                    if (display) display.value = lead.label;
+                    if (hidden)  hidden.value  = lead.id;
+                } else {
+                    if (display) { display.value = ''; display.placeholder = 'Tidak ada lead terkait'; }
+                    if (hidden)  hidden.value = '';
+                }
+            }
+
+            // ── Expand/collapse detail row PO ──
+            function toggleDetail(poId, btn) {
+                const detail = document.getElementById('po-detail-' + poId);
+                const icon   = btn.querySelector('i');
+                if (!detail) return;
+                if (detail.style.display === 'none') {
+                    detail.style.display = 'table-row';
+                    icon.style.transform = 'rotate(90deg)';
+                } else {
+                    detail.style.display = 'none';
+                    icon.style.transform = 'rotate(0deg)';
+                }
+            }
+
+            // ── Init modal Add PO: tambah 1 row kosong saat modal dibuka, reset saat ditutup ──
+            document.addEventListener('DOMContentLoaded', function () {
+                const addModal = document.getElementById('addPoModal');
+                if (!addModal) return;
+
+                addModal.addEventListener('show.bs.modal', function () {
+                    const body = document.getElementById('addItemsBody');
+                    if (body && body.querySelectorAll('tr').length === 0) {
+                        addItemRow('addItemsBody');
+                    }
+                });
+
+                addModal.addEventListener('hidden.bs.modal', function () {
+                    // Reset tbody dan vendor select saat modal ditutup
+                    const body = document.getElementById('addItemsBody');
+                    if (body) body.innerHTML = '';
+                    const vendorSel = document.getElementById('addVendorSelect');
+                    if (vendorSel) vendorSel.value = '';
+                    itemIndex = 0;
+                });
+            });
+        </script>
+    @endpush
 @endsection

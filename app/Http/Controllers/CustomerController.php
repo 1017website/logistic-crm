@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Models\CustomerPic;
 use App\Models\User;
 use App\Models\Activity;
+use App\Models\Lead;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CustomerController extends Controller
 {
@@ -16,15 +19,21 @@ class CustomerController extends Controller
         $search   = $request->get('search');
         $salesId  = $request->get('user_id');
 
-        $query = Customer::with(['salesUser', 'deliveryOrders', 'activities']);
+        $query = Customer::with(['salesUser', 'deliveryOrders', 'activities', 'pics', 'productItems']);
         if ($status && $status !== 'all')     $query->where('status', $status);
         if ($industry && $industry !== 'all') $query->where('industry', $industry);
-        if ($salesId)  $query->where('user_id', $salesId);
+
+        // Sales Executive hanya lihat customer miliknya
+        if (auth()->user()->isSalesExecutive()) {
+            $query->where('user_id', auth()->id());
+        } elseif ($salesId) {
+            $query->where('user_id', $salesId);
+        }
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('company_name', 'like', "%$search%")
-                    ->orWhere('pic_name', 'like', "%$search%")
-                    ->orWhere('phone', 'like', "%$search%");
+                  ->orWhere('pic_name', 'like', "%$search%")
+                  ->orWhere('phone', 'like', "%$search%");
             });
         }
 
@@ -36,21 +45,12 @@ class CustomerController extends Controller
         $salesUsers        = User::orderBy('name')->get();
 
         $selectedCustomer = $request->get('selected_id')
-            ? Customer::with(['salesUser', 'deliveryOrders', 'activities.salesUser', 'leads'])->find($request->get('selected_id'))
+            ? Customer::with(['salesUser','deliveryOrders','activities.salesUser','leads','pics','productItems'])->find($request->get('selected_id'))
             : null;
 
         return view('customers.index', compact(
-            'customers',
-            'totalCustomer',
-            'potentialCustomer',
-            'existingCustomer',
-            'industries',
-            'salesUsers',
-            'selectedCustomer',
-            'status',
-            'industry',
-            'search',
-            'salesId'
+            'customers','totalCustomer','potentialCustomer','existingCustomer',
+            'industries','salesUsers','selectedCustomer','status','industry','search','salesId'
         ));
     }
 
@@ -65,16 +65,93 @@ class CustomerController extends Controller
             'industry'       => 'nullable|string|max:100',
             'location'       => 'nullable|string|max:255',
             'address'        => 'nullable|string',
-            'status'         => 'required|in:Existing,Potential',
-            'user_id'  => 'required|exists:users,id',
+            'user_id'        => 'required|exists:users,id',
             'customer_since' => 'nullable|date',
             'notes'          => 'nullable|string',
+            'pics'                => 'nullable|array',
+            'pics.*.pic_name'     => 'required_with:pics|string|max:255',
+            'pics.*.pic_position' => 'nullable|string|max:100',
+            'pics.*.phone'        => 'nullable|string|max:20',
+            'pics.*.email'        => 'nullable|email|max:255',
+            // Kebutuhan produk — field disamakan dengan leads (product_name, qty, unit)
+            'products_list'                => 'nullable|array',
+            'products_list.*.product_name' => 'required_with:products_list|string|max:255',
+            'products_list.*.qty'          => 'nullable|numeric|min:0',
+            'products_list.*.unit'         => 'nullable|string|max:100',
         ]);
+
+        // Revisi #1: customer dari menu Customer SELALU Existing
+        $validated['status'] = 'Existing';
+
         if (auth()->user()->isSalesExecutive()) {
             $validated['user_id'] = auth()->id();
         }
-        Customer::create($validated);
-        return redirect()->route('customers.index')->with('success', 'Customer berhasil ditambahkan.');
+
+        $picsData     = $validated['pics'] ?? [];
+        $productsList = $validated['products_list'] ?? [];
+        unset($validated['pics'], $validated['products_list']);
+
+        $customer = DB::transaction(function () use ($validated, $picsData, $productsList) {
+
+            // Default customer_since jika kosong (karena langsung Existing)
+            if (empty($validated['customer_since'])) {
+                $validated['customer_since'] = now()->toDateString();
+            }
+
+            $customer = Customer::create($validated);
+
+            // PIC utama + PIC tambahan
+            foreach ($picsData as $i => $pic) {
+                $customer->pics()->create([
+                    'pic_name'     => $pic['pic_name'],
+                    'pic_position' => $pic['pic_position'] ?? null,
+                    'phone'        => $pic['phone'] ?? null,
+                    'email'        => $pic['email'] ?? null,
+                    'is_primary'   => $i === 0,
+                ]);
+            }
+
+            // Kebutuhan produk -> tabel relasi customer_products
+            foreach ($productsList as $prod) {
+                $name = trim($prod['product_name'] ?? '');
+                if ($name === '') continue;
+                $customer->productItems()->create([
+                    'product_name' => $name,
+                    'qty'          => $prod['qty'] ?? 0,
+                    'unit'         => trim($prod['unit'] ?? '') !== '' ? $prod['unit'] : 'ton',
+                ]);
+            }
+
+            // Revisi #1: create customer existing sekaligus create lead stage Maintaining
+            $lead = Lead::create([
+                'lead_code'      => Lead::generateLeadCode(),
+                'customer_id'    => $customer->id,
+                'company_name'   => $customer->company_name,
+                'pic_name'       => $customer->pic_name,
+                'pic_position'   => $customer->pic_position,
+                'phone'          => $customer->phone,
+                'email'          => $customer->email,
+                'address'        => $customer->address,
+                'industry'       => $customer->industry,
+                'location'       => $customer->location,
+                'pipeline_stage' => 'Maintaining',
+                'temperature'    => 'Warm',
+                'user_id'        => $customer->user_id,
+            ]);
+
+            // Salin produk customer ke lead products agar konsisten
+            foreach ($customer->productItems as $cp) {
+                $lead->products()->create([
+                    'product_name' => $cp->product_name,
+                    'qty'          => $cp->qty ?? 0,
+                    'unit'         => $cp->unit ?? 'ton',
+                ]);
+            }
+
+            return $customer;
+        });
+
+        return redirect()->route('customers.index')->with('success', 'Customer berhasil ditambahkan & lead (Maintaining) dibuat otomatis.');
     }
 
     public function update(Request $request, Customer $customer)
@@ -88,13 +165,79 @@ class CustomerController extends Controller
             'industry'       => 'nullable|string|max:100',
             'location'       => 'nullable|string|max:255',
             'address'        => 'nullable|string',
-            'status'         => 'sometimes|in:Existing,Potential',
-            'user_id'  => 'sometimes|exists:users,id',
+            'user_id'        => 'sometimes|exists:users,id',
             'customer_since' => 'nullable|date',
             'notes'          => 'nullable|string',
+
+            'pics'                => 'nullable|array',
+            'pics.*.pic_name'     => 'nullable|string|max:255',
+            'pics.*.pic_position' => 'nullable|string|max:100',
+            'pics.*.phone'        => 'nullable|string|max:20',
+            'pics.*.email'        => 'nullable|email|max:255',
+
+            // Kebutuhan produk — product_name, qty, unit (sama seperti leads)
+            'products_list'                => 'nullable|array',
+            'products_list.*.product_name' => 'nullable|string|max:255',
+            'products_list.*.qty'          => 'nullable|numeric|min:0',
+            'products_list.*.unit'         => 'nullable|string|max:100',
         ]);
-        $customer->update($validated);
-        return redirect()->back()->with('success', 'Data customer diupdate.');
+
+        DB::transaction(function () use ($validated, $customer, $request) {
+
+            if (auth()->user()->isSalesExecutive()) {
+                $validated['user_id'] = auth()->id();
+            }
+
+            // Revisi #2: status customer TIDAK bisa diubah manual dari sini.
+            // Status hanya naik ke Existing via sales activity (stage Won), atau
+            // sudah Existing sejak dibuat dari menu Customer. Maka unset status.
+            unset($validated['status']);
+
+            $picsData     = $validated['pics'] ?? [];
+            $productsList = $validated['products_list'] ?? [];
+            unset($validated['pics'], $validated['products_list']);
+
+            $customer->update($validated);
+
+            /**
+             * products_submitted: daftar produk dari modal edit dianggap final.
+             * Replace seluruh customer_products dengan data dari form.
+             */
+            if ($request->has('products_submitted')) {
+                $customer->productItems()->delete();
+                foreach ($productsList as $product) {
+                    $name = trim($product['product_name'] ?? '');
+                    if ($name === '') continue;
+                    $customer->productItems()->create([
+                        'product_name' => $name,
+                        'qty'          => $product['qty'] ?? 0,
+                        'unit'         => trim($product['unit'] ?? '') !== '' ? $product['unit'] : 'ton',
+                    ]);
+                }
+            }
+
+            /**
+             * pics_submitted: PIC tambahan dari modal edit dianggap final.
+             */
+            if ($request->has('pics_submitted')) {
+                $customer->pics()->delete();
+
+                foreach ($picsData as $pic) {
+                    $picName = trim($pic['pic_name'] ?? '');
+                    if ($picName === '') continue;
+
+                    $customer->pics()->create([
+                        'pic_name'     => $picName,
+                        'pic_position' => $pic['pic_position'] ?? null,
+                        'phone'        => $pic['phone'] ?? null,
+                        'email'        => $pic['email'] ?? null,
+                        'is_primary'   => false,
+                    ]);
+                }
+            }
+        });
+
+        return redirect()->back()->with('success', 'Data customer berhasil diupdate.');
     }
 
     public function destroy(Customer $customer)
@@ -103,31 +246,95 @@ class CustomerController extends Controller
         return redirect()->route('customers.index')->with('success', 'Customer dihapus.');
     }
 
-    public function export()
+    // ── Customer PICs ──
+    public function storePic(Request $request, Customer $customer)
     {
-        $customers = Customer::with(['salesUser'])->orderBy('company_name')->get();
-        $headers   = [
+        $request->validate([
+            'pic_name'     => 'required|string|max:255',
+            'pic_position' => 'nullable|string|max:100',
+            'phone'        => 'nullable|string|max:20',
+            'email'        => 'nullable|email|max:255',
+        ]);
+        $customer->pics()->create([
+            'pic_name'     => $request->pic_name,
+            'pic_position' => $request->pic_position,
+            'phone'        => $request->phone,
+            'email'        => $request->email,
+            'is_primary'   => $customer->pics()->count() === 0,
+        ]);
+        return redirect()->back()->with('success', 'PIC ditambahkan.');
+    }
+
+    public function destroyPic(Customer $customer, CustomerPic $pic)
+    {
+        abort_if((int) $pic->customer_id !== (int) $customer->id, 404);
+        $pic->delete();
+        return redirect()->back()->with('success', 'PIC dihapus.');
+    }
+
+    // ── Transfer Sales (Admin only) ──
+    public function transferSales(Request $request, Customer $customer)
+    {
+        abort_unless(auth()->user()->isAdmin(), 403);
+        $request->validate(['user_id' => 'required|exists:users,id']);
+        $customer->update(['user_id' => $request->user_id]);
+        return redirect()->back()->with('success', 'Sales PIC berhasil dipindah.');
+    }
+
+    public function export(Request $request)
+    {
+        $status   = $request->get('status');
+        $industry = $request->get('industry');
+        $search   = $request->get('search');
+        $salesId  = $request->get('user_id');
+
+        $query = Customer::with(['salesUser']);
+
+        if ($status && $status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        if ($industry && $industry !== 'all') {
+            $query->where('industry', $industry);
+        }
+
+        if (auth()->user()->isSalesExecutive()) {
+            $query->where('user_id', auth()->id());
+        } elseif ($salesId) {
+            $query->where('user_id', $salesId);
+        }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('company_name', 'like', "%{$search}%")
+                  ->orWhere('pic_name', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+
+        $customers = $query->orderBy('company_name')->get();
+        $headers   = ['Company Name','PIC Name','Position','Phone','Email','Industry','Location','Status','Sales PIC','Customer Since'];
+        $rows      = $customers->map(fn($c) => [
+            $c->company_name, $c->pic_name, $c->pic_position,
+            $c->phone, $c->email, $c->industry, $c->location,
+            $c->status, $c->salesUser?->name,
+            $c->customer_since?->format('Y-m-d'),
+        ])->toArray();
+
+        return \App\Helpers\ExcelExport::download('customers_' . date('Ymd_His'), $headers, $rows, 'Customers');
+    }
+
+    public function template()
+    {
+        $headers = [
             'Content-Type'        => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="customers_' . date('Ymd_His') . '.csv"',
+            'Content-Disposition' => 'attachment; filename="template_import_customers.csv"',
         ];
-        $callback = function () use ($customers) {
+        $callback = function () {
             $f = fopen('php://output', 'w');
             fputs($f, "\xEF\xBB\xBF");
-            fputcsv($f, ['Company Name', 'PIC Name', 'Position', 'Phone', 'Email', 'Industry', 'Location', 'Status', 'Sales PIC', 'Customer Since']);
-            foreach ($customers as $c) {
-                fputcsv($f, [
-                    $c->company_name,
-                    $c->pic_name,
-                    $c->pic_position,
-                    $c->phone,
-                    $c->email,
-                    $c->industry,
-                    $c->location,
-                    $c->status,
-                    $c->salesUser?->name,
-                    $c->customer_since?->format('Y-m-d'),
-                ]);
-            }
+            fputcsv($f, ['Company Name', 'PIC Name', 'Position', 'Phone', 'Email', 'Industry', 'Location', 'Sales PIC Email']);
+            fputcsv($f, ['PT. Contoh Kimia', 'Budi Santoso', 'Purchasing Manager', '0812-1234-5678', 'budi@contoh.co.id', 'Manufacturing', 'Surabaya', 'sales@crm.com']);
             fclose($f);
         };
         return response()->stream($callback, 200, $headers);
@@ -142,7 +349,8 @@ class CustomerController extends Controller
 
         while (($row = fgetcsv($handle)) !== false) {
             if (count($row) < 3 || empty(trim($row[0]))) continue;
-            $salesUser = User::where('name', trim($row[8] ?? ''))->first();
+            $salesUser = User::where('name', trim($row[7] ?? ''))->first();
+            // Revisi #1: import dari menu Customer = Existing
             Customer::create([
                 'company_name'   => trim($row[0]),
                 'pic_name'       => trim($row[1]),
@@ -151,9 +359,9 @@ class CustomerController extends Controller
                 'email'          => trim($row[4] ?? ''),
                 'industry'       => trim($row[5] ?? ''),
                 'location'       => trim($row[6] ?? ''),
-                'status'         => in_array(trim($row[7] ?? ''), ['Existing', 'Potential']) ? trim($row[7]) : 'Potential',
-                'user_id'  => $salesUser?->id,
-                'customer_since' => !empty($row[9]) ? $row[9] : null,
+                'status'         => 'Existing',
+                'user_id'        => $salesUser?->id,
+                'customer_since' => now()->toDateString(),
             ]);
             $imported++;
         }
@@ -165,7 +373,7 @@ class CustomerController extends Controller
     public function storeActivity(Request $request, Customer $customer)
     {
         $validated = $request->validate([
-            'type'          => 'required|in:Call,Visit,Email,Note,Task',
+            'type'          => 'required|in:Call,Visit,Email,Note,Others',
             'subject'       => 'required|string|max:255',
             'description'   => 'nullable|string',
             'activity_at'   => 'required|date',
@@ -176,6 +384,7 @@ class CustomerController extends Controller
         if (auth()->user()->isSalesExecutive()) {
             $validated['user_id'] = auth()->id();
         }
+        $validated['sales_user_id'] = $validated['user_id'];
         Activity::create($validated);
         return redirect()->back()->with('success', 'Activity ditambahkan.');
     }

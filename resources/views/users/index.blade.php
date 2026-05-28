@@ -117,13 +117,17 @@
                                 onclick="openEditUser({{ $user->id }},'{{ addslashes($user->name) }}','{{ $user->email }}','{{ $user->phone }}','{{ $user->position }}','{{ $user->role }}','{{ $user->status ?? 'Active' }}','{{ $user->target ?? 0 }}')">
                                 <i class="fas fa-edit"></i>
                             </button>
+                            @if($user->status === 'Active')
                             <form method="POST" action="{{ route('users.destroy', $user) }}" class="d-inline"
-                                onsubmit="return confirm('Hapus user {{ addslashes($user->name) }}?')">
+                                onsubmit="return confirm('Nonaktifkan user {{ addslashes($user->name) }}? User tidak akan bisa login.')">
                                 @csrf @method('DELETE')
-                                <button type="submit" class="btn btn-sm" style="padding:4px 8px;border:1px solid #fecaca;border-radius:6px;font-size:11px;color:#dc2626">
-                                    <i class="fas fa-trash"></i>
+                                <button type="submit" class="btn btn-sm" style="padding:4px 8px;border:1px solid #fde68a;border-radius:6px;font-size:11px;color:#d97706" title="Nonaktifkan">
+                                    <i class="fas fa-user-slash"></i>
                                 </button>
                             </form>
+                            @else
+                            <span style="font-size:10px;color:#9ca3af;padding:4px 6px;border:1px solid #e5e7eb;border-radius:6px">Non-Active</span>
+                            @endif
                         </div>
                     </td>
                 </tr>
@@ -153,11 +157,11 @@
         <div class="modal-header"><h6 class="modal-title fw-bold">Tambah User Baru</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <form action="{{ route('users.store') }}" method="POST">@csrf
             <div class="modal-body"><div class="row g-3">
-                <div class="col-12"><label class="form-label">Nama Lengkap <span class="text-danger">*</span></label><input type="text" name="name" class="form-control" required></div>
-                <div class="col-md-6"><label class="form-label">Email <span class="text-danger">*</span></label><input type="email" name="email" class="form-control" required></div>
-                <div class="col-md-6"><label class="form-label">No. HP</label><input type="text" name="phone" class="form-control"></div>
-                <div class="col-md-6"><label class="form-label">Password <span class="text-danger">*</span></label><input type="password" name="password" class="form-control" required placeholder="Min. 6 karakter"></div>
-                <div class="col-md-6"><label class="form-label">Konfirmasi Password <span class="text-danger">*</span></label><input type="password" name="password_confirmation" class="form-control" required></div>
+                <div class="col-12"><label class="form-label">Nama Lengkap <span class="text-danger">*</span></label><input type="text" name="name" class="form-control" required autocomplete="off"></div>
+                <div class="col-md-6"><label class="form-label">Email <span class="text-danger">*</span></label><input type="email" name="email" class="form-control" required autocomplete="off"></div>
+                <div class="col-md-6"><label class="form-label">No. HP</label><input type="text" name="phone" class="form-control" autocomplete="off"></div>
+                <div class="col-md-6"><label class="form-label">Password <span class="text-danger">*</span></label><input type="password" name="password" class="form-control" required placeholder="Min. 6 karakter" autocomplete="new-password"></div>
+                <div class="col-md-6"><label class="form-label">Konfirmasi Password <span class="text-danger">*</span></label><input type="password" name="password_confirmation" class="form-control" required autocomplete="new-password"></div>
                 <div class="col-12"><label class="form-label">Jabatan / Position</label><input type="text" name="position" class="form-control" placeholder="Contoh: Senior Sales Executive"></div>
                 <div class="col-md-6"><label class="form-label">Role <span class="text-danger">*</span></label>
                     <select name="role" class="form-select" required>
