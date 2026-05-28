@@ -483,6 +483,7 @@
 @endif
 
 {{-- Add PIC (Customer) --}}
+@if($selectedCustomer)
 <div class="modal fade" id="addCustPicModal" tabindex="-1">
     <div class="modal-dialog"><div class="modal-content">
         <div class="modal-header"><h6 class="modal-title fw-bold">Tambah PIC — {{ $selectedCustomer->company_name }}</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
