@@ -30,7 +30,7 @@ class DeliveryOrderController extends Controller
                     ->where('do_number', 'like', "%$search%")
                     ->orWhere('tracking_number', 'like', "%$search%")
                     ->orWhereHas('customer', fn($q) => $q->where('company_name', 'like', "%$search%"))
-                    ->orWhereHas('items', fn($q) => $q->where('service_name.*like', "%$search%"))
+                    ->orWhereHas('items', fn($q) => $q->where('service_name', 'like', "%$search%"))
             );
         }
 
@@ -106,7 +106,7 @@ class DeliveryOrderController extends Controller
             $userId = $userId ?? auth()->id();
 
             $so = DeliveryOrder::create([
-                'do_number' => DeliveryOrder::generateSoNumber(),
+                'do_number' => DeliveryOrder::generateDoNumber(),
                 'customer_id' => $request->customer_id,
                 'vendor_id' => $request->vendor_id,
                 'lead_id' => $request->lead_id,
@@ -206,7 +206,7 @@ class DeliveryOrderController extends Controller
     {
         $soNumber = $deliveryOrder->do_number;
         $deliveryOrder->delete();
-        return redirect()->route('delivery-orders.index')->with('success', 'SO ' . $soNumber . ' berhasil dihapus.');
+        return redirect()->route('delivery-orders.index')->with('success', 'DO ' . $soNumber . ' berhasil dihapus.');
     }
 
     public function export(Request $request)

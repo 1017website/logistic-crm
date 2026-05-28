@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Delivery Orders')
 @section('page-title', 'Delivery Orders')
-@section('page-subtitle', 'Kelola data PO, revenue, dan profit per produk')
+@section('page-subtitle', 'Kelola data DO, revenue, dan profit per layanan')
 
 @section('content')
     <div class="row g-3">
@@ -19,7 +19,7 @@
                     </a>
                 </div>
                 <div class="d-flex gap-3 flex-wrap">
-                    @foreach([[$volumeDo, 'Volume PO', '#111'], [$revenue, 'Revenue', '#2563eb'], [$grossProfit, 'Gross Profit', '#10b981']] as $s)
+                    @foreach([[$volumeDo, 'Volume DO', '#111'], [$revenue, 'Revenue', '#2563eb'], [$grossProfit, 'Gross Profit', '#10b981']] as $s)
                         <div class="text-center {{ !$loop->first ? 'ps-3' : '' }}"
                             style="{{ !$loop->first ? 'border-left:1px solid var(--border-color)' : '' }}">
                             <div style="font-size:{{ $loop->index >= 1 ? '1rem' : '1.2rem' }};font-weight:800;color:{{ $s[2] }}">
@@ -50,7 +50,7 @@
                             </div>
                             <div class="col-md-4">
                                 <input type="text" name="search" class="form-control form-control-sm"
-                                    placeholder="Cari PO, customer, produk..." value="{{ $search }}">
+                                    placeholder="Cari DO, customer, layanan..." value="{{ $search }}">
                             </div>
                             <div class="col-md-2"><button type="submit" class="btn btn-primary btn-sm w-100"><i
                                         class="fas fa-search"></i></button></div>
@@ -170,7 +170,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="11" class="text-center py-4" style="color:#9ca3af">Belum ada data PO pada
+                                        <td colspan="11" class="text-center py-4" style="color:#9ca3af">Belum ada data DO pada
                                             periode ini</td>
                                     </tr>
                                 @endforelse
@@ -316,14 +316,14 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-primary btn-sm">Simpan PO</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Simpan DO</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    {{-- Modal Edit PO --}}
+    {{-- Modal Edit DO --}}
     <div class="modal fade" id="editPoModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
@@ -331,7 +331,7 @@
                     <h6 class="modal-title fw-bold">Edit Delivery Order — <span id="editPoNumber"></span></h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form method="POST" id="editPoForm">
+                <form method="POST" id="editDoForm">
                     @csrf @method('PUT')
                     <div class="modal-body">
                         <div class="row g-3 mb-3">
@@ -735,7 +735,7 @@
                 const res = await fetch(`/delivery-orders/${id}/edit`);
                 const po  = await res.json();
 
-                document.getElementById('editPoForm').action = `/delivery-orders/${id}`;
+                document.getElementById('editDoForm').action = `/delivery-orders/${id}`;
                 document.getElementById('editPoNumber').textContent = po.do_number;
 
                 document.getElementById('epStatus').value   = po.status;
@@ -758,7 +758,7 @@
                 // Auto-fill linked lead berdasarkan customer
                 const epCustEl = document.getElementById('epCustomer');
                 if (epCustEl) onCustomerChange(epCustEl, 'epLeadDisplay');
-                // Override jika PO punya lead_id spesifik
+                // Override jika DO punya lead_id spesifik
                 if (po.lead_id) {
                     const epLeadHid  = document.getElementById('epLeadHidden');
                     const epLeadDisp = document.getElementById('epLeadDisplay');
@@ -838,7 +838,7 @@
                 }
             }
 
-            // ── Expand/collapse detail row PO ──
+            // ── Expand/collapse detail row DO ──
             function toggleDetail(poId, btn) {
                 const detail = document.getElementById('po-detail-' + poId);
                 const icon   = btn.querySelector('i');
@@ -852,7 +852,7 @@
                 }
             }
 
-            // ── Init modal Add PO: tambah 1 row kosong saat modal dibuka, reset saat ditutup ──
+            // ── Init modal Add DO: tambah 1 row kosong saat modal dibuka, reset saat ditutup ──
             document.addEventListener('DOMContentLoaded', function () {
                 const addModal = document.getElementById('addPoModal');
                 if (!addModal) return;
