@@ -38,10 +38,14 @@ class Vendor extends Model
     public const VENDOR_TYPES = ['External', 'Internal'];
 
     public const SERVICE_TYPES = [
-        'Land Freight',
-        'Sea Freight',
-        'Air Freight',
-        'Pengiriman Kilat & Instan',
+        'Material Handling',
+        'Warehousing & Distribution',
+        'Transportation Service',
+        'Freight Forwarding',
+        'Door to Door Service',
+        'Project Logistics',
+        'Cold Chain Logistics',
+        'Lainnya',
     ];
 
     public const SERVICE_MODES = ['Tracking', 'Kontainer', 'Wingbox'];

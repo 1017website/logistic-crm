@@ -71,6 +71,7 @@ class VendorController extends Controller
             'vendor_name' => 'required|string|max:255',
             'vendor_type' => 'required|in:External,Internal',
             'service_type' => 'nullable|string|max:100',
+            'custom_service_type' => 'nullable|string|max:100',
             'service_mode' => 'nullable|string|max:255',
             'pic_name' => 'required|string|max:255',
             'pic_position' => 'nullable|string|max:100',
@@ -98,6 +99,9 @@ class VendorController extends Controller
             'services.*.route_destination' => 'nullable|string|max:255',
             'services.*.description' => 'nullable|string',
         ]);
+
+        $validated['service_type'] = $this->resolveServiceType($validated['service_type'] ?? null, $validated['custom_service_type'] ?? null);
+        unset($validated['custom_service_type']);
 
         // service_mode free input, contoh: Tracking, Kontainer, Wingbox
         $validated['service_mode'] = trim($validated['service_mode'] ?? '') ?: null;
@@ -154,6 +158,7 @@ class VendorController extends Controller
             'vendor_name' => 'sometimes|string|max:255',
             'vendor_type' => 'sometimes|in:External,Internal',
             'service_type' => 'nullable|string|max:100',
+            'custom_service_type' => 'nullable|string|max:100',
             'service_mode' => 'nullable|string|max:255',
             'pic_name' => 'sometimes|string|max:255',
             'pic_position' => 'nullable|string|max:100',
@@ -179,6 +184,9 @@ class VendorController extends Controller
             'services.*.route_destination' => 'nullable|string|max:255',
             'services.*.description' => 'nullable|string',
         ]);
+
+        $validated['service_type'] = $this->resolveServiceType($validated['service_type'] ?? null, $validated['custom_service_type'] ?? null);
+        unset($validated['custom_service_type']);
 
         if (array_key_exists('service_mode', $validated)) {
             $validated['service_mode'] = trim($validated['service_mode'] ?? '') ?: null;
@@ -298,6 +306,19 @@ class VendorController extends Controller
         abort_if((int) $service->vendor_id !== (int) $vendor->id, 404);
         $service->delete();
         return redirect()->back()->with('success', 'Layanan dihapus.');
+    }
+
+
+    private function resolveServiceType(?string $serviceType, ?string $customServiceType): ?string
+    {
+        $serviceType = trim((string) $serviceType);
+        $customServiceType = trim((string) $customServiceType);
+
+        if ($serviceType === 'Lainnya') {
+            return $customServiceType !== '' ? $customServiceType : null;
+        }
+
+        return $serviceType !== '' ? $serviceType : null;
     }
 
     public function export(Request $request)

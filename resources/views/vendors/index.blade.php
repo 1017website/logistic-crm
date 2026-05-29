@@ -191,12 +191,17 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Service Type</label>
-                            <select name="service_type" class="form-select">
+                            <select name="service_type" id="serviceType" class="form-select vendor-service-type" data-custom-target="customServiceTypeWrap">
                                 <option value="">- Pilih -</option>
                                 @foreach(\App\Models\Vendor::SERVICE_TYPES as $st)
                                     <option value="{{ $st }}">{{ $st }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div class="col-md-6 d-none" id="customServiceTypeWrap">
+                            <label class="form-label">Service Type Lainnya</label>
+                            <input type="text" name="custom_service_type" id="customServiceType" class="form-control"
+                                placeholder="Contoh: Marine Logistics, Dangerous Goods Handling">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Service Mode</label>
@@ -309,12 +314,17 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Service Type</label>
-                            <select name="service_type" id="esServiceType" class="form-select">
+                            <select name="service_type" id="esServiceType" class="form-select vendor-service-type" data-custom-target="esCustomServiceTypeWrap">
                                 <option value="">- Pilih -</option>
                                 @foreach(\App\Models\Vendor::SERVICE_TYPES as $st)
                                     <option value="{{ $st }}">{{ $st }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div class="col-md-6 d-none" id="esCustomServiceTypeWrap">
+                            <label class="form-label">Service Type Lainnya</label>
+                            <input type="text" name="custom_service_type" id="esCustomServiceType" class="form-control"
+                                placeholder="Contoh: Marine Logistics, Dangerous Goods Handling">
                         </div>
                         <div class="col-12">
                             <label class="form-label">Service Mode</label>
@@ -478,6 +488,28 @@
 @push('scripts')
 <script>
 const vendorEditData = @json($vendorEditData);
+const predefinedVendorServiceTypes = @json(\App\Models\Vendor::SERVICE_TYPES);
+
+function toggleCustomServiceType(selectEl) {
+    if (!selectEl) return;
+    const targetId = selectEl.dataset.customTarget;
+    const wrap = targetId ? document.getElementById(targetId) : null;
+    const input = wrap ? wrap.querySelector('input[name="custom_service_type"]') : null;
+    const isOther = selectEl.value === 'Lainnya';
+
+    if (wrap) wrap.classList.toggle('d-none', !isOther);
+    if (input) {
+        input.required = isOther;
+        if (!isOther) input.value = '';
+    }
+}
+
+document.querySelectorAll('.vendor-service-type').forEach(function(selectEl) {
+    selectEl.addEventListener('change', function() {
+        toggleCustomServiceType(selectEl);
+    });
+    toggleCustomServiceType(selectEl);
+});
 
 function openEditVendor(id) {
     const data = vendorEditData[id];
@@ -486,7 +518,16 @@ function openEditVendor(id) {
     document.getElementById('editVendorForm').action = `/vendors/${id}`;
     document.getElementById('esName').value          = data.vendor_name || '';
     document.getElementById('esVendorType').value    = data.vendor_type || 'External';
-    document.getElementById('esServiceType').value   = data.service_type || '';
+    const editServiceType = document.getElementById('esServiceType');
+    const editCustomServiceType = document.getElementById('esCustomServiceType');
+    if (data.service_type && !predefinedVendorServiceTypes.includes(data.service_type)) {
+        editServiceType.value = 'Lainnya';
+        editCustomServiceType.value = data.service_type;
+    } else {
+        editServiceType.value = data.service_type || '';
+        editCustomServiceType.value = '';
+    }
+    toggleCustomServiceType(editServiceType);
     document.getElementById('esPic').value           = data.pic_name || '';
     document.getElementById('esPhone').value         = data.phone || '';
     document.getElementById('esEmail').value         = data.email || '';
