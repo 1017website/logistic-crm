@@ -200,14 +200,9 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Service Mode</label>
-                            <div class="d-flex gap-3 pt-2">
-                                @foreach(\App\Models\Vendor::SERVICE_MODES as $sm)
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="service_mode[]" value="{{ $sm }}" id="addSm{{ $loop->index }}">
-                                    <label class="form-check-label" for="addSm{{ $loop->index }}">{{ $sm }}</label>
-                                </div>
-                                @endforeach
-                            </div>
+                            <input type="text" name="service_mode" class="form-control"
+                                placeholder="Contoh: Tracking, Kontainer, Wingbox, FCL, LCL">
+                            <div class="form-text">Bisa diisi bebas sesuai layanan vendor, pisahkan dengan koma jika lebih dari satu.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Payment Term</label>
@@ -323,14 +318,9 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label">Service Mode</label>
-                            <div class="d-flex gap-3">
-                                @foreach(\App\Models\Vendor::SERVICE_MODES as $sm)
-                                <div class="form-check">
-                                    <input class="form-check-input es-service-mode" type="checkbox" name="service_mode[]" value="{{ $sm }}" id="esSm{{ $loop->index }}">
-                                    <label class="form-check-label" for="esSm{{ $loop->index }}">{{ $sm }}</label>
-                                </div>
-                                @endforeach
-                            </div>
+                            <input type="text" name="service_mode" id="esServiceMode" class="form-control"
+                                placeholder="Contoh: Tracking, Kontainer, Wingbox, FCL, LCL">
+                            <div class="form-text">Bisa diisi bebas sesuai layanan vendor, pisahkan dengan koma jika lebih dari satu.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">PIC Name</label>
@@ -505,11 +495,7 @@ function openEditVendor(id) {
     document.getElementById('esPreferred').checked   = !!data.is_preferred;
     document.getElementById('esRating').value        = data.rating || 0;
 
-    // Service mode checkboxes
-    const selectedModes = (data.service_mode || '').split(',').map(s => s.trim()).filter(Boolean);
-    document.querySelectorAll('.es-service-mode').forEach(cb => {
-        cb.checked = selectedModes.includes(cb.value);
-    });
+    document.getElementById('esServiceMode').value = data.service_mode || '';
 
     const editSupPicsExisting = document.getElementById('editSupPicsExisting');
     const editSupProductsExisting = document.getElementById('editSupProductsExisting');

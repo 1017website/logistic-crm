@@ -382,7 +382,7 @@ class LeadsController extends Controller
             'status'         => 'required|in:Planned,Pending,Done,Overdue',
             'user_id'        => 'nullable|exists:users,id',
             'next_follow_up' => 'nullable|date',
-            'pipeline_stage' => 'nullable|in:Identifying,Approaching,Follow Up,Won,Lost,Maintaining',
+            'pipeline_stage' => 'nullable|in:Identifying,Approaching,Follow Up,Won,Maintaining',
         ]);
 
         $validated['lead_id'] = $lead->id;
@@ -397,7 +397,6 @@ class LeadsController extends Controller
             self::syncToCustomer($lead->fresh());
         }
 
-        unset($validated['pipeline_stage']);
         Activity::create($validated);
 
         return redirect()->route('sales.activity')->with('success', 'Activity berhasil ditambahkan.');

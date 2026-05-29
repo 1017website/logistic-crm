@@ -8,6 +8,7 @@ use App\Models\DeliveryOrder;
 use App\Models\DeliveryOrderItem;
 use App\Models\Vendor;
 use App\Models\VendorService;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -46,8 +47,11 @@ class DeliveryOrderController extends Controller
         $grossProfit = $revenue - $totalCost;
         $volumeDo = $allDone->count();
 
-        $customers = Customer::orderBy('company_name')->get(['id', 'company_name']);
+        $customers = Customer::where('status', 'Existing')
+            ->orderBy('company_name')
+            ->get(['id', 'company_name', 'user_id']);
         $vendors = Vendor::where('status', 'Active')->orderBy('vendor_name')->get(['id', 'vendor_name', 'vendor_type', 'service_type']);
+        $salesUsers = User::orderBy('name')->get(['id', 'name']);
         $leads = Lead::where(function ($q) {
             $q->whereIn('pipeline_stage', ['Won', 'Maintaining'])
                 ->orWhereNotNull('customer_id');
@@ -67,6 +71,7 @@ class DeliveryOrderController extends Controller
             'vendors',
             'leads',
             'vendorServices',
+            'salesUsers',
             'search',
             'status',
             'startDate',
@@ -77,9 +82,10 @@ class DeliveryOrderController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'customer_id' => 'nullable|exists:customers,id',
+            'customer_id' => 'required|exists:customers,id',
             'vendor_id' => 'nullable|exists:vendors,id',
             'lead_id' => 'nullable|exists:leads,id',
+            'user_id' => 'required|exists:users,id',
             'currency' => 'required|in:IDR,USD,SGD',
             'status' => 'required|in:Done,In Progress,Cancelled',
             'order_date' => 'required|date',
@@ -98,12 +104,18 @@ class DeliveryOrderController extends Controller
             'items.*.description' => 'nullable|string',
         ]);
 
+
+        $customer = Customer::findOrFail($request->customer_id);
+        if ($customer->status !== 'Existing') {
+            return back()->withInput()->withErrors(['customer_id' => 'Customer harus berstatus Existing/Won sebelum dibuatkan Delivery Order.']);
+        }
+
         DB::transaction(function () use ($request) {
             $userId = null;
             if ($request->lead_id) {
                 $userId = Lead::find($request->lead_id)?->user_id;
             }
-            $userId = $userId ?? auth()->id();
+            $userId = $request->user_id ?: ($userId ?? auth()->id());
 
             $so = DeliveryOrder::create([
                 'do_number' => DeliveryOrder::generateDoNumber(),
@@ -149,9 +161,10 @@ class DeliveryOrderController extends Controller
     public function update(Request $request, DeliveryOrder $deliveryOrder)
     {
         $request->validate([
-            'customer_id' => 'nullable|exists:customers,id',
+            'customer_id' => 'required|exists:customers,id',
             'vendor_id' => 'nullable|exists:vendors,id',
             'lead_id' => 'nullable|exists:leads,id',
+            'user_id' => 'required|exists:users,id',
             'currency' => 'required|in:IDR,USD,SGD',
             'status' => 'required|in:Done,In Progress,Cancelled',
             'order_date' => 'required|date',
@@ -170,11 +183,18 @@ class DeliveryOrderController extends Controller
             'items.*.description' => 'nullable|string',
         ]);
 
+
+        $customer = Customer::findOrFail($request->customer_id);
+        if ($customer->status !== 'Existing') {
+            return back()->withInput()->withErrors(['customer_id' => 'Customer harus berstatus Existing/Won sebelum dibuatkan Delivery Order.']);
+        }
+
         DB::transaction(function () use ($request, $deliveryOrder) {
             $deliveryOrder->update([
                 'customer_id' => $request->customer_id,
                 'vendor_id' => $request->vendor_id,
                 'lead_id' => $request->lead_id,
+                'user_id' => $request->user_id,
                 'currency' => $request->currency,
                 'status' => $request->status,
                 'order_date' => $request->order_date,

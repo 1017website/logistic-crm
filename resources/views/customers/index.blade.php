@@ -339,7 +339,12 @@
                             @if($act->description)<div style="font-size:.7rem;color:#374151">{{ Str::limit($act->description,60) }}</div>@endif
                             <div style="font-size:.67rem;color:var(--text-muted)">{{ $act->salesUser?->name }} · {{ $act->activity_at->format('d M Y H:i') }}</div>
                         </div>
-                        <span class="badge-{{ strtolower($act->status) }}" style="font-size:.62rem;flex-shrink:0">{{ $act->status }}</span>
+                        <div class="d-flex flex-column gap-1 align-items-end" style="flex-shrink:0">
+                            <span class="badge-{{ strtolower($act->status) }}" style="font-size:.62rem">{{ $act->status }}</span>
+                            @if($act->pipeline_stage)
+                                <span style="font-size:.6rem;padding:1px 6px;border-radius:12px;background:#dbeafe;color:#1d4ed8;font-weight:600">{{ $act->pipeline_stage === 'Won' ? 'Won/Closing' : $act->pipeline_stage }}</span>
+                            @endif
+                        </div>
                     </div>
                     @empty
                     <div class="text-center py-3" style="color:var(--text-muted);font-size:.8rem">Belum ada activity.</div>

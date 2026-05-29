@@ -71,8 +71,7 @@ class VendorController extends Controller
             'vendor_name' => 'required|string|max:255',
             'vendor_type' => 'required|in:External,Internal',
             'service_type' => 'nullable|string|max:100',
-            'service_mode' => 'nullable|array',
-            'service_mode.*' => 'string|in:Tracking,Kontainer,Wingbox',
+            'service_mode' => 'nullable|string|max:255',
             'pic_name' => 'required|string|max:255',
             'pic_position' => 'nullable|string|max:100',
             'phone' => 'required|string|max:20',
@@ -100,10 +99,8 @@ class VendorController extends Controller
             'services.*.description' => 'nullable|string',
         ]);
 
-        // service_mode array → comma-separated string untuk storage
-        $validated['service_mode'] = !empty($validated['service_mode'])
-            ? implode(',', $validated['service_mode'])
-            : null;
+        // service_mode free input, contoh: Tracking, Kontainer, Wingbox
+        $validated['service_mode'] = trim($validated['service_mode'] ?? '') ?: null;
 
         $validated['is_preferred'] = $request->boolean('is_preferred');
         $validated['rating'] = $validated['rating'] ?? 0;
@@ -157,8 +154,7 @@ class VendorController extends Controller
             'vendor_name' => 'sometimes|string|max:255',
             'vendor_type' => 'sometimes|in:External,Internal',
             'service_type' => 'nullable|string|max:100',
-            'service_mode' => 'nullable|array',
-            'service_mode.*' => 'string|in:Tracking,Kontainer,Wingbox',
+            'service_mode' => 'nullable|string|max:255',
             'pic_name' => 'sometimes|string|max:255',
             'pic_position' => 'nullable|string|max:100',
             'phone' => 'nullable|string|max:20',
@@ -185,9 +181,7 @@ class VendorController extends Controller
         ]);
 
         if (array_key_exists('service_mode', $validated)) {
-            $validated['service_mode'] = !empty($validated['service_mode'])
-                ? implode(',', $validated['service_mode'])
-                : null;
+            $validated['service_mode'] = trim($validated['service_mode'] ?? '') ?: null;
         }
 
         $validated['is_preferred'] = $request->boolean('is_preferred');

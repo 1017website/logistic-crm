@@ -11,7 +11,7 @@ class Activity extends Model
     use SoftDeletes;
     protected $fillable = [
         'lead_id','customer_id','user_id','sales_user_id','type','subject',
-        'description','activity_at','status','next_follow_up','photo'
+        'description','activity_at','status','next_follow_up','pipeline_stage','photo'
     ];
 
     protected $casts = ['activity_at' => 'datetime', 'next_follow_up' => 'date'];

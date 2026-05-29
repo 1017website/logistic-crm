@@ -80,7 +80,7 @@ class SalesActivityController extends Controller
             'activity_at'    => 'required|date',
             'status'         => 'required|in:Done,Pending,Planned,Overdue',
             'next_follow_up' => 'nullable|date',
-            'pipeline_stage' => 'nullable|in:Identifying,Approaching,Follow Up,Won,Lost,Maintaining',
+            'pipeline_stage' => 'required|in:Identifying,Approaching,Follow Up,Won,Maintaining',
             'photo'          => 'nullable|image|mimes:jpg,jpeg,png,webp|max:3072',
         ]);
 
@@ -133,8 +133,8 @@ class SalesActivityController extends Controller
             $requested = $request->pipeline_stage;
             $isExisting = $customer && $customer->status === 'Existing';
             $allowed = $isExisting
-                ? ['Follow Up', 'Won', 'Lost', 'Maintaining']
-                : ['Identifying', 'Approaching', 'Follow Up', 'Won', 'Lost', 'Maintaining'];
+                ? ['Follow Up', 'Won', 'Maintaining']
+                : ['Identifying', 'Approaching', 'Follow Up', 'Won', 'Maintaining'];
 
             if (in_array($requested, $allowed, true)) {
                 $targetLead->update(['pipeline_stage' => $requested]);
@@ -142,7 +142,7 @@ class SalesActivityController extends Controller
             }
         }
 
-        unset($validated['photo'], $validated['pipeline_stage'], $validated['client_ref']);
+        unset($validated['photo'], $validated['client_ref']);
         if ($request->hasFile('photo') && $request->file('photo')->isValid()) {
             $validated['photo'] = self::compressAndStore($request->file('photo'));
         }

@@ -136,7 +136,7 @@
                                             <table style="width:100%;font-size:12px;border-collapse:collapse">
                                                 <thead>
                                                     <tr style="background:#e8f0fe">
-                                                        <th style="padding:5px 8px;text-align:left;font-size:11px;color:#3b4a6b">Produk</th>
+                                                        <th style="padding:5px 8px;text-align:left;font-size:11px;color:#3b4a6b">Layanan</th>
                                                         <th style="padding:5px 8px;text-align:center;font-size:11px;color:#3b4a6b">Satuan</th>
                                                         <th style="padding:5px 8px;text-align:right;font-size:11px;color:#3b4a6b">Qty</th>
                                                         <th style="padding:5px 8px;text-align:right;font-size:11px;color:#3b4a6b">Harga Beli</th>
@@ -197,11 +197,11 @@
                     <div class="modal-body">
                         <div class="row g-3 mb-3">
                             <div class="col-md-4">
-                                <label class="form-label">Customer</label>
-                                <select name="customer_id" id="addCustomerSelect" class="form-select" onchange="onCustomerChange(this,'addLeadDisplay')">
+                                <label class="form-label">Customer <span class="text-danger">*</span></label>
+                                <select name="customer_id" id="addCustomerSelect" class="form-select" onchange="onCustomerChange(this,'addLeadDisplay'); setDefaultSalesPic(this,'addSalesPicSelect')" required>
                                     <option value="">-- Pilih Customer --</option>
                                     @foreach($customers as $c)
-                                        <option value="{{ $c->id }}" data-name="{{ strtolower(trim($c->company_name)) }}">{{ $c->company_name }}</option>
+                                        <option value="{{ $c->id }}" data-name="{{ strtolower(trim($c->company_name)) }}" data-user-id="{{ $c->user_id }}">{{ $c->company_name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -210,7 +210,7 @@
                                 <select name="vendor_id" class="form-select" id="addVendorSelect" onchange="onVendorChange(this,'addItemsBody')">
                                     <option value="">-- Pilih Vendor --</option>
                                     @foreach($vendors as $s)
-                                        <option value="{{ $s->id }}">{{ $s->vendor_name }} ({{ $s->source_type }})</option>
+                                        <option value="{{ $s->id }}">{{ $s->vendor_name }} ({{ $s->vendor_type }})</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -220,6 +220,15 @@
                                     placeholder="Otomatis dari Customer" readonly
                                     style="background:#f9fafb;cursor:default;color:#374151">
                                 <input type="hidden" name="lead_id" id="addLeadHidden" value="">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Sales PIC <span class="text-danger">*</span></label>
+                                <select name="user_id" id="addSalesPicSelect" class="form-select" required>
+                                    <option value="">-- Pilih Sales PIC --</option>
+                                    @foreach($salesUsers as $u)
+                                        <option value="{{ $u->id }}" @selected(auth()->id() === $u->id)>{{ $u->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Tgl Order <span class="text-danger">*</span></label>
@@ -336,11 +345,11 @@
                     <div class="modal-body">
                         <div class="row g-3 mb-3">
                             <div class="col-md-4">
-                                <label class="form-label">Customer</label>
-                                <select name="customer_id" id="epCustomer" class="form-select" onchange="onCustomerChange(this,'epLeadDisplay')">
+                                <label class="form-label">Customer <span class="text-danger">*</span></label>
+                                <select name="customer_id" id="epCustomer" class="form-select" onchange="onCustomerChange(this,'epLeadDisplay'); setDefaultSalesPic(this,'epSalesPicSelect')" required>
                                     <option value="">-- Pilih Customer --</option>
                                     @foreach($customers as $c)
-                                        <option value="{{ $c->id }}" data-name="{{ strtolower(trim($c->company_name)) }}">{{ $c->company_name }}</option>
+                                        <option value="{{ $c->id }}" data-name="{{ strtolower(trim($c->company_name)) }}" data-user-id="{{ $c->user_id }}">{{ $c->company_name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -349,7 +358,7 @@
                                 <select name="vendor_id" id="epVendor" class="form-select">
                                     <option value="">-- Pilih Vendor --</option>
                                     @foreach($vendors as $s)
-                                        <option value="{{ $s->id }}">{{ $s->vendor_name }} ({{ $s->source_type }})</option>
+                                        <option value="{{ $s->id }}">{{ $s->vendor_name }} ({{ $s->vendor_type }})</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -359,6 +368,15 @@
                                     placeholder="Otomatis dari Customer" readonly
                                     style="background:#f9fafb;cursor:default;color:#374151">
                                 <input type="hidden" name="lead_id" id="epLeadHidden" value="">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Sales PIC <span class="text-danger">*</span></label>
+                                <select name="user_id" id="epSalesPicSelect" class="form-select" required>
+                                    <option value="">-- Pilih Sales PIC --</option>
+                                    @foreach($salesUsers as $u)
+                                        <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Tgl Order <span class="text-danger">*</span></label>
@@ -386,7 +404,7 @@
                             </div>
                         </div>
                         <div class="d-flex align-items-center justify-content-between mb-2">
-                            <div style="font-size:12px;font-weight:700;color:#374151">ITEM PRODUK</div>
+                            <div style="font-size:12px;font-weight:700;color:#374151">ITEM LAYANAN</div>
                             <button type="button" class="btn btn-outline-primary btn-sm"
                                 onclick="addItemRow('editItemsBody')">
                                 <i class="fas fa-plus me-1"></i> Tambah Item
@@ -396,7 +414,7 @@
                             <table class="table table-bordered mb-2" style="font-size:12px">
                                 <thead style="background:#f8f9fa">
                                     <tr>
-                                        <th style="min-width:200px">Nama Produk</th>
+                                        <th style="min-width:200px">Nama Layanan</th>
                                         <th style="width:80px">Satuan</th>
                                         <th style="width:100px">Qty</th>
                                         <th style="width:140px">Harga Beli (HPP)</th>
@@ -676,7 +694,7 @@
             function removeRow(btn) {
                 const row = btn.closest('tr');
                 const body = row.closest('tbody');
-                if (body.querySelectorAll('tr').length <= 1) { alert('Minimal 1 item produk'); return; }
+                if (body.querySelectorAll('tr').length <= 1) { alert('Minimal 1 item layanan'); return; }
                 row.remove();
                 recalcTotal(body.id);
             }
@@ -745,6 +763,7 @@
 
                 setSelect2('epCustomer', po.customer_id);
                 setSelect2('epVendor', po.vendor_id);
+                setSelect2('epSalesPicSelect', po.user_id);
 
                 // Auto-fill linked lead berdasarkan customer
                 const epCustEl = document.getElementById('epCustomer');
@@ -798,6 +817,21 @@
                 modalEl.addEventListener('shown.bs.modal', shownHandler, { once: true });
 
                 modal.show();
+            }
+
+
+            function setDefaultSalesPic(custSel, salesSelectId) {
+                const salesSelect = document.getElementById(salesSelectId);
+                if (!salesSelect || !custSel) return;
+                const opt = custSel.options[custSel.selectedIndex];
+                const userId = opt?.dataset?.userId || '';
+                if (userId) {
+                    if (window.jQuery && $(salesSelect).data('select2')) {
+                        $(salesSelect).val(userId).trigger('change');
+                    } else {
+                        salesSelect.value = userId;
+                    }
+                }
             }
 
             // ── Filter Linked Lead berdasarkan Customer yang dipilih ──

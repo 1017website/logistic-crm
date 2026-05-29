@@ -165,6 +165,9 @@
                                 <div>
                                     <span class="activity-subject">{{ $act->subject ?: $act->type }}</span>
                                     <span class="ms-2 badge-{{ strtolower($act->status) }}" style="font-size:.65rem">{{ $act->status }}</span>
+                                    @if($act->pipeline_stage)
+                                        <span class="ms-1" style="font-size:.62rem;padding:1px 6px;border-radius:12px;background:#dbeafe;color:#1d4ed8;font-weight:600">{{ $act->pipeline_stage === 'Won' ? 'Won/Closing' : $act->pipeline_stage }}</span>
+                                    @endif
                                 </div>
                             </div>
                             @if($act->description)

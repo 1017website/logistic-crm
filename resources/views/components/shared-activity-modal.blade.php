@@ -50,15 +50,14 @@
                         @endif
                     </div>
 
-                    <div class="mb-3 shared-stage-wrap" style="{{ ($activityContextType === 'lead' || $activityContextType === 'customer') ? '' : 'display:none' }}">
-                        <label class="form-label">Update Pipeline Stage</label>
-                        <select name="pipeline_stage" class="form-select shared-stage-select">
-                            <option value="">Tidak mengubah stage</option>
+                    <div class="mb-3 shared-stage-wrap">
+                        <label class="form-label">Pipeline Stage <span class="text-danger">*</span></label>
+                        <select name="pipeline_stage" class="form-select shared-stage-select" required>
                             @foreach(['Identifying'=>'Identifying','Approaching'=>'Approaching','Follow Up'=>'Follow Up','Won'=>'Won/Closing','Maintaining'=>'Maintaining'] as $val => $label)
                                 <option value="{{ $val }}" {{ $activityContextStage === $val ? 'selected' : '' }}>{{ $label }}</option>
                             @endforeach
                         </select>
-                        <div class="form-text">Opsional — biarkan jika tidak ingin mengubah stage.</div>
+                        <div class="form-text">Stage ini akan tersimpan di activity dan ikut mengupdate pipeline Lead/Customer terkait.</div>
                     </div>
 
                     <div class="mb-3">
@@ -138,8 +137,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const stage = opt?.dataset?.stage || '';
                 if (stage) stageSelect.value = stage === 'Closing' ? 'Won' : stage;
             } else {
-                wrap.style.display = 'none';
-                stageSelect.value = '';
+                stageSelect.value = 'Identifying';
             }
         });
     });

@@ -379,7 +379,7 @@ class CustomerController extends Controller
             'activity_at'    => 'required|date',
             'status'         => 'required|in:Planned,Pending,Done,Overdue',
             'next_follow_up' => 'nullable|date',
-            'pipeline_stage' => 'nullable|in:Identifying,Approaching,Follow Up,Won,Lost,Maintaining',
+            'pipeline_stage' => 'nullable|in:Identifying,Approaching,Follow Up,Won,Maintaining',
             'user_id'        => 'nullable|exists:users,id',
         ]);
 
@@ -408,8 +408,8 @@ class CustomerController extends Controller
 
         if (!empty($validated['pipeline_stage'])) {
             $allowed = $customer->status === 'Existing'
-                ? ['Follow Up','Won','Lost','Maintaining']
-                : ['Identifying','Approaching','Follow Up','Won','Lost','Maintaining'];
+                ? ['Follow Up','Won','Maintaining']
+                : ['Identifying','Approaching','Follow Up','Won','Maintaining'];
             if (in_array($validated['pipeline_stage'], $allowed, true)) {
                 $lead->update(['pipeline_stage' => $validated['pipeline_stage']]);
                 LeadsController::syncToCustomer($lead->fresh());
@@ -420,7 +420,6 @@ class CustomerController extends Controller
             $validated['lead_id'] = $lead->id;
         }
 
-        unset($validated['pipeline_stage']);
         Activity::create($validated);
         return redirect()->back()->with('success', 'Activity ditambahkan.');
     }

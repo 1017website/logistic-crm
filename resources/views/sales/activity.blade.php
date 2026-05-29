@@ -103,9 +103,10 @@
                             @if($client)
                             <div class="mt-1" style="font-size:.75rem;color:#2563eb;font-weight:600">
                                 <i class="fas fa-building me-1" style="font-size:.65rem"></i>{{ $client }}
-                                @if($act->lead)
+                                @php $actStage = $act->pipeline_stage ?? $act->lead?->pipeline_stage; @endphp
+                                @if($actStage)
                                 <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:10px;font-size:.65rem;margin-left:4px">
-                                    {{ $act->lead->pipeline_stage }}
+                                    {{ $actStage === 'Won' ? 'Won/Closing' : $actStage }}
                                 </span>
                                 @endif
                             </div>
