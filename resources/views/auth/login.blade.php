@@ -206,26 +206,6 @@
             </button>
         </form>
 
-        <div class="divider">atau gunakan demo credentials</div>
-
-        <div class="demo-box">
-            <div class="demo-title">Demo Credentials — klik untuk autofill</div>
-            <div class="demo-item" onclick="fillCreds(this, 'admin@crm.com')">
-                <span class="demo-badge badge-admin">Admin</span>
-                <span class="demo-email">admin@crm.com</span>
-                <span class="demo-copy">password</span>
-            </div>
-            <div class="demo-item" onclick="fillCreds(this, 'manager@crm.com')">
-                <span class="demo-badge badge-manager">Manager</span>
-                <span class="demo-email">manager@crm.com</span>
-                <span class="demo-copy">password</span>
-            </div>
-            <div class="demo-item" onclick="fillCreds(this, 'sales@crm.com')">
-                <span class="demo-badge badge-sales">Sales</span>
-                <span class="demo-email">sales@crm.com</span>
-                <span class="demo-copy">password</span>
-            </div>
-        </div>
     </div>
 </div>
 
