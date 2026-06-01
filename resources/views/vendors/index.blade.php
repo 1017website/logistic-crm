@@ -219,7 +219,7 @@
                 <div style="background:#f9fafb;border-radius:6px;padding:6px 10px;margin-bottom:5px">
                     <div style="font-size:.76rem;font-weight:600">{{ $svc->service_name }}</div>
                     <div style="font-size:.68rem;color:var(--text-muted)">
-                        {{ $svc->unit }}@if($svc->unit && $svc->tonnage) · @endif@if($svc->tonnage){{ rtrim(rtrim(number_format($svc->tonnage,3,',','.'),'0'),',') }} ton @endif@if($svc->description) · {{ $svc->description }}@endif
+                        {{ $svc->unit }}@if($svc->unit && $svc->tonnage) · @endif @if($svc->tonnage){{ rtrim(rtrim(number_format($svc->tonnage,3,',','.'),'0'),',') }} ton @endif @if($svc->description) · {{ $svc->description }}@endif
                     </div>
                 </div>
                 @endforeach
