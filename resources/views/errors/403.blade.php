@@ -16,7 +16,7 @@
     <div style="width:80px;height:80px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
         <i class="fas fa-lock" style="font-size:32px;color:#dc2626"></i>
     </div>
-    <h4 style="font-weight:700;color:#0f1d35;margin-bottom:8px">Akses Ditolak</h4>
+    <h4 style="font-weight:700;color:#111827;margin-bottom:8px">Akses Ditolak</h4>
     <p style="color:#6b7280;font-size:14px;margin-bottom:24px">
         {{ $exception->getMessage() ?: 'Anda tidak memiliki izin untuk mengakses halaman ini.' }}
     </p>

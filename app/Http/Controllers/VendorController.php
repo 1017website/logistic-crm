@@ -93,6 +93,7 @@ class VendorController extends Controller
             'services' => 'nullable|array',
             'services.*.service_name' => 'nullable|string|max:255',
             'services.*.unit' => 'nullable|string|max:50',
+            'services.*.tonnage' => 'nullable|numeric|min:0',
             'services.*.tariff' => 'nullable|numeric|min:0',
             'services.*.tariff_unit' => 'nullable|string|max:50',
             'services.*.route_origin' => 'nullable|string|max:255',
@@ -114,6 +115,7 @@ class VendorController extends Controller
             $services = $validated['services'] ?? [];
             unset($validated['pics'], $validated['services']);
 
+            $validated['vendor_code'] = Vendor::generateVendorCode();
             $vendor = Vendor::create($validated);
 
             $picIndex = 0;
@@ -140,6 +142,7 @@ class VendorController extends Controller
                 $vendor->services()->create([
                     'service_name' => $serviceName,
                     'unit' => trim($svc['unit'] ?? ''),
+                    'tonnage' => $svc['tonnage'] ?? null,
                     'tariff' => $svc['tariff'] ?? 0,
                     'tariff_unit' => trim($svc['tariff_unit'] ?? '') ?: 'per shipment',
                     'route_origin' => $svc['route_origin'] ?? null,
@@ -178,6 +181,7 @@ class VendorController extends Controller
             'services' => 'nullable|array',
             'services.*.service_name' => 'nullable|string|max:255',
             'services.*.unit' => 'nullable|string|max:50',
+            'services.*.tonnage' => 'nullable|numeric|min:0',
             'services.*.tariff' => 'nullable|numeric|min:0',
             'services.*.tariff_unit' => 'nullable|string|max:50',
             'services.*.route_origin' => 'nullable|string|max:255',
@@ -232,6 +236,7 @@ class VendorController extends Controller
                     $vendor->services()->create([
                         'service_name' => $serviceName,
                         'unit' => trim($svc['unit'] ?? ''),
+                    'tonnage' => $svc['tonnage'] ?? null,
                         'tariff' => $svc['tariff'] ?? 0,
                         'tariff_unit' => trim($svc['tariff_unit'] ?? '') ?: 'per shipment',
                         'route_origin' => $svc['route_origin'] ?? null,
@@ -282,7 +287,8 @@ class VendorController extends Controller
     {
         $request->validate([
             'service_name' => 'required|string|max:255',
-            'unit' => 'required|string|max:50',
+            'unit' => 'nullable|string|max:50',
+            'tonnage' => 'nullable|numeric|min:0',
             'tariff' => 'nullable|numeric|min:0',
             'tariff_unit' => 'nullable|string|max:50',
             'route_origin' => 'nullable|string|max:255',
@@ -292,6 +298,7 @@ class VendorController extends Controller
         $vendor->services()->create([
             'service_name' => $request->service_name,
             'unit' => $request->unit,
+            'tonnage' => $request->tonnage,
             'tariff' => $request->tariff ?? 0,
             'tariff_unit' => trim($request->tariff_unit ?? '') ?: 'per shipment',
             'route_origin' => $request->route_origin,

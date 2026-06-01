@@ -18,6 +18,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ArtisanController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ServiceTypeController;
 
 // ── Artisan runner (shared hosting) ──
 Route::get('/run/{command}', [ArtisanController::class, 'run'])
@@ -61,10 +62,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/leads/import',          [LeadsController::class, 'import'])->name('leads.import');
     Route::post('/leads/{lead}/activity', [LeadsController::class, 'storeActivity'])->name('leads.activity.store');
     Route::post('/leads/{lead}/products', [LeadsController::class, 'storeProduct'])->name('leads.products.store');
-    Route::delete('/leads/{lead}/products/{product}', [LeadsController::class, 'destroyProduct'])->name('leads.products.destroy');
     Route::post('/leads/{lead}/pics',     [LeadsController::class, 'storePic'])->name('leads.pics.store');
-    Route::delete('/leads/{lead}/pics/{pic}', [LeadsController::class, 'destroyPic'])->name('leads.pics.destroy');
-    Route::resource('leads', LeadsController::class);
+    Route::resource('leads', LeadsController::class)->except(['destroy']);
     Route::get('/pipeline', [PipelineController::class, 'index'])->name('pipeline.index');
 
     // Calendar & Tasks
@@ -72,7 +71,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/tasks',               [TaskReminderController::class, 'index'])->name('tasks.index');
     Route::post('/tasks',              [TaskReminderController::class, 'store'])->name('tasks.store');
     Route::patch('/tasks/{activity}',  [TaskReminderController::class, 'update'])->name('tasks.update');
-    Route::delete('/tasks/{activity}', [TaskReminderController::class, 'destroy'])->name('tasks.destroy');
 
     // CRM Data
     Route::get('/customers/export',               [CustomerController::class, 'export'])->name('customers.export');
@@ -80,22 +78,19 @@ Route::middleware('auth')->group(function () {
     Route::post('/customers/import',              [CustomerController::class, 'import'])->name('customers.import');
     Route::post('/customers/{customer}/activity', [CustomerController::class, 'storeActivity'])->name('customers.activity.store');
     Route::post('/customers/{customer}/pics',     [CustomerController::class, 'storePic'])->name('customers.pics.store');
-    Route::delete('/customers/{customer}/pics/{pic}', [CustomerController::class, 'destroyPic'])->name('customers.pics.destroy');
     Route::patch('/customers/{customer}/transfer-sales', [CustomerController::class, 'transferSales'])->name('customers.transfer-sales');
-    Route::resource('customers', CustomerController::class);
+    Route::resource('customers', CustomerController::class)->except(['destroy']);
 
     // Vendors & Shipment Orders (Admin & Sales Manager only)
     Route::middleware('role:Admin,Sales Manager')->group(function () {
         Route::get('/vendors/export', [VendorController::class, 'export'])->name('vendors.export');
         Route::post('/vendors/{vendor}/services', [VendorController::class, 'storeService'])->name('vendors.services.store');
-        Route::delete('/vendors/{vendor}/services/{service}', [VendorController::class, 'destroyService'])->name('vendors.services.destroy');
         Route::post('/vendors/{vendor}/pics', [VendorController::class, 'storePic'])->name('vendors.pics.store');
-        Route::delete('/vendors/{vendor}/pics/{pic}', [VendorController::class, 'destroyPic'])->name('vendors.pics.destroy');
-        Route::resource('vendors', VendorController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::resource('vendors', VendorController::class)->only(['index', 'store', 'update']);
 
         Route::get('/delivery-orders/export', [DeliveryOrderController::class, 'export'])->name('delivery-orders.export');
         Route::get('/delivery-orders/{deliveryOrder}/edit', [DeliveryOrderController::class, 'edit'])->name('delivery-orders.edit');
-        Route::resource('delivery-orders', DeliveryOrderController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::resource('delivery-orders', DeliveryOrderController::class)->only(['index', 'store', 'update']);
     });
 
     // ── Manager & Admin only ───────────────────────
@@ -105,9 +100,29 @@ Route::middleware('auth')->group(function () {
         Route::get('/reports/export', [ReportsController::class, 'export'])->name('reports.export');
     });
 
+    // ── DELETE / DESTROY — ADMIN ONLY ──────────────
+    // Sales Manager & Sales Executive tidak boleh menghapus apapun.
+    Route::middleware('role:Admin')->group(function () {
+        Route::delete('/leads/{lead}', [LeadsController::class, 'destroy'])->name('leads.destroy');
+        Route::delete('/leads/{lead}/products/{product}', [LeadsController::class, 'destroyProduct'])->name('leads.products.destroy');
+        Route::delete('/leads/{lead}/pics/{pic}', [LeadsController::class, 'destroyPic'])->name('leads.pics.destroy');
+
+        Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])->name('customers.destroy');
+        Route::delete('/customers/{customer}/pics/{pic}', [CustomerController::class, 'destroyPic'])->name('customers.pics.destroy');
+
+        Route::delete('/tasks/{activity}', [TaskReminderController::class, 'destroy'])->name('tasks.destroy');
+
+        Route::delete('/vendors/{vendor}', [VendorController::class, 'destroy'])->name('vendors.destroy');
+        Route::delete('/vendors/{vendor}/services/{service}', [VendorController::class, 'destroyService'])->name('vendors.services.destroy');
+        Route::delete('/vendors/{vendor}/pics/{pic}', [VendorController::class, 'destroyPic'])->name('vendors.pics.destroy');
+
+        Route::delete('/delivery-orders/{deliveryOrder}', [DeliveryOrderController::class, 'destroy'])->name('delivery-orders.destroy');
+    });
+
     // ── Admin only ─────────────────────────────────
     Route::middleware('role:Admin')->group(function () {
         Route::resource('users', UserController::class)->except(['create', 'edit', 'show']);
+        Route::resource('service-types', ServiceTypeController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
         Route::post('/settings/delete-image', [SettingsController::class, 'deleteLogo'])->name('settings.delete-image');

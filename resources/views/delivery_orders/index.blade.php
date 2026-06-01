@@ -19,7 +19,7 @@
                     </a>
                 </div>
                 <div class="d-flex gap-3 flex-wrap">
-                    @foreach([[$volumeDo, 'Volume DO', '#111'], [$revenue, 'Revenue', '#2563eb'], [$grossProfit, 'Gross Profit', '#10b981']] as $s)
+                    @foreach([[$volumeDo, 'Volume DO', '#111'], [$revenue, 'Revenue', '#111111'], [$grossProfit, 'Gross Profit', '#10b981']] as $s)
                         <div class="text-center {{ !$loop->first ? 'ps-3' : '' }}"
                             style="{{ !$loop->first ? 'border-left:1px solid var(--border-color)' : '' }}">
                             <div style="font-size:{{ $loop->index >= 1 ? '1rem' : '1.2rem' }};font-weight:800;color:{{ $s[2] }}">
@@ -84,7 +84,7 @@
                             <tbody>
                                 @forelse($dos as $po)
                                     @php
-                                        $sc = ['Done' => ['#d1fae5', '#059669'], 'In Progress' => ['#dbeafe', '#2563eb'], 'Cancelled' => ['#fee2e2', '#dc2626']];
+                                        $sc = ['Done' => ['#d1fae5', '#059669'], 'In Progress' => ['#e5e5e5', '#111111'], 'Cancelled' => ['#fee2e2', '#dc2626']];
                                         $c = $sc[$po->status] ?? ['#f3f4f6', '#6b7280'];
                                     @endphp
                                     <tr id="po-row-{{ $po->id }}">
@@ -109,13 +109,14 @@
                                         <td class="py-2" style="color:#6b7280;font-size:11px">
                                             {{ $po->delivery_type ?? '-' }}<br>
                                             @if($po->tracking_number)
-                                            <span style="font-size:10px;color:#2563eb">{{ $po->tracking_number }}</span>
+                                            <span style="font-size:10px;color:#111111">{{ $po->tracking_number }}</span>
                                             @endif
                                         </td>
                                         <td class="py-2">
                                             <button class="btn btn-sm btn-outline-secondary" style="padding:3px 7px" onclick="openEditPo({{ $po->id }})">
                                                 <i class="fas fa-pencil-alt"></i>
                                             </button>
+                                            @if(auth()->user()->isAdmin())
                                             <form method="POST" action="{{ route('delivery-orders.destroy', $po) }}" class="d-inline"
                                                 onsubmit="return confirm('Hapus DO {{ $po->do_number }}?')">
                                                 @csrf @method('DELETE')
@@ -123,6 +124,7 @@
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </form>
+                                            @endif
                                         </td>
                                     </tr>
                                     {{-- Detail row (collapsed) --}}
@@ -138,6 +140,7 @@
                                                     <tr style="background:#e8f0fe">
                                                         <th style="padding:5px 8px;text-align:left;font-size:11px;color:#3b4a6b">Layanan</th>
                                                         <th style="padding:5px 8px;text-align:center;font-size:11px;color:#3b4a6b">Satuan</th>
+                                                        <th style="padding:5px 8px;text-align:right;font-size:11px;color:#3b4a6b">Tonase</th>
                                                         <th style="padding:5px 8px;text-align:right;font-size:11px;color:#3b4a6b">Qty</th>
                                                         <th style="padding:5px 8px;text-align:right;font-size:11px;color:#3b4a6b">Harga Beli</th>
                                                         <th style="padding:5px 8px;text-align:right;font-size:11px;color:#3b4a6b">Harga Jual</th>
@@ -150,6 +153,7 @@
                                                     <tr style="border-bottom:1px solid #e5e7eb">
                                                         <td style="padding:5px 8px;font-weight:600">{{ $item->service_name }}</td>
                                                         <td style="padding:5px 8px;text-align:center;color:#6b7280">{{ $item->unit }}</td>
+                                                        <td style="padding:5px 8px;text-align:right;color:#6b7280">{{ $item->tonnage !== null ? number_format($item->tonnage, 2, ',', '.') : '-' }}</td>
                                                         <td style="padding:5px 8px;text-align:right">{{ number_format($item->qty, 2, ',', '.') }}</td>
                                                         <td style="padding:5px 8px;text-align:right;color:#dc2626">{{ idr($item->buy_price) }}</td>
                                                         <td style="padding:5px 8px;text-align:right;color:var(--primary)">{{ idr($item->sell_price) }}</td>
@@ -160,7 +164,7 @@
                                                 </tbody>
                                                 <tfoot>
                                                     <tr style="background:#f0f4ff;font-weight:700">
-                                                        <td colspan="5" style="padding:5px 8px;text-align:right;font-size:11px;color:#6b7280">TOTAL</td>
+                                                        <td colspan="6" style="padding:5px 8px;text-align:right;font-size:11px;color:#6b7280">TOTAL</td>
                                                         <td style="padding:5px 8px;text-align:right;color:var(--primary)">{{ idr($po->total_revenue) }}</td>
                                                         <td style="padding:5px 8px;text-align:right;color:#10b981">{{ idr($po->gross_profit) }}</td>
                                                     </tr>
@@ -192,7 +196,7 @@
                     <h6 class="modal-title fw-bold">Tambah Delivery Order</h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form method="POST" action="{{ route('delivery-orders.store') }}">
+                <form method="POST" action="{{ route('delivery-orders.store') }}" id="addDoForm">
                     @csrf
                     <div class="modal-body">
                         <div class="row g-3 mb-3">
@@ -263,9 +267,9 @@
                         <div class="row g-2 mb-3">
                             <div class="col-md-3">
                                 <label class="form-label">Delivery Type</label>
-                                <select name="delivery_type" class="form-select form-select-sm">
+                                <select name="delivery_type" id="addDeliveryType" class="form-select form-select-sm">
                                     <option value="">- Pilih -</option>
-                                    @foreach(\App\Models\DeliveryOrder::DELIVERY_TYPES as $dt)
+                                    @foreach(\App\Models\Vendor::serviceTypeOptions() as $dt)
                                         <option value="{{ $dt }}">{{ $dt }}</option>
                                     @endforeach
                                 </select>
@@ -301,7 +305,8 @@
                                 <thead style="background:#f8f9fa">
                                     <tr>
                                         <th style="min-width:200px">Nama Layanan <span class="text-danger">*</span></th>
-                                        <th style="width:80px">Satuan <span class="text-danger">*</span></th>
+                                        <th style="width:80px">Satuan</th>
+                                        <th style="width:90px">Tonase</th>
                                         <th style="width:100px">Qty <span class="text-danger">*</span></th>
                                         <th style="width:140px">Harga Beli (HPP) <span class="text-danger">*</span></th>
                                         <th style="width:140px">Harga Jual <span class="text-danger">*</span></th>
@@ -402,6 +407,31 @@
                                 <label class="form-label">Notes</label>
                                 <input type="text" name="notes" id="epNotes" class="form-control">
                             </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Delivery Type</label>
+                                <select name="delivery_type" id="epDeliveryType" class="form-select">
+                                    <option value="">- Pilih -</option>
+                                    @foreach(\App\Models\Vendor::serviceTypeOptions() as $dt)
+                                        <option value="{{ $dt }}">{{ $dt }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Origin</label>
+                                <input type="text" name="origin" id="epOrigin" class="form-control" placeholder="Kota asal">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Destination</label>
+                                <input type="text" name="destination" id="epDestination" class="form-control" placeholder="Kota tujuan">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Tracking Number</label>
+                                <input type="text" name="tracking_number" id="epTracking" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Estimated Arrival</label>
+                                <input type="date" name="estimated_arrival" id="epEta" class="form-control">
+                            </div>
                         </div>
                         <div class="d-flex align-items-center justify-content-between mb-2">
                             <div style="font-size:12px;font-weight:700;color:#374151">ITEM LAYANAN</div>
@@ -416,6 +446,7 @@
                                     <tr>
                                         <th style="min-width:200px">Nama Layanan</th>
                                         <th style="width:80px">Satuan</th>
+                                        <th style="width:90px">Tonase</th>
                                         <th style="width:100px">Qty</th>
                                         <th style="width:140px">Harga Beli (HPP)</th>
                                         <th style="width:140px">Harga Jual</th>
@@ -527,8 +558,11 @@
                 if (!body) return;
                 body.querySelectorAll('.po-product-select').forEach(function(s) {
                     const svcs = vendorId && vendorServicesMap[vendorId] ? vendorServicesMap[vendorId] : [];
-                    const hiddenName = s.getAttribute('data-hidden-name');
-                    const unitInput  = s.closest('tr').querySelector('.po-unit-input');
+                    const tr = s.closest('tr');
+                    const hidden = tr.querySelector('.po-product-hidden');
+                    const unitInput = tr.querySelector('.po-unit-input');
+                    const prevName = hidden ? (hidden.value || '') : '';
+
                     // Rebuild options
                     s.innerHTML = '<option value="">-- Pilih atau ketik --</option>';
                     svcs.forEach(p => {
@@ -538,11 +572,28 @@
                         o.textContent = p.service_name;
                         s.appendChild(o);
                     });
-                    // Tambah opsi manual jika belum ada
+                    // Jika sebelumnya sudah ada nama (mis. ketik manual / dari edit) dan
+                    // tidak ada di daftar vendor baru, pertahankan sebagai opsi agar tidak hilang.
+                    if (prevName && prevName !== '__manual__' && !Array.from(s.options).some(o => o.value === prevName)) {
+                        const keep = new Option(prevName, prevName, true, true);
+                        s.appendChild(keep);
+                    }
+                    // Tambah opsi manual
                     const manualOpt = document.createElement('option');
                     manualOpt.value = '__manual__';
                     manualOpt.textContent = '+ Ketik manual...';
                     s.appendChild(manualOpt);
+
+                    // Restore selection + sinkron hidden (hindari desync hidden vs select)
+                    if (prevName && prevName !== '__manual__') {
+                        s.value = prevName;
+                        if (hidden) hidden.value = prevName;
+                    } else {
+                        if (hidden) hidden.value = '';
+                    }
+                    if (window.jQuery && $(s).data('select2')) {
+                        $(s).val(s.value).trigger('change.select2');
+                    }
                 });
             }
 
@@ -575,7 +626,7 @@
                         sel.value = productName;
 
                         if (unitInput && !unitInput.value) {
-                            unitInput.value = 'kg';
+                            unitInput.value = 'unit';
                         }
 
                         // Penting: trigger "change" penuh agar Select2 refresh tampilan text-nya.
@@ -637,7 +688,8 @@
                         ${productOptions}
                     </select>
                 </td>
-                <td><input type="text" name="${prefix}[${idx}][unit]" class="form-control form-control-sm po-unit-input" value="${data.unit || 'kg'}"></td>
+                <td><input type="text" name="${prefix}[${idx}][unit]" class="form-control form-control-sm po-unit-input" value="${data.unit || 'unit'}"></td>
+                <td><input type="number" name="${prefix}[${idx}][tonnage]" class="form-control form-control-sm item-tonnage" step="0.001" min="0" value="${data.tonnage ?? ''}" placeholder="0"></td>
                 <td><input type="number" name="${prefix}[${idx}][qty]" class="form-control form-control-sm item-qty" step="0.001" min="0" value="${data.qty || ''}" required oninput="calcRow(this)"></td>
                 <td>
                     <input type="hidden" name="${prefix}[${idx}][buy_price]" class="item-buy-hidden" value="${data.buy_price || 0}">
@@ -750,14 +802,28 @@
                 document.getElementById('epStatus').value   = po.status;
                 document.getElementById('epCurrency').value = po.currency;
                 document.getElementById('epNotes').value    = po.notes || '';
+                if (document.getElementById('epDeliveryType')) document.getElementById('epDeliveryType').value = po.delivery_type || '';
+                if (document.getElementById('epOrigin')) document.getElementById('epOrigin').value = po.origin || '';
+                if (document.getElementById('epDestination')) document.getElementById('epDestination').value = po.destination || '';
+                if (document.getElementById('epTracking')) document.getElementById('epTracking').value = po.tracking_number || '';
+                if (document.getElementById('epEta')) document.getElementById('epEta').value = po.estimated_arrival || '';
 
                 const setSelect2 = (elId, val) => {
                     const el = document.getElementById(elId);
                     if (!el) return;
-                    if ($(el).data('select2')) {
-                        $(el).val(val || null).trigger('change');
+                    const v = (val === null || val === undefined) ? '' : String(val);
+                    // Pastikan option dengan value tsb ada (untuk native maupun select2)
+                    if (v !== '' && !Array.from(el.options).some(o => String(o.value) === v)) {
+                        // Tidak ada di daftar — biarkan kosong agar tidak memaksa value invalid
+                    }
+                    // Init Select2 bila belum (agar tampilan ter-update saat val di-set)
+                    if (window.jQuery && typeof initSelect2 === 'function' && !$(el).data('select2')) {
+                        initSelect2(el.closest('.modal') || document);
+                    }
+                    if (window.jQuery && $(el).data('select2')) {
+                        $(el).val(v || null).trigger('change');
                     } else {
-                        el.value = val || '';
+                        el.value = v;
                     }
                 };
 
@@ -807,10 +873,18 @@
                 if (oldHandler) modalEl.removeEventListener('shown.bs.modal', oldHandler);
 
                 const shownHandler = function () {
+                    // Re-apply Select2 values setelah modal benar-benar tampil
+                    // (Select2 sering gagal render value saat di-set ketika modal masih hidden).
+                    setSelect2('epCustomer', po.customer_id);
+                    setSelect2('epVendor', po.vendor_id);
+                    setSelect2('epSalesPicSelect', po.user_id);
                     setDateInputValue('epDate', po.order_date);
                     setTimeout(function () {
+                        setSelect2('epCustomer', po.customer_id);
+                        setSelect2('epVendor', po.vendor_id);
+                        setSelect2('epSalesPicSelect', po.user_id);
                         setDateInputValue('epDate', po.order_date);
-                    }, 50);
+                    }, 60);
                 };
 
                 modalEl._shownHandler = shownHandler;
@@ -898,6 +972,94 @@
                     itemIndex = 0;
                 });
             });
+
+            // ── FIX SAVE DO: sinkronkan hidden + bersihkan baris kosong sebelum submit ──
+            // Penyebab "kadang tidak save": hidden service_name / harga tidak ter-sync
+            // dari select/input (mis. quirk Select2, ganti vendor), sehingga validasi
+            // server (items.*.service_name required) gagal tanpa pesan jelas.
+            function prepareDoSubmit(form, bodyId) {
+                const body = document.getElementById(bodyId);
+                if (!body) return true;
+
+                let validCount = 0;
+
+                body.querySelectorAll('tr').forEach(function (row) {
+                    const hidden = row.querySelector('.po-product-hidden');
+                    const select = row.querySelector('.po-product-select');
+
+                    // 1. Sinkron nama layanan: utamakan nilai select aktif
+                    if (hidden) {
+                        let name = '';
+                        if (select && select.value && select.value !== '__manual__') {
+                            name = select.value;
+                        } else if (hidden.value && hidden.value !== '__manual__') {
+                            name = hidden.value;
+                        }
+                        hidden.value = (name || '').trim();
+                    }
+
+                    // 2. Sinkron harga hidden dari input text (jaga-jaga belum ter-sync)
+                    const buyTxt  = row.querySelector('.item-buy');
+                    const buyHid  = row.querySelector('.item-buy-hidden');
+                    const sellTxt = row.querySelector('.item-sell');
+                    const sellHid = row.querySelector('.item-sell-hidden');
+                    if (buyHid)  buyHid.value  = parseNum(buyTxt ? buyTxt.value : 0)  || 0;
+                    if (sellHid) sellHid.value = parseNum(sellTxt ? sellTxt.value : 0) || 0;
+
+                    // 3. Tentukan baris valid (punya nama + qty > 0)
+                    const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
+                    const hasName = hidden && hidden.value !== '';
+
+                    if (!hasName || qty <= 0) {
+                        // Baris kosong / tak lengkap → buang agar tidak menggagalkan validasi
+                        if (!hasName && qty <= 0) {
+                            row.remove();
+                            return;
+                        }
+                        // Jika sebagian terisi tapi tak lengkap, tandai untuk pesan
+                        if (!hasName) {
+                            row.querySelector('.po-product-select')?.classList.add('is-invalid');
+                        }
+                    } else {
+                        validCount++;
+                    }
+                });
+
+                if (validCount === 0) {
+                    alert('Minimal 1 item layanan dengan Nama Layanan dan Qty harus diisi.');
+                    return false;
+                }
+
+                // Pastikan ada baris bernama tapi qty 0 / sebaliknya tidak lolos diam-diam
+                let incomplete = false;
+                body.querySelectorAll('tr').forEach(function (row) {
+                    const hidden = row.querySelector('.po-product-hidden');
+                    const qty = parseFloat(row.querySelector('.item-qty')?.value) || 0;
+                    if (hidden && hidden.value !== '' && qty <= 0) incomplete = true;
+                    if (hidden && hidden.value === '' && qty > 0) incomplete = true;
+                });
+                if (incomplete) {
+                    alert('Ada item yang belum lengkap (Nama Layanan & Qty wajib diisi bersamaan). Periksa kembali.');
+                    return false;
+                }
+
+                return true;
+            }
+
+            (function attachDoSubmitGuards() {
+                const addForm = document.getElementById('addDoForm');
+                if (addForm) {
+                    addForm.addEventListener('submit', function (e) {
+                        if (!prepareDoSubmit(addForm, 'addItemsBody')) e.preventDefault();
+                    });
+                }
+                const editForm = document.getElementById('editDoForm');
+                if (editForm) {
+                    editForm.addEventListener('submit', function (e) {
+                        if (!prepareDoSubmit(editForm, 'editItemsBody')) e.preventDefault();
+                    });
+                }
+            })();
         </script>
     @endpush
 @endsection

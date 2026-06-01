@@ -6,29 +6,29 @@
 <style>
     .kpi-card { background:#fff;border-radius:12px;border:1px solid #f0f0f0;padding:18px 20px; }
     .kpi-icon { width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0; }
-    .kpi-value { font-size:22px;font-weight:700;color:#0f1d35; }
+    .kpi-value { font-size:22px;font-weight:700;color:#111827; }
     .kpi-label { font-size:12px;color:#6b7280; }
 
     .filter-pill { padding:6px 16px;border-radius:20px;border:1px solid #e5e7eb;font-size:12px;font-weight:500;cursor:pointer;background:#fff;color:#6b7280;text-decoration:none;transition:.15s; }
-    .filter-pill.active { background:#0f1d35;color:#fff;border-color:#0f1d35; }
+    .filter-pill.active { background:#111827;color:#fff;border-color:#111827; }
     .filter-pill:hover:not(.active) { background:#f9fafb;color:#374151; }
 
     .task-card { background:#fff;border-radius:10px;border:1px solid #f0f0f0;padding:16px 18px;margin-bottom:10px;transition:.15s; }
     .task-card:hover { box-shadow:0 2px 8px rgba(0,0,0,.08); }
     .task-card.overdue { border-left:3px solid #ef4444; }
     .task-card.done    { opacity:.65; }
-    .task-card.today   { border-left:3px solid #3b82f6; }
+    .task-card.today   { border-left:3px solid #111111; }
 
     .badge-type { font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600; }
     .type-call  { background:#dcfce7;color:#16a34a; }
-    .type-visit { background:#dbeafe;color:#2563eb; }
+    .type-visit { background:#e5e5e5;color:#111111; }
     .type-email { background:#fef9c3;color:#854d0e; }
     .type-note  { background:#f3e8ff;color:#7c3aed; }
     .type-task  { background:#fee2e2;color:#dc2626; }
 
     .badge-status { font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600; }
     .status-done    { background:#dcfce7;color:#16a34a; }
-    .status-planned { background:#dbeafe;color:#2563eb; }
+    .status-planned { background:#e5e5e5;color:#111111; }
     .status-pending { background:#fef9c3;color:#854d0e; }
     .status-overdue { background:#fee2e2;color:#dc2626; }
 
@@ -41,7 +41,7 @@
 @section('content')
 <div class="d-flex align-items-start justify-content-between mb-4">
     <div>
-        <h4 class="fw-bold mb-1" style="color:#0f1d35">Tasks & Reminder</h4>
+        <h4 class="fw-bold mb-1" style="color:#111827">Tasks & Reminder</h4>
         <p class="text-muted mb-0" style="font-size:13px">Daftar tugas, follow up, dan pengingat sales</p>
     </div>
     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addTaskModal" style="border-radius:8px;font-size:13px">
@@ -53,7 +53,7 @@
 <div class="row g-3 mb-4">
     <div class="col-md-3">
         <div class="kpi-card d-flex align-items-center gap-3">
-            <div class="kpi-icon" style="background:#eff6ff"><i class="fas fa-calendar-day" style="color:#3b82f6"></i></div>
+            <div class="kpi-icon" style="background:#f2f2f2"><i class="fas fa-calendar-day" style="color:#111111"></i></div>
             <div>
                 <div class="kpi-label">Today</div>
                 <div class="kpi-value">{{ $totalToday }}</div>
@@ -135,7 +135,7 @@
         <!-- Content -->
         <div style="flex:1;min-width:0">
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                <span class="fw-600" style="font-size:14px;color:#0f1d35;font-weight:600;{{ $task->status === 'Done' ? 'text-decoration:line-through' : '' }}">{{ $task->subject }}</span>
+                <span class="fw-600" style="font-size:14px;color:#111827;font-weight:600;{{ $task->status === 'Done' ? 'text-decoration:line-through' : '' }}">{{ $task->subject }}</span>
                 <span class="badge-type type-{{ strtolower($task->type) }}">{{ $task->type }}</span>
                 <span class="badge-status status-{{ strtolower($task->status) }}">{{ $task->status }}</span>
             </div>
@@ -162,6 +162,7 @@
                 onclick="openEditTask({{ $task->id }}, @js($task->subject), '{{ $task->status }}', '{{ $task->activity_at->format('Y-m-d\TH:i') }}', @js($task->description))">
                 <i class="fas fa-edit"></i>
             </button>
+            @if(auth()->user()->isAdmin())
             <form method="POST" action="{{ route('tasks.destroy', $task->id) }}"
                 onsubmit="return confirm('Apakah Anda yakin ingin menghapus task ini? Tindakan ini tidak dapat dibatalkan.')">
                 @csrf @method('DELETE')
@@ -169,6 +170,7 @@
                     <i class="fas fa-trash"></i>
                 </button>
             </form>
+            @endif
         </div>
     </div>
 </div>

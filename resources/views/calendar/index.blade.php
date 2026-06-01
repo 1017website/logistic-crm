@@ -9,20 +9,20 @@
     .cal-header { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
     .cal-nav-btn { width:32px;height:32px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s; }
     .cal-nav-btn:hover { background:#f9fafb; }
-    .cal-title { font-size:16px;font-weight:700;color:#0f1d35;min-width:160px;text-align:center; }
+    .cal-title { font-size:16px;font-weight:700;color:#111827;min-width:160px;text-align:center; }
 
     .cal-grid { width:100%;border-collapse:collapse; }
     .cal-grid th { font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;padding:8px 4px;text-align:center;letter-spacing:.5px; }
     .cal-grid td { width:14.28%;height:88px;border:1px solid #f3f4f6;padding:5px;vertical-align:top;cursor:pointer;transition:background .1s; }
     .cal-grid td:hover { background:#f9fafb; }
-    .cal-grid td.today { background:#eff6ff; }
-    .cal-grid td.today .day-num { background:#2563eb;color:#fff;border-radius:50%; }
+    .cal-grid td.today { background:#f2f2f2; }
+    .cal-grid td.today .day-num { background:#111111;color:#fff;border-radius:50%; }
     .cal-grid td.other-month { opacity:.3;cursor:default; }
     .cal-grid td.has-events { border-left:3px solid #e5e7eb; }
     .day-num { font-size:12px;font-weight:600;color:#374151;width:22px;height:22px;display:flex;align-items:center;justify-content:center;margin-bottom:2px; }
     .day-event { font-size:10px;font-weight:500;padding:1px 5px;border-radius:3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer; }
     .event-call  { background:#dcfce7;color:#15803d; }
-    .event-visit { background:#dbeafe;color:#1d4ed8; }
+    .event-visit { background:#e5e5e5;color:#000000; }
     .event-email { background:#fef9c3;color:#92400e; }
     .event-note  { background:#f3e8ff;color:#6d28d9; }
     .event-task, .event-others  { background:#fee2e2;color:#b91c1c; }
@@ -34,7 +34,7 @@
     .ev-item:last-child { border-bottom:none; }
     .ev-item:hover { opacity:.8; }
     .ev-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px; }
-    .ev-title { font-size:12px;font-weight:600;color:#0f1d35;line-height:1.3; }
+    .ev-title { font-size:12px;font-weight:600;color:#111827;line-height:1.3; }
     .ev-meta  { font-size:11px;color:#6b7280;margin-top:1px; }
     .ev-badge { font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;flex-shrink:0; }
 
@@ -51,7 +51,7 @@
     .popup-actions { padding:10px 14px;border-top:1px solid #f0f0f0;display:flex;gap:6px; }
 
     .filter-pill { padding:4px 12px;border-radius:20px;border:1px solid #e5e7eb;font-size:12px;font-weight:500;cursor:pointer;background:#fff;color:#6b7280;transition:.15s; }
-    .filter-pill.active { background:#2563eb;color:#fff;border-color:#2563eb; }
+    .filter-pill.active { background:#111111;color:#fff;border-color:#111111; }
 </style>
 @endpush
 
@@ -91,7 +91,7 @@
                 <button class="btn btn-light btn-sm" onclick="goToday()" style="font-size:12px;border:1px solid #e5e7eb;border-radius:6px;margin-left:4px">Today</button>
                 <div class="ms-auto d-flex gap-2" style="font-size:11px">
                     <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#dcfce7;display:inline-block"></span>Call</span>
-                    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#dbeafe;display:inline-block"></span>Visit</span>
+                    <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#e5e5e5;display:inline-block"></span>Visit</span>
                     <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#fef9c3;display:inline-block"></span>Email</span>
                     <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:2px;background:#fee2e2;display:inline-block"></span>Task</span>
                 </div>
@@ -110,7 +110,7 @@
 
         {{-- Mini stats --}}
         <div class="sidebar-card">
-            <div style="font-size:12px;font-weight:700;color:#0f1d35;margin-bottom:12px">Bulan Ini</div>
+            <div style="font-size:12px;font-weight:700;color:#111827;margin-bottom:12px">Bulan Ini</div>
             <div class="row g-2 text-center">
                 <div class="col-6">
                     <div style="background:#f0fdf4;border-radius:8px;padding:10px">
@@ -125,8 +125,8 @@
                     </div>
                 </div>
                 <div class="col-6">
-                    <div style="background:#eff6ff;border-radius:8px;padding:10px">
-                        <div style="font-size:20px;font-weight:700;color:#2563eb">{{ $upcoming->count() }}</div>
+                    <div style="background:#f2f2f2;border-radius:8px;padding:10px">
+                        <div style="font-size:20px;font-weight:700;color:#111111">{{ $upcoming->count() }}</div>
                         <div style="font-size:11px;color:#6b7280">Upcoming</div>
                     </div>
                 </div>
@@ -141,12 +141,12 @@
 
         {{-- Upcoming --}}
         <div class="sidebar-card">
-            <div style="font-size:13px;font-weight:700;color:#0f1d35;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
                 <span><i class="fas fa-clock text-primary me-1" style="font-size:11px"></i> Upcoming (7 Hari)</span>
-                <span style="background:#eff6ff;color:#2563eb;font-size:11px;padding:1px 7px;border-radius:20px;font-weight:600">{{ $upcoming->count() }}</span>
+                <span style="background:#f2f2f2;color:#111111;font-size:11px;padding:1px 7px;border-radius:20px;font-weight:600">{{ $upcoming->count() }}</span>
             </div>
             @forelse($upcoming as $act)
-            @php $dotColor = match($act->type) {'Call'=>'#16a34a','Visit'=>'#2563eb','Email'=>'#ca8a04',default=>'#7c3aed'}; @endphp
+            @php $dotColor = match($act->type) {'Call'=>'#16a34a','Visit'=>'#111111','Email'=>'#ca8a04',default=>'#7c3aed'}; @endphp
             <div class="ev-item" onclick="showEventDetail({{ $act->id }})">
                 <div class="ev-dot" style="background:{{ $dotColor }}"></div>
                 <div style="flex:1;min-width:0">
@@ -154,7 +154,7 @@
                     <div class="ev-meta">{{ $act->customer?->company_name ?? $act->lead?->company_name ?? '-' }}</div>
                     <div class="ev-meta"><i class="fas fa-clock me-1" style="font-size:9px"></i>{{ $act->activity_at->format('d M · H:i') }}</div>
                 </div>
-                <span class="ev-badge" style="background:#eff6ff;color:#2563eb">{{ $act->type }}</span>
+                <span class="ev-badge" style="background:#f2f2f2;color:#111111">{{ $act->type }}</span>
             </div>
             @empty
             <div class="text-center py-3" style="color:#9ca3af;font-size:12px">
@@ -167,7 +167,7 @@
         {{-- Overdue --}}
         @if($overdue->count() > 0)
         <div class="sidebar-card">
-            <div style="font-size:13px;font-weight:700;color:#0f1d35;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:13px;font-weight:700;color:#111827;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">
                 <span><i class="fas fa-exclamation-circle text-danger me-1" style="font-size:11px"></i> Overdue</span>
                 <span style="background:#fee2e2;color:#dc2626;font-size:11px;padding:1px 7px;border-radius:20px;font-weight:600">{{ $overdue->count() }}</span>
             </div>
@@ -190,7 +190,7 @@
 <div class="event-popup" id="eventPopup">
     <div class="popup-header">
         <div style="display:flex;align-items:center;justify-content:space-between">
-            <span style="font-size:13px;font-weight:700;color:#0f1d35" id="popupTitle">-</span>
+            <span style="font-size:13px;font-weight:700;color:#111827" id="popupTitle">-</span>
             <button onclick="closePopup()" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:14px;padding:0">×</button>
         </div>
         <div id="popupBadges" class="mt-1"></div>
@@ -387,10 +387,10 @@ function showEventDetail(id) {
     showPopup(e);
 }
 function showPopup(e) {
-    const typeColors = {Call:'#16a34a',Visit:'#1d4ed8',Email:'#92400e',Note:'#6d28d9',Others:'#b91c1c'};
-    const typeBgs    = {Call:'#dcfce7',Visit:'#dbeafe',Email:'#fef9c3',Note:'#f3e8ff',Others:'#fee2e2'};
-    const statusBgs  = {Done:'#dcfce7',Planned:'#dbeafe',Pending:'#fef9c3',Overdue:'#fee2e2'};
-    const statusClr  = {Done:'#16a34a',Planned:'#2563eb',Pending:'#d97706',Overdue:'#dc2626'};
+    const typeColors = {Call:'#16a34a',Visit:'#000000',Email:'#92400e',Note:'#6d28d9',Others:'#b91c1c'};
+    const typeBgs    = {Call:'#dcfce7',Visit:'#e5e5e5',Email:'#fef9c3',Note:'#f3e8ff',Others:'#fee2e2'};
+    const statusBgs  = {Done:'#dcfce7',Planned:'#e5e5e5',Pending:'#fef9c3',Overdue:'#fee2e2'};
+    const statusClr  = {Done:'#16a34a',Planned:'#111111',Pending:'#d97706',Overdue:'#dc2626'};
 
     document.getElementById('popupTitle').textContent = e.title || e.type;
     document.getElementById('popupBadges').innerHTML =

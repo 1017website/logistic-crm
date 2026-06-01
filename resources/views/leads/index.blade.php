@@ -44,6 +44,7 @@
                 <table class="table crm-table mb-0">
                     <thead>
                         <tr>
+                            <th style="width:50px">No.</th>
                             <th>Company</th>
                             <th>PIC / Jabatan</th>
                             <th>Pipeline Stage</th>
@@ -54,8 +55,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($leads as $lead)
+                        @forelse($leads as $i => $lead)
                             <tr>
+                                <td style="color:#9ca3af;font-size:.75rem">{{ $leads->firstItem() + $i }}</td>
                                 <td>
                                     <a href="{{ route('leads.show', $lead) }}"
                                         style="font-weight:600;color:#111;text-decoration:none">{{ $lead->company_name }}</a>
@@ -69,7 +71,7 @@
                                 <td>
                                     @php
                                         $stageColors = [
-                                            'Identifying' => ['bg'=>'#dbeafe','color'=>'#1d4ed8'],
+                                            'Identifying' => ['bg'=>'#e5e5e5','color'=>'#000000'],
                                             'Approaching' => ['bg'=>'#fef3c7','color'=>'#b45309'],
                                             'Follow Up'   => ['bg'=>'#ede9fe','color'=>'#6d28d9'],
                                             'Won'         => ['bg'=>'#d1fae5','color'=>'#065f46'],
@@ -114,6 +116,7 @@
                                             style="padding:3px 7px" title="Lihat Detail">
                                             <i class="fas fa-eye" style="font-size:.7rem"></i>
                                         </a>
+                                        @if(auth()->user()->isAdmin())
                                         <form method="POST" action="{{ route('leads.destroy', $lead) }}"
                                             onsubmit="return confirmDelete('Hapus lead {{ addslashes($lead->company_name) }}?')">
                                             @csrf @method('DELETE')
@@ -121,12 +124,13 @@
                                                 <i class="fas fa-trash" style="font-size:.7rem"></i>
                                             </button>
                                         </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center py-4 text-muted">Tidak ada data leads.</td>
+                                <td colspan="8" class="text-center py-4 text-muted">Tidak ada data leads.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -321,9 +325,11 @@
         function addLeadProductRow() {
             const i = leadProdIdx++;
             const html = `<div class="row g-2 mb-2 align-items-center" id="leadProd_${i}">
-                <div class="col-5"><input type="text" name="products[${i}][service_name]" list="vendorServiceOptions" class="form-control form-control-sm" placeholder="Kebutuhan layanan *" required></div>
-                <div class="col-6"><input type="text" name="products[${i}][unit]" class="form-control form-control-sm" placeholder="Rute / area / catatan layanan"></div>
-                <div class="col-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger p-1" onclick="document.getElementById('leadProd_${i}').remove()"><i class="fas fa-times"></i></button></div>
+                <div class="col-md-4"><input type="text" name="products[${i}][service_name]" list="vendorServiceOptions" class="form-control form-control-sm" placeholder="Nama Layanan *" required></div>
+                <div class="col-md-2"><input type="text" name="products[${i}][unit]" class="form-control form-control-sm" placeholder="Satuan"></div>
+                <div class="col-md-2"><input type="number" step="0.001" min="0" name="products[${i}][tonnage]" class="form-control form-control-sm" placeholder="Tonase"></div>
+                <div class="col-md-3"><input type="text" name="products[${i}][shipping_zone]" class="form-control form-control-sm" placeholder="Zona Pengiriman"></div>
+                <div class="col-md-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger p-1" onclick="document.getElementById('leadProd_${i}').remove()"><i class="fas fa-times"></i></button></div>
             </div>`;
             document.getElementById('leadProductsContainer').insertAdjacentHTML('beforeend', html);
         }

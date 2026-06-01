@@ -80,6 +80,8 @@ class CustomerController extends Controller
             'products_list'                => 'nullable|array',
             'products_list.*.service_name' => 'required_with:products_list|string|max:255',
             'products_list.*.unit'         => 'nullable|string|max:100',
+            'products_list.*.tonnage'      => 'nullable|numeric|min:0',
+            'products_list.*.shipping_zone' => 'nullable|string|max:255',
         ]);
 
         // Revisi #1: customer dari menu Customer SELALU Existing
@@ -100,6 +102,7 @@ class CustomerController extends Controller
                 $validated['customer_since'] = now()->toDateString();
             }
 
+            $validated['customer_code'] = \App\Models\Customer::generateCustomerCode();
             $customer = Customer::create($validated);
 
             // PIC utama + PIC tambahan
@@ -121,6 +124,8 @@ class CustomerController extends Controller
                     'service_name' => $name,
                     'product_name' => $name,
                     'unit'         => trim($prod['unit'] ?? ''),
+                    'tonnage'      => $prod['tonnage'] ?? null,
+                    'shipping_zone' => $prod['shipping_zone'] ?? null,
                 ]);
             }
 
@@ -147,6 +152,7 @@ class CustomerController extends Controller
                     'service_name' => $cp->service_name ?? $cp->product_name,
                     'product_name' => $cp->service_name ?? $cp->product_name,
                     'unit'         => $cp->unit ?? '',
+                    'tonnage'      => $cp->tonnage ?? null,
                 ]);
             }
 
@@ -181,6 +187,8 @@ class CustomerController extends Controller
             'products_list'                => 'nullable|array',
             'products_list.*.service_name' => 'nullable|string|max:255',
             'products_list.*.unit'         => 'nullable|string|max:100',
+            'products_list.*.tonnage'      => 'nullable|numeric|min:0',
+            'products_list.*.shipping_zone' => 'nullable|string|max:255',
         ]);
 
         DB::transaction(function () use ($validated, $customer, $request) {
@@ -210,8 +218,11 @@ class CustomerController extends Controller
                     $name = trim($product['service_name'] ?? $product['product_name'] ?? '');
                     if ($name === '') continue;
                     $customer->productItems()->create([
+                        'service_name' => $name,
                         'product_name' => $name,
-                            'unit'         => trim($product['unit'] ?? ''),
+                        'unit'         => trim($product['unit'] ?? ''),
+                        'tonnage'      => $product['tonnage'] ?? null,
+                        'shipping_zone' => $product['shipping_zone'] ?? null,
                     ]);
                 }
             }
@@ -352,6 +363,7 @@ class CustomerController extends Controller
             $salesUser = User::where('name', trim($row[7] ?? ''))->first();
             // Revisi #1: import dari menu Customer = Existing
             Customer::create([
+                'customer_code'  => \App\Models\Customer::generateCustomerCode(),
                 'company_name'   => trim($row[0]),
                 'pic_name'       => trim($row[1]),
                 'pic_position'   => trim($row[2] ?? ''),

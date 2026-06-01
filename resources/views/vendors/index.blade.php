@@ -18,7 +18,7 @@
             </a>
         </div>
         <div class="d-flex gap-3 flex-wrap">
-            @foreach([[$totalVendor,'Total','#111'],[$externalVendor,'Local','#2563eb'],[$internalVendor,'Import','#7c3aed'],[$existingVendor,'Existing','#059669'],[$potentialVendor,'Potential','#f97316']] as $s)
+            @foreach([[$totalVendor,'Total','#111'],[$externalVendor,'Local','#111111'],[$internalVendor,'Import','#7c3aed'],[$existingVendor,'Existing','#059669'],[$potentialVendor,'Potential','#f97316']] as $s)
             <div class="text-center {{ !$loop->first ? 'ps-3' : '' }}" style="{{ !$loop->first ? 'border-left:1px solid var(--border-color)' : '' }}">
                 <div style="font-size:1.2rem;font-weight:800;color:{{ $s[2] }}">{{ $s[0] }}</div>
                 <div style="font-size:.68rem;color:var(--text-muted)">{{ $s[1] }}</div>
@@ -69,6 +69,7 @@
                 <table class="table table-hover mb-0" style="font-size:13px">
                     <thead style="background:#f8f9fa">
                         <tr>
+                            <th class="px-3 py-2" style="width:50px">No.</th>
                             <th class="px-3 py-2">Vendor</th>
                             <th class="py-2">PIC</th>
                             <th class="py-2">Phone</th>
@@ -82,10 +83,12 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($vendors as $s)
+                        @forelse($vendors as $i => $s)
                         <tr>
+                            <td class="px-3 py-2" style="color:#9ca3af;font-size:.75rem">{{ $vendors->firstItem() + $i }}</td>
                             <td class="px-3 py-2">
                                 <div style="font-weight:700">{{ $s->vendor_name }}</div>
+                                @if($s->vendor_code)<div style="font-size:10px;color:var(--text-muted);font-family:monospace">{{ $s->vendor_code }}</div>@endif
                                 @if($s->is_preferred)<span style="font-size:10px;color:#d97706">⭐ Preferred</span>@endif
                             </td>
                             <td class="py-2">
@@ -115,8 +118,8 @@
                             </td>
                             <td class="py-2">
                                 <span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;
-                                    background:{{ $s->vendor_type==='External'?'#dbeafe':'#ede9fe' }};
-                                    color:{{ $s->vendor_type==='External'?'#1d4ed8':'#7c3aed' }}">
+                                    background:{{ $s->vendor_type==='External'?'#e5e5e5':'#ede9fe' }};
+                                    color:{{ $s->vendor_type==='External'?'#000000':'#7c3aed' }}">
                                     {{ $s->vendor_type }}
                                     @if($s->vendor_type==='Internal' && $s->origin_country)
                                     <span style="font-size:10px">({{ $s->origin_country }})</span>
@@ -143,6 +146,7 @@
                                     onclick="openServiceModal({{ $s->id }}, '{{ addslashes($s->vendor_name) }}')">
                                     <i class="fas fa-boxes" style="font-size:.7rem"></i>
                                 </button>
+                                @if(auth()->user()->isAdmin())
                                 <form method="POST" action="{{ route('vendors.destroy', $s) }}" class="d-inline"
                                     onsubmit="return confirm('Apakah Anda yakin ingin menghapus vendor {{ addslashes($s->vendor_name) }}? Tindakan ini tidak dapat dibatalkan.')">
                                     @csrf @method('DELETE')
@@ -150,10 +154,11 @@
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </form>
+                                @endif
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="10" class="text-center py-4" style="color:#9ca3af">Belum ada data vendor</td></tr>
+                        <tr><td colspan="11" class="text-center py-4" style="color:#9ca3af">Belum ada data vendor</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -193,9 +198,10 @@
                             <label class="form-label">Service Type</label>
                             <select name="service_type" id="serviceType" class="form-select vendor-service-type" data-custom-target="customServiceTypeWrap">
                                 <option value="">- Pilih -</option>
-                                @foreach(\App\Models\Vendor::SERVICE_TYPES as $st)
+                                @foreach(\App\Models\Vendor::serviceTypeOptions() as $st)
                                     <option value="{{ $st }}">{{ $st }}</option>
                                 @endforeach
+                                <option value="Lainnya">Lainnya...</option>
                             </select>
                         </div>
                         <div class="col-md-6 d-none" id="customServiceTypeWrap">
@@ -316,9 +322,10 @@
                             <label class="form-label">Service Type</label>
                             <select name="service_type" id="esServiceType" class="form-select vendor-service-type" data-custom-target="esCustomServiceTypeWrap">
                                 <option value="">- Pilih -</option>
-                                @foreach(\App\Models\Vendor::SERVICE_TYPES as $st)
+                                @foreach(\App\Models\Vendor::serviceTypeOptions() as $st)
                                     <option value="{{ $st }}">{{ $st }}</option>
                                 @endforeach
+                                <option value="Lainnya">Lainnya...</option>
                             </select>
                         </div>
                         <div class="col-md-6 d-none" id="esCustomServiceTypeWrap">
@@ -335,6 +342,14 @@
                         <div class="col-md-6">
                             <label class="form-label">PIC Name</label>
                             <input type="text" name="pic_name" id="esPic" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">PIC Position</label>
+                            <input type="text" name="pic_position" id="esPicPosition" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Payment Term</label>
+                            <input type="text" name="payment_term" id="esPaymentTerm" class="form-control" placeholder="Net 30, COD, dll">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Phone</label>
@@ -417,20 +432,16 @@
                     <form id="addVendorServiceForm" method="POST">
                         @csrf
                         <div class="row g-2">
-                            <div class="col-5">
-                                <input type="text" name="service_name" class="form-control form-control-sm" placeholder="Nama layanan *" required>
+                            <div class="col-md-4">
+                                <input type="text" name="service_name" class="form-control form-control-sm" placeholder="Nama Layanan *" required>
                             </div>
-                            <div class="col-3">
-                                <select name="unit" class="form-select form-select-sm">
-                                    <option value="per shipment">per shipment</option>
-                                    <option value="per trip">per trip</option>
-                                    <option value="per container">per container</option>
-                                    <option value="FCL">FCL</option>
-                                    <option value="LCL">LCL</option>
-                                    <option value="custom">custom</option>
-                                </select>
+                            <div class="col-md-3">
+                                <input type="text" name="unit" class="form-control form-control-sm" placeholder="Satuan (unit)">
                             </div>
-                            <div class="col-4">
+                            <div class="col-md-2">
+                                <input type="number" step="0.001" min="0" name="tonnage" class="form-control form-control-sm" placeholder="Tonase">
+                            </div>
+                            <div class="col-md-3">
                                 <button type="submit" class="btn btn-primary btn-sm w-100">
                                     <i class="fas fa-plus me-1"></i> Tambah
                                 </button>
@@ -454,6 +465,8 @@
             'vendor_name' => $s->vendor_name,
             'vendor_type' => $s->vendor_type,
             'pic_name' => $s->pic_name,
+            'pic_position' => $s->pic_position,
+            'payment_term' => $s->payment_term,
             'phone' => $s->phone,
             'email' => $s->email,
             'service_type' => $s->service_type,
@@ -474,6 +487,7 @@
                 return [
                     'service_name'      => $service->service_name,
                     'unit'              => $service->unit,
+                    'tonnage'           => $service->tonnage,
                     'tariff'            => $service->tariff,
                     'tariff_unit'       => $service->tariff_unit,
                     'route_origin'      => $service->route_origin,
@@ -488,7 +502,7 @@
 @push('scripts')
 <script>
 const vendorEditData = @json($vendorEditData);
-const predefinedVendorServiceTypes = @json(\App\Models\Vendor::SERVICE_TYPES);
+const predefinedVendorServiceTypes = @json(\App\Models\Vendor::serviceTypeOptions());
 
 function toggleCustomServiceType(selectEl) {
     if (!selectEl) return;
@@ -529,6 +543,8 @@ function openEditVendor(id) {
     }
     toggleCustomServiceType(editServiceType);
     document.getElementById('esPic').value           = data.pic_name || '';
+    document.getElementById('esPicPosition').value    = data.pic_position || '';
+    document.getElementById('esPaymentTerm').value    = data.payment_term || '';
     document.getElementById('esPhone').value         = data.phone || '';
     document.getElementById('esEmail').value         = data.email || '';
     document.getElementById('esStatus').value        = data.status || 'Active';
@@ -595,10 +611,11 @@ let supProdIdx = 0;
 function addVendorServiceRow(containerId, data = {}) {
     const i = supProdIdx++;
     const html = `<div class="row g-2 mb-2 align-items-center" id="supProd_${i}">
-        <div class="col-5"><input type="text" name="services[${i}][service_name]" class="form-control form-control-sm" placeholder="Nama Layanan *" value="${escapeHtml(data.service_name)}" required></div>
-        <div class="col-3"><input type="text" name="services[${i}][unit]" class="form-control form-control-sm" placeholder="Basis layanan (per trip, per shipment, FCL/LCL...)" value="${escapeHtml(data.unit)}"></div>
-        <div class="col-3"><input type="text" name="services[${i}][description]" class="form-control form-control-sm" placeholder="Keterangan" value="${escapeHtml(data.description)}"></div>
-        <div class="col-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger p-1" onclick="document.getElementById('supProd_${i}').remove()"><i class="fas fa-times"></i></button></div>
+        <div class="col-md-4"><input type="text" name="services[${i}][service_name]" class="form-control form-control-sm" placeholder="Nama Layanan *" value="${escapeHtml(data.service_name)}" required></div>
+        <div class="col-md-2"><input type="text" name="services[${i}][unit]" class="form-control form-control-sm" placeholder="Satuan (unit)" value="${escapeHtml(data.unit)}"></div>
+        <div class="col-md-2"><input type="number" step="0.001" min="0" name="services[${i}][tonnage]" class="form-control form-control-sm" placeholder="Tonase" value="${data.tonnage ?? ''}"></div>
+        <div class="col-md-3"><input type="text" name="services[${i}][description]" class="form-control form-control-sm" placeholder="Keterangan" value="${escapeHtml(data.description)}"></div>
+        <div class="col-md-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger p-1" onclick="document.getElementById('supProd_${i}').remove()"><i class="fas fa-times"></i></button></div>
     </div>`;
     document.getElementById(containerId).insertAdjacentHTML('beforeend', html);
 }
@@ -621,13 +638,13 @@ function openServiceModal(vendorId, vendorName) {
             <div class="d-flex align-items-center justify-content-between mb-2 pb-2" style="border-bottom:1px solid #f3f4f6">
                 <div>
                     <div style="font-size:.82rem;font-weight:600">${p.service_name}</div>
-                    <div style="font-size:.72rem;color:#6b7280">${p.unit}${p.description ? ' · ' + p.description : ''}</div>
+                    <div style="font-size:.72rem;color:#6b7280">${p.unit || ''}${p.tonnage ? ' · ' + p.tonnage + ' ton' : ''}${p.description ? ' · ' + p.description : ''}</div>
                 </div>
-                <form method="POST" action="/vendors/${vendorId}/products/${p.id}" onsubmit="return confirm('Hapus layanan ${p.service_name}?')" style="display:inline">
+                ${window.IS_ADMIN ? `<form method="POST" action="/vendors/${vendorId}/services/${p.id}" onsubmit="return confirm('Hapus layanan ${p.service_name}?')" style="display:inline">
                     <input type="hidden" name="_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="_method" value="DELETE">
                     <button type="submit" style="color:#ef4444;background:none;border:none;cursor:pointer"><i class="fas fa-times"></i></button>
-                </form>
+                </form>` : ''}
             </div>
         `).join('');
     }

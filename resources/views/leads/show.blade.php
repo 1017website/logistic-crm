@@ -77,12 +77,12 @@
             <div class="card-body p-3">
                 {{-- PIC utama (dari lead) --}}
                 <div class="d-flex align-items-start gap-2 mb-3 pb-2" style="border-bottom:1px solid #f3f4f6">
-                    <div style="width:30px;height:30px;background:#dbeafe;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                        <i class="fas fa-user" style="color:#2563eb;font-size:.65rem"></i>
+                    <div style="width:30px;height:30px;background:#e5e5e5;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                        <i class="fas fa-user" style="color:#111111;font-size:.65rem"></i>
                     </div>
                     <div style="flex:1;min-width:0">
                         <div style="font-size:.8rem;font-weight:600">{{ $lead->pic_name }}
-                            <span style="font-size:.65rem;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:10px;margin-left:4px">Utama</span>
+                            <span style="font-size:.65rem;background:#e5e5e5;color:#000000;padding:1px 6px;border-radius:10px;margin-left:4px">Utama</span>
                         </div>
                         @if($lead->pic_position)<div style="font-size:.72rem;color:var(--text-muted)">{{ $lead->pic_position }}</div>@endif
                         @if($lead->phone)<div style="font-size:.72rem">{{ $lead->phone }}</div>@endif
@@ -101,10 +101,12 @@
                         @if($pic->phone)<div style="font-size:.72rem">{{ $pic->phone }}</div>@endif
                         @if($pic->email)<div style="font-size:.72rem;color:var(--primary)">{{ $pic->email }}</div>@endif
                     </div>
+                    @if(auth()->user()->isAdmin())
                     <form method="POST" action="{{ route('leads.pics.destroy', [$lead, $pic]) }}" onsubmit="return confirm('Hapus PIC {{ addslashes($pic->pic_name) }}?')">
                         @csrf @method('DELETE')
                         <button type="submit" class="btn btn-sm p-0" style="color:#ef4444;background:none;border:none"><i class="fas fa-times"></i></button>
                     </form>
+                    @endif
                 </div>
                 @empty
                 <div style="font-size:.78rem;color:var(--text-muted)">Belum ada PIC tambahan.</div>
@@ -125,14 +127,23 @@
                 <div class="d-flex align-items-center justify-content-between mb-2 pb-2" style="border-bottom:1px solid #f9fafb">
                     <div>
                         <div style="font-size:.82rem;font-weight:600">{{ $prod->display_name }}</div>
-                        @if($prod->unit)
-                        <div style="font-size:.72rem;color:var(--text-muted)">{{ $prod->unit }}</div>
+                        @php
+                            $metaParts = [];
+                            if ($prod->unit) $metaParts[] = e($prod->unit);
+                            if ($prod->tonnage) $metaParts[] = rtrim(rtrim(number_format($prod->tonnage, 3, ',', '.'), '0'), ',') . ' ton';
+                        @endphp
+                        @if(count($metaParts) || $prod->shipping_zone)
+                        <div style="font-size:.72rem;color:var(--text-muted)">
+                            {!! implode(' · ', $metaParts) !!}@if($prod->shipping_zone)@if(count($metaParts)) · @endif<i class="fas fa-map-marker-alt"></i> {{ $prod->shipping_zone }}@endif
+                        </div>
                         @endif
                     </div>
+                    @if(auth()->user()->isAdmin())
                     <form method="POST" action="{{ route('leads.products.destroy', [$lead, $prod]) }}" onsubmit="return confirm('Hapus layanan {{ addslashes($prod->display_name) }}?')">
                         @csrf @method('DELETE')
                         <button type="submit" class="btn btn-sm p-0" style="color:#ef4444;background:none;border:none"><i class="fas fa-times"></i></button>
                     </form>
+                    @endif
                 </div>
                 @empty
                 <div style="font-size:.78rem;color:var(--text-muted)">Belum ada layanan ditambahkan.</div>
@@ -155,10 +166,10 @@
                     @forelse($lead->activities->sortByDesc('activity_at') as $act)
                     <div class="activity-item">
                         <div class="activity-time" style="font-size:.7rem;color:var(--text-muted);min-width:45px">
-                            {{ $act->activity_at->format('d M') }}
+                            {{ $act->activity_at?->format('d M') ?? '-' }}
                         </div>
-                        <div class="activity-icon" style="background:{{ $act->type === 'Call' ? '#d1fae5' : ($act->type === 'Visit' ? '#dbeafe' : ($act->type === 'Email' ? '#fef3c7' : '#f3f4f6')) }}">
-                            <i class="fas fa-{{ $act->type_icon }}" style="color:{{ $act->type === 'Call' ? '#059669' : ($act->type === 'Visit' ? '#2563eb' : ($act->type === 'Email' ? '#d97706' : '#6b7280')) }};font-size:.75rem"></i>
+                        <div class="activity-icon" style="background:{{ $act->type === 'Call' ? '#d1fae5' : ($act->type === 'Visit' ? '#e5e5e5' : ($act->type === 'Email' ? '#fef3c7' : '#f3f4f6')) }}">
+                            <i class="fas fa-{{ $act->type_icon }}" style="color:{{ $act->type === 'Call' ? '#059669' : ($act->type === 'Visit' ? '#111111' : ($act->type === 'Email' ? '#d97706' : '#6b7280')) }};font-size:.75rem"></i>
                         </div>
                         <div class="activity-body">
                             <div class="d-flex justify-content-between">
@@ -166,7 +177,7 @@
                                     <span class="activity-subject">{{ $act->subject ?: $act->type }}</span>
                                     <span class="ms-2 badge-{{ strtolower($act->status) }}" style="font-size:.65rem">{{ $act->status }}</span>
                                     @if($act->pipeline_stage)
-                                        <span class="ms-1" style="font-size:.62rem;padding:1px 6px;border-radius:12px;background:#dbeafe;color:#1d4ed8;font-weight:600">{{ $act->pipeline_stage === 'Won' ? 'Won/Closing' : $act->pipeline_stage }}</span>
+                                        <span class="ms-1" style="font-size:.62rem;padding:1px 6px;border-radius:12px;background:#e5e5e5;color:#000000;font-weight:600">{{ $act->pipeline_stage === 'Won' ? 'Won/Closing' : $act->pipeline_stage }}</span>
                                     @endif
                                 </div>
                             </div>
@@ -175,7 +186,7 @@
                             @endif
                             <div class="activity-meta">
                                 <span><i class="fas fa-user me-1"></i>{{ $act->salesUser?->name ?? '-' }}</span>
-                                <span class="ms-2"><i class="fas fa-clock me-1"></i>{{ $act->activity_at->format('H:i') }}</span>
+                                <span class="ms-2"><i class="fas fa-clock me-1"></i>{{ $act->activity_at?->format('H:i') ?? '-' }}</span>
                             </div>
                         </div>
                     </div>
@@ -227,8 +238,8 @@
             <div class="card-body p-3">
                 @if($lead->next_follow_up)
                 <div class="d-flex align-items-center gap-2 mb-2">
-                    <div style="width:32px;height:32px;background:#dbeafe;border-radius:7px;display:flex;align-items:center;justify-content:center">
-                        <i class="fas fa-calendar" style="color:#2563eb;font-size:.75rem"></i>
+                    <div style="width:32px;height:32px;background:#e5e5e5;border-radius:7px;display:flex;align-items:center;justify-content:center">
+                        <i class="fas fa-calendar" style="color:#111111;font-size:.75rem"></i>
                     </div>
                     <div>
                         <div style="font-weight:700;font-size:.85rem">{{ $lead->next_follow_up->format('d M Y') }}</div>
@@ -270,6 +281,7 @@
         </div>
 
         {{-- Hapus Lead --}}
+        @if(auth()->user()->isAdmin())
         <div class="card">
             <div class="card-body p-3">
                 <form method="POST" action="{{ route('leads.destroy', $lead) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus lead {{ addslashes($lead->company_name) }}? Tindakan ini tidak dapat dibatalkan.')">
@@ -280,6 +292,7 @@
                 </form>
             </div>
         </div>
+        @endif
     </div>
 </div>
 
@@ -475,11 +488,19 @@
                     <div class="row g-3">
                         <div class="col-12">
                             <label class="form-label">Nama Layanan <span class="text-danger">*</span></label>
-                            <input type="text" name="service_name" list="vendorServiceOptions" class="form-control" required placeholder="Contoh: Solvent IPA">
+                            <input type="text" name="service_name" list="vendorServiceOptions" class="form-control" required placeholder="Contoh: Trucking trailer">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Satuan (unit)</label>
+                            <input type="text" name="unit" class="form-control" placeholder="Contoh: trip, container, kg">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Tonase</label>
+                            <input type="number" step="0.001" min="0" name="tonnage" class="form-control" placeholder="0">
                         </div>
                         <div class="col-12">
-                            <label class="form-label">Rute / Area / Catatan Layanan</label>
-                            <input type="text" name="unit" class="form-control" placeholder="Contoh: Surabaya - Jakarta, FCL 20ft, door to door">
+                            <label class="form-label">Zona Pengiriman</label>
+                            <input type="text" name="shipping_zone" class="form-control" placeholder="Contoh: Jawa Timur, Jabodetabek, Sumatera">
                         </div>
                     </div>
                 </div>

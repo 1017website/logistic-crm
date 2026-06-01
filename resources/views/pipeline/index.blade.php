@@ -10,7 +10,7 @@
 <div class="row g-3 mb-4">
     <div class="col">
         <div class="kpi-card">
-            <div class="kpi-icon" style="background:#dbeafe"><i class="fas fa-chart-bar" style="color:#2563eb"></i></div>
+            <div class="kpi-icon" style="background:#e5e5e5"><i class="fas fa-chart-bar" style="color:#111111"></i></div>
             <div>
                 <div class="kpi-label">Total Pipeline Value</div>
                 <div class="kpi-value" style="font-size:1.1rem">{{ idrm($totalValue) }}</div>
@@ -154,7 +154,7 @@
                 <canvas id="pipelinePie" height="150"></canvas>
                 <div class="mt-3">
                     @foreach($pipeline as $sn => $leads)
-                    @php $colors = ['Identifying'=>'#3b82f6','Approaching'=>'#10b981','Follow Up'=>'#f59e0b','Won'=>'#8b5cf6','Maintaining'=>'#6366f1']; @endphp
+                    @php $colors = ['Identifying'=>'#111111','Approaching'=>'#10b981','Follow Up'=>'#f59e0b','Won'=>'#8b5cf6','Maintaining'=>'#6366f1']; @endphp
                     <div class="d-flex align-items-center justify-content-between py-1" style="border-bottom:1px solid #f9fafb">
                         <div class="d-flex align-items-center gap-2">
                             <div style="width:8px;height:8px;border-radius:2px;background:{{ $colors[$sn] ?? '#999' }}"></div>
@@ -230,7 +230,7 @@ $trendData[] = (float)(\App\Models\Lead::whereYear('created_at', $month->year)
             labels: @json($chartLabels),
             datasets: [{
                 data: @json($chartValues),
-                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+                backgroundColor: ['#111111', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
                 borderWidth: 0,
                 hoverOffset: 4
             }]
@@ -258,13 +258,13 @@ $trendData[] = (float)(\App\Models\Lead::whereYear('created_at', $month->year)
             datasets: [{
                 label: 'Expected Revenue (Jt)',
                 data: @json($trendData),
-                borderColor: '#2563eb',
-                backgroundColor: 'rgba(37,99,235,.1)',
+                borderColor: '#111111',
+                backgroundColor: 'rgba(17,17,17,.08)',
                 fill: true,
                 tension: .4,
                 borderWidth: 2,
                 pointRadius: 4,
-                pointBackgroundColor: '#2563eb',
+                pointBackgroundColor: '#111111',
             }]
         },
         options: {
@@ -313,7 +313,7 @@ $trendData[] = (float)(\App\Models\Lead::whereYear('created_at', $month->year)
     document.querySelectorAll('.kanban-drop-zone').forEach(zone => {
         zone.addEventListener('dragover', e => {
             e.preventDefault();
-            zone.style.background = '#eff6ff';
+            zone.style.background = '#f2f2f2';
             e.dataTransfer.dropEffect = 'move';
         });
         zone.addEventListener('dragleave', () => zone.style.background = '');

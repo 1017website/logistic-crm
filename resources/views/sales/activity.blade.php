@@ -86,8 +86,8 @@
                             {{ $act->activity_at->format('H:i') }}<br>
                             <span style="font-size:.65rem;color:var(--text-muted);font-weight:400">{{ $act->activity_at->format('d M Y') }}</span>
                         </div>
-                        <div class="activity-icon" style="background:{{ $act->type === 'Call' ? '#d1fae5' : ($act->type === 'Visit' ? '#dbeafe' : ($act->type === 'Email' ? '#fef3c7' : '#f3f4f6')) }}">
-                            <i class="fas fa-{{ $act->type_icon }}" style="color:{{ $act->type === 'Call' ? '#059669' : ($act->type === 'Visit' ? '#2563eb' : ($act->type === 'Email' ? '#d97706' : '#6b7280')) }};font-size:.8rem"></i>
+                        <div class="activity-icon" style="background:{{ $act->type === 'Call' ? '#d1fae5' : ($act->type === 'Visit' ? '#e5e5e5' : ($act->type === 'Email' ? '#fef3c7' : '#f3f4f6')) }}">
+                            <i class="fas fa-{{ $act->type_icon }}" style="color:{{ $act->type === 'Call' ? '#059669' : ($act->type === 'Visit' ? '#111111' : ($act->type === 'Email' ? '#d97706' : '#6b7280')) }};font-size:.8rem"></i>
                         </div>
                         <div class="flex-1">
                             <div class="d-flex align-items-center justify-content-between">
@@ -101,11 +101,11 @@
                             {{-- Client info --}}
                             @php $client = $act->lead?->company_name ?? $act->customer?->company_name ?? null; @endphp
                             @if($client)
-                            <div class="mt-1" style="font-size:.75rem;color:#2563eb;font-weight:600">
+                            <div class="mt-1" style="font-size:.75rem;color:#111111;font-weight:600">
                                 <i class="fas fa-building me-1" style="font-size:.65rem"></i>{{ $client }}
                                 @php $actStage = $act->pipeline_stage ?? $act->lead?->pipeline_stage; @endphp
                                 @if($actStage)
-                                <span style="background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:10px;font-size:.65rem;margin-left:4px">
+                                <span style="background:#e5e5e5;color:#000000;padding:1px 6px;border-radius:10px;font-size:.65rem;margin-left:4px">
                                     {{ $actStage === 'Won' ? 'Won/Closing' : $actStage }}
                                 </span>
                                 @endif
@@ -121,7 +121,7 @@
                             <div class="mt-2">
                                 <a href="{{ asset('storage/' . $act->photo) }}" target="_blank">
                                     <img src="{{ asset('storage/' . $act->photo) }}" alt="Foto Kunjungan"
-                                        style="max-height:140px;max-width:100%;border-radius:8px;border:1px solid #e5e7eb;cursor:zoom-in">
+                                        style="height:90px;width:120px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;cursor:zoom-in">
                                 </a>
                                 <div style="font-size:.68rem;color:var(--text-muted);margin-top:3px">
                                     <i class="fas fa-image me-1"></i>Foto kunjungan · <a href="{{ asset('storage/' . $act->photo) }}" target="_blank" style="color:var(--primary)">Lihat penuh</a>
@@ -177,7 +177,7 @@
                 @endif
 
                 @if($todayReminders->count())
-                <div style="font-size:.72rem;font-weight:700;color:#2563eb;margin:8px 0 6px">TODAY ({{ $todayReminders->count() }})</div>
+                <div style="font-size:.72rem;font-weight:700;color:#111111;margin:8px 0 6px">TODAY ({{ $todayReminders->count() }})</div>
                 @foreach($todayReminders->take(4) as $act)
                 <div class="reminder-item">
                     <div class="reminder-time">{{ $act->activity_at->format('H:i') }}</div>
@@ -215,7 +215,7 @@
             <div class="card-body p-3">
                 @php
                 $pipeColors = [
-                    'Identifying' => '#2563eb',
+                    'Identifying' => '#111111',
                     'Approaching' => '#d97706',
                     'Follow Up'   => '#7c3aed',
                     'Won/Closing' => '#059669',

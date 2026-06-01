@@ -21,8 +21,7 @@ class LeadsController extends Controller
         $stage  = $request->get('stage');
         $search = $request->get('search');
 
-        $query = Lead::with(['salesUser', 'activities'])
-            ->whereNotIn('pipeline_stage', ['Won']);
+        $query = Lead::with(['salesUser', 'activities']);
 
         if (auth()->user()->isSalesExecutive()) {
             $query->where('user_id', auth()->id());
@@ -77,6 +76,8 @@ class LeadsController extends Controller
             'products.*.service_name' => 'required_with:products|string|max:255',
             'products.*.qty'          => 'nullable|numeric|min:0',
             'products.*.unit'         => 'nullable|string|max:50',
+            'products.*.tonnage'      => 'nullable|numeric|min:0',
+            'products.*.shipping_zone' => 'nullable|string|max:255',
         ]);
 
         $validated['lead_code']      = Lead::generateLeadCode();
@@ -110,6 +111,8 @@ class LeadsController extends Controller
                 'product_name' => $prod['service_name'],
                 'qty'          => $prod['qty'] ?? 0,
                 'unit'         => trim($prod['unit'] ?? ''),
+                'tonnage'      => $prod['tonnage'] ?? null,
+                'shipping_zone' => $prod['shipping_zone'] ?? null,
             ]);
         }
 
@@ -328,12 +331,16 @@ class LeadsController extends Controller
             'service_name' => 'required|string|max:255',
             'qty'          => 'nullable|numeric|min:0',
             'unit'         => 'nullable|string|max:100',
+            'tonnage'      => 'nullable|numeric|min:0',
+            'shipping_zone' => 'nullable|string|max:255',
         ]);
         $lead->products()->create([
             'service_name' => $request->service_name,
             'product_name' => $request->service_name,
             'qty'          => $request->qty ?? 0,
             'unit'         => trim($request->unit ?? ''),
+            'tonnage'      => $request->tonnage,
+            'shipping_zone' => $request->shipping_zone,
         ]);
         return redirect()->back()->with('success', 'Layanan ditambahkan.');
     }

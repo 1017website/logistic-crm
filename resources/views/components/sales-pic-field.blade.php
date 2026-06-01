@@ -19,7 +19,7 @@
     <input type="hidden" name="{{ $fieldName }}" value="{{ $currentUser->id }}">
     <label class="form-label">Sales PIC</label>
     <div class="form-control" style="background:#f9fafb;color:#374151;cursor:not-allowed;display:flex;align-items:center;gap:8px">
-        <div style="width:22px;height:22px;border-radius:50%;background:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0">
+        <div style="width:22px;height:22px;border-radius:50%;background:#111111;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0">
             {{ $currentUser->avatar_initials }}
         </div>
         <span style="font-size:13px;font-weight:500">{{ $currentUser->name }}</span>

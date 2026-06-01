@@ -78,6 +78,7 @@
         {{-- Table --}}
         <div class="card">
             <div class="card-body p-0">
+                <div class="table-responsive">
                 <table class="table crm-table mb-0">
                     <thead>
                         <tr>
@@ -95,7 +96,7 @@
                                     <div>
                                         <a href="{{ route('customers.index', array_merge(request()->query(), ['selected_id'=>$cust->id])) }}"
                                             style="font-weight:600;color:#111;text-decoration:none;font-size:.82rem">{{ $cust->company_name }}</a>
-                                        <div style="font-size:.7rem;color:var(--text-muted)">{{ $cust->pic_name }}</div>
+                                        <div style="font-size:.7rem;color:var(--text-muted)">@if($cust->customer_code)<span style="font-family:monospace">{{ $cust->customer_code }}</span> · @endif{{ $cust->pic_name }}</div>
                                     </div>
                                 </div>
                             </td>
@@ -110,8 +111,8 @@
                                 @if($cust->productItems && $cust->productItems->count())
                                     <div style="display:flex;flex-wrap:wrap;gap:3px">
                                         @foreach($cust->productItems as $p)
-                                            <span style="background:#eff6ff;color:#2563eb;padding:1px 6px;border-radius:10px;font-size:.65rem;white-space:nowrap">
-                                                {{ $p->display_name }}{{ $p->unit ? ' — '.$p->unit : '' }}
+                                            <span style="background:#f2f2f2;color:#111111;padding:1px 6px;border-radius:10px;font-size:.65rem;white-space:nowrap">
+                                                {{ $p->display_name }}{{ $p->unit ? ' — '.$p->unit : '' }}{{ $p->tonnage ? ' ('.rtrim(rtrim(number_format($p->tonnage,3,',','.'),'0'),',').' ton)' : '' }}
                                             </span>
                                         @endforeach
                                     </div>
@@ -135,6 +136,7 @@
                                         onclick="openEditModal({{ $cust->id }})">
                                         <i class="fas fa-edit" style="font-size:.7rem"></i>
                                     </button>
+                                    @if(auth()->user()->isAdmin())
                                     <form method="POST" action="{{ route('customers.destroy', $cust) }}" class="d-inline"
                                         onsubmit="return confirm('Apakah Anda yakin ingin menghapus customer {{ addslashes($cust->company_name) }}? Tindakan ini tidak dapat dibatalkan.')">
                                         @csrf @method('DELETE')
@@ -142,6 +144,7 @@
                                             <i class="fas fa-trash" style="font-size:.7rem"></i>
                                         </button>
                                     </form>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -153,6 +156,7 @@
                         @endforelse
                     </tbody>
                 </table>
+                </div>
             </div>
             @if($customers->hasPages())
             <div class="card-footer p-3 d-flex justify-content-between align-items-center">
@@ -223,7 +227,7 @@
 
                     <div class="row g-2 mt-3 mb-3 text-center">
                         <div class="col-6">
-                            <div style="background:#eff6ff;border-radius:8px;padding:10px">
+                            <div style="background:#f2f2f2;border-radius:8px;padding:10px">
                                 <div style="font-size:1rem;font-weight:800;color:var(--primary)">{{ $selectedCustomer->total_revenue > 0 ? idrm($selectedCustomer->total_revenue) : 'Rp 0' }}</div>
                                 <div style="font-size:.65rem;color:var(--text-muted)">Total Revenue</div>
                             </div>
@@ -236,7 +240,7 @@
                         </div>
                     </div>
                     <div class="row g-1 mb-3">
-                        @foreach([['phone','Log Call','#d1fae5','#059669',"quickActCust('Call')"],['building','Visit','#dbeafe','#2563eb',"quickActCust('Visit')"],['envelope','Email','#fef3c7','#d97706',"quickActCust('Email')"],['sticky-note','Note','#f3e8ff','#7c3aed',"quickActCust('Note')"]] as $qa)
+                        @foreach([['phone','Log Call','#d1fae5','#059669',"quickActCust('Call')"],['building','Visit','#e5e5e5','#111111',"quickActCust('Visit')"],['envelope','Email','#fef3c7','#d97706',"quickActCust('Email')"],['sticky-note','Note','#f3e8ff','#7c3aed',"quickActCust('Note')"]] as $qa)
                         <div class="col-3">
                             <div class="quick-action-btn" onclick="{{ $qa[4] }}" style="padding:8px 4px;cursor:pointer">
                                 <div class="qa-icon" style="width:28px;height:28px;background:{{ $qa[2] }}"><i class="fas fa-{{ $qa[0] }}" style="color:{{ $qa[3] }};font-size:.7rem"></i></div>
@@ -250,11 +254,13 @@
                             onclick="openEditModal({{ $selectedCustomer->id }})">
                             <i class="fas fa-edit me-1"></i> Edit
                         </button>
+                        @if(auth()->user()->isAdmin())
                         <form method="POST" action="{{ route('customers.destroy', $selectedCustomer) }}" class="flex-fill"
                             onsubmit="return confirm('Apakah Anda yakin ingin menghapus {{ addslashes($selectedCustomer->company_name) }}? Tindakan ini tidak dapat dibatalkan.')">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-danger w-100" style="font-size:.75rem"><i class="fas fa-trash me-1"></i> Hapus</button>
                         </form>
+                        @endif
                     </div>
 
                     {{-- Transfer Sales (Admin only) --}}
@@ -286,12 +292,12 @@
                     </div>
                     {{-- PIC Utama --}}
                     <div class="d-flex align-items-start gap-2 mb-3 pb-2" style="border-bottom:1px solid #f3f4f6">
-                        <div style="width:32px;height:32px;background:#dbeafe;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                            <i class="fas fa-user" style="color:#2563eb;font-size:.65rem"></i>
+                        <div style="width:32px;height:32px;background:#e5e5e5;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                            <i class="fas fa-user" style="color:#111111;font-size:.65rem"></i>
                         </div>
                         <div style="flex:1">
                             <div style="font-size:.8rem;font-weight:600">{{ $selectedCustomer->pic_name }}
-                                <span style="font-size:.65rem;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:10px;margin-left:4px">Utama</span>
+                                <span style="font-size:.65rem;background:#e5e5e5;color:#000000;padding:1px 6px;border-radius:10px;margin-left:4px">Utama</span>
                             </div>
                             @if($selectedCustomer->pic_position)<div style="font-size:.72rem;color:var(--text-muted)">{{ $selectedCustomer->pic_position }}</div>@endif
                             @if($selectedCustomer->phone)<div style="font-size:.72rem">{{ $selectedCustomer->phone }}</div>@endif
@@ -310,11 +316,13 @@
                             @if($pic->phone)<div style="font-size:.72rem">{{ $pic->phone }}</div>@endif
                             @if($pic->email)<div style="font-size:.72rem;color:var(--primary)">{{ $pic->email }}</div>@endif
                         </div>
+                        @if(auth()->user()->isAdmin())
                         <form method="POST" action="{{ route('customers.pics.destroy', [$selectedCustomer, $pic]) }}"
                             onsubmit="return confirm('Hapus PIC {{ addslashes($pic->pic_name) }}?')">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-sm p-0" style="color:#ef4444;background:none;border:none"><i class="fas fa-times"></i></button>
                         </form>
+                        @endif
                     </div>
                     @empty
                     <div class="text-center py-3" style="color:var(--text-muted);font-size:.8rem">Belum ada PIC tambahan.</div>
@@ -331,8 +339,8 @@
                     </div>
                     @forelse($selectedCustomer->activities->sortByDesc('activity_at') as $act)
                     <div class="d-flex gap-2 mb-3">
-                        <div class="activity-icon" style="width:28px;height:28px;flex-shrink:0;background:{{ $act->type==='Call'?'#d1fae5':($act->type==='Visit'?'#dbeafe':'#fef3c7') }}">
-                            <i class="fas fa-{{ $act->type_icon }}" style="font-size:.65rem;color:{{ $act->type==='Call'?'#059669':($act->type==='Visit'?'#2563eb':'#d97706') }}"></i>
+                        <div class="activity-icon" style="width:28px;height:28px;flex-shrink:0;background:{{ $act->type==='Call'?'#d1fae5':($act->type==='Visit'?'#e5e5e5':'#fef3c7') }}">
+                            <i class="fas fa-{{ $act->type_icon }}" style="font-size:.65rem;color:{{ $act->type==='Call'?'#059669':($act->type==='Visit'?'#111111':'#d97706') }}"></i>
                         </div>
                         <div style="flex:1;min-width:0">
                             <div style="font-size:.75rem;font-weight:600">{{ $act->subject ?: $act->type }}</div>
@@ -342,7 +350,7 @@
                         <div class="d-flex flex-column gap-1 align-items-end" style="flex-shrink:0">
                             <span class="badge-{{ strtolower($act->status) }}" style="font-size:.62rem">{{ $act->status }}</span>
                             @if($act->pipeline_stage)
-                                <span style="font-size:.6rem;padding:1px 6px;border-radius:12px;background:#dbeafe;color:#1d4ed8;font-weight:600">{{ $act->pipeline_stage === 'Won' ? 'Won/Closing' : $act->pipeline_stage }}</span>
+                                <span style="font-size:.6rem;padding:1px 6px;border-radius:12px;background:#e5e5e5;color:#000000;font-weight:600">{{ $act->pipeline_stage === 'Won' ? 'Won/Closing' : $act->pipeline_stage }}</span>
                             @endif
                         </div>
                     </div>
@@ -356,8 +364,8 @@
                     <strong style="font-size:.8rem;display:block;margin-bottom:10px">Purchase Orders</strong>
                     @forelse($selectedCustomer->deliveryOrders->sortByDesc('order_date') as $do)
                     <div class="d-flex align-items-start gap-2 mb-3 pb-2" style="border-bottom:1px solid #f9fafb">
-                        <div style="width:32px;height:32px;border-radius:8px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                            <i class="fas fa-ship" style="font-size:.7rem;color:#2563eb"></i>
+                        <div style="width:32px;height:32px;border-radius:8px;background:#f2f2f2;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                            <i class="fas fa-ship" style="font-size:.7rem;color:#111111"></i>
                         </div>
                         <div style="flex:1;min-width:0">
                             <div style="font-size:.78rem;font-weight:600">{{ $do->do_number }}</div>
@@ -446,6 +454,8 @@
                 <div class="col-md-6"><label class="form-label">Phone</label><input type="text" name="phone" id="editPhone" class="form-control"></div>
                 <div class="col-md-6"><label class="form-label">Email</label><input type="email" name="email" id="editEmail" class="form-control"></div>
                 <div class="col-md-6"><label class="form-label">Location</label><input type="text" name="location" id="editLocation" class="form-control"></div>
+                <div class="col-md-6"><label class="form-label">Customer Since</label><input type="date" name="customer_since" id="editCustomerSince" class="form-control"></div>
+                <div class="col-12"><label class="form-label">Alamat</label><textarea name="address" id="editAddress" class="form-control" rows="2"></textarea></div>
                 <div class="col-md-6"><label class="form-label">Status</label>
                     <input type="text" id="editStatusDisplay" class="form-control" value="" disabled>
                     <div class="form-text" style="font-size:.68rem">Status hanya berubah ke Existing via Sales Activity (stage Won/Closing).</div></div>
@@ -532,6 +542,7 @@
                 'industry' => $c->industry,
                 'location' => $c->location,
                 'address' => $c->address,
+                'customer_since' => $c->customer_since?->format('Y-m-d'),
                 'status' => $c->status,
                 'user_id' => (string) $c->user_id,
                 'notes' => $c->notes,
@@ -541,6 +552,8 @@
                         return [
                             'service_name' => $p->display_name,
                             'unit' => $p->unit,
+                            'tonnage' => $p->tonnage,
+                            'shipping_zone' => $p->shipping_zone,
                         ];
                     })->values()
                     : [],
@@ -614,9 +627,11 @@ let custProdIdx = 0;
 function addCustProductRow(containerId, data = {}) {
     const i = custProdIdx++;
     const html = `<div class="row g-2 mb-2 align-items-center" id="custProd_${i}">
-        <div class="col-5"><input type="text" name="products_list[${i}][service_name]" list="vendorServiceOptions" class="form-control form-control-sm" placeholder="Nama Layanan *" value="${escapeHtml(safeValue(data.service_name))}" required></div>
-        <div class="col-6"><input type="text" name="products_list[${i}][unit]" class="form-control form-control-sm" placeholder="Rute / area / catatan layanan" value="${escapeHtml(safeValue(data.unit))}"></div>
-        <div class="col-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger p-1" onclick="document.getElementById('custProd_${i}').remove()"><i class="fas fa-times"></i></button></div>
+        <div class="col-md-4"><input type="text" name="products_list[${i}][service_name]" list="vendorServiceOptions" class="form-control form-control-sm" placeholder="Nama Layanan *" value="${escapeHtml(safeValue(data.service_name))}" required></div>
+        <div class="col-md-2"><input type="text" name="products_list[${i}][unit]" class="form-control form-control-sm" placeholder="Satuan (unit)" value="${escapeHtml(safeValue(data.unit))}"></div>
+        <div class="col-md-2"><input type="number" step="0.001" min="0" name="products_list[${i}][tonnage]" class="form-control form-control-sm" placeholder="Tonase" value="${data.tonnage ?? ''}"></div>
+        <div class="col-md-3"><input type="text" name="products_list[${i}][shipping_zone]" class="form-control form-control-sm" placeholder="Zona Pengiriman" value="${escapeHtml(safeValue(data.shipping_zone))}"></div>
+        <div class="col-md-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger p-1" onclick="document.getElementById('custProd_${i}').remove()"><i class="fas fa-times"></i></button></div>
     </div>`;
     document.getElementById(containerId).insertAdjacentHTML('beforeend', html);
 }
@@ -659,6 +674,8 @@ function openEditModal(id) {
     document.getElementById('editEmail').value = safeValue(data.email);
     document.getElementById('editIndustry').value = safeValue(data.industry);
     document.getElementById('editLocation').value = safeValue(data.location);
+    if (document.getElementById('editAddress')) document.getElementById('editAddress').value = safeValue(data.address);
+    if (document.getElementById('editCustomerSince')) document.getElementById('editCustomerSince').value = safeValue(data.customer_since);
     document.getElementById('editNotes').value = safeValue(data.notes);
     document.getElementById('editStatusDisplay').value = safeValue(data.status);
 

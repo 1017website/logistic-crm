@@ -8,7 +8,7 @@
 {{-- KPI --}}
 <div class="row g-3 mb-4">
     @foreach([
-        ['bg'=>'#eff6ff','icon'=>'fas fa-users','color'=>'#3b82f6','label'=>'Total Users','value'=>$totalUsers],
+        ['bg'=>'#f2f2f2','icon'=>'fas fa-users','color'=>'#111111','label'=>'Total Users','value'=>$totalUsers],
         ['bg'=>'#f0fdf4','icon'=>'fas fa-user-check','color'=>'#10b981','label'=>'Active','value'=>$activeUsers],
         ['bg'=>'#faf5ff','icon'=>'fas fa-user-tie','color'=>'#7c3aed','label'=>'Sales Executive','value'=>$totalSales],
         ['bg'=>'#fff7ed','icon'=>'fas fa-crown','color'=>'#f97316','label'=>'Sales Manager','value'=>$totalManager],
@@ -20,7 +20,7 @@
             </div>
             <div>
                 <div style="font-size:12px;color:#6b7280">{{ $k['label'] }}</div>
-                <div style="font-size:22px;font-weight:700;color:#0f1d35">{{ $k['value'] }}</div>
+                <div style="font-size:22px;font-weight:700;color:#111827">{{ $k['value'] }}</div>
             </div>
         </div>
     </div>
@@ -58,6 +58,7 @@
         <table class="table mb-0" style="font-size:13px">
             <thead>
                 <tr style="background:#f9fafb">
+                    <th style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;padding:10px 14px;border-bottom:2px solid #f0f0f0;width:50px">No.</th>
                     <th style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;padding:10px 14px;border-bottom:2px solid #f0f0f0">User</th>
                     <th style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;padding:10px 14px;border-bottom:2px solid #f0f0f0">Role</th>
                     <th style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;padding:10px 14px;border-bottom:2px solid #f0f0f0">Contact</th>
@@ -69,7 +70,7 @@
                 </tr>
             </thead>
             <tbody>
-                @php $avatarColors = ['#3b82f6','#10b981','#f59e0b','#f97316','#8b5cf6','#ec4899']; @endphp
+                @php $avatarColors = ['#111111','#10b981','#f59e0b','#f97316','#8b5cf6','#ec4899']; @endphp
                 @forelse($users as $user)
                 @php
                 $color    = $avatarColors[$loop->index % count($avatarColors)];
@@ -78,14 +79,15 @@
                 $achieved = $revenues[$user->id] ?? 0;
                 $pct      = $target > 0 ? min(100, round(($achieved / $target) * 100)) : 0;
                 $barColor = $pct >= 80 ? '#10b981' : ($pct >= 50 ? '#f59e0b' : '#ef4444');
-                $roleClass = str_contains($user->role ?? '', 'Manager') ? 'background:#faf5ff;color:#7c3aed' : (str_contains($user->role ?? '', 'Admin') ? 'background:#fff7ed;color:#c2410c' : 'background:#eff6ff;color:#2563eb');
+                $roleClass = str_contains($user->role ?? '', 'Manager') ? 'background:#faf5ff;color:#7c3aed' : (str_contains($user->role ?? '', 'Admin') ? 'background:#fff7ed;color:#c2410c' : 'background:#f2f2f2;color:#111111');
                 @endphp
                 <tr style="border-bottom:1px solid #f9fafb">
+                    <td style="padding:12px 14px;color:#9ca3af;font-size:.75rem">{{ $users->firstItem() + $loop->index }}</td>
                     <td style="padding:12px 14px">
                         <div class="d-flex align-items-center gap-3">
                             <div style="width:36px;height:36px;border-radius:50%;background:{{ $color }};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">{{ $initials }}</div>
                             <div>
-                                <div style="font-weight:600;color:#0f1d35">{{ $user->name }}</div>
+                                <div style="font-weight:600;color:#111827">{{ $user->name }}</div>
                                 <div style="font-size:11px;color:#9ca3af">{{ $user->email ?? 'No email' }}</div>
                             </div>
                         </div>
@@ -133,7 +135,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="8" class="text-center py-4" style="color:#9ca3af">
+                    <td colspan="9" class="text-center py-4" style="color:#9ca3af">
                         <i class="fas fa-users" style="font-size:2rem;display:block;margin-bottom:8px;opacity:.2"></i>
                         Tidak ada user ditemukan
                     </td>

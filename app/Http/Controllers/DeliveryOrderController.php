@@ -97,7 +97,8 @@ class DeliveryOrderController extends Controller
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.service_name' => 'required|string|max:255',
-            'items.*.unit' => 'required|string|max:50',
+            'items.*.unit' => 'nullable|string|max:50',
+            'items.*.tonnage' => 'nullable|numeric|min:0',
             'items.*.qty' => 'required|numeric|min:0.001',
             'items.*.buy_price' => 'required|numeric|min:0',
             'items.*.sell_price' => 'required|numeric|min:0',
@@ -137,12 +138,26 @@ class DeliveryOrderController extends Controller
             foreach ($request->items as $item) {
                 $so->items()->create([
                     'service_name' => $item['service_name'],
-                    'unit' => $item['unit'],
+                    'unit' => $item['unit'] ?? null,
+                    'tonnage' => $item['tonnage'] ?? null,
                     'qty' => $item['qty'],
                     'buy_price' => $item['buy_price'],
                     'sell_price' => $item['sell_price'],
                     'description' => $item['description'] ?? null,
                 ]);
+            }
+
+            // Lead yang sudah Won/Closing → pindah ke Maintaining setelah DO dibuat.
+            if ($request->lead_id) {
+                $lead = Lead::find($request->lead_id);
+                if ($lead && in_array($lead->pipeline_stage, ['Won', 'Closing'])) {
+                    $lead->update(['pipeline_stage' => 'Maintaining']);
+                }
+            } else {
+                // DO tanpa lead langsung: pindahkan lead Won/Closing milik customer ini ke Maintaining.
+                Lead::where('customer_id', $request->customer_id)
+                    ->whereIn('pipeline_stage', ['Won', 'Closing'])
+                    ->update(['pipeline_stage' => 'Maintaining']);
             }
         });
 
@@ -176,7 +191,8 @@ class DeliveryOrderController extends Controller
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.service_name' => 'required|string|max:255',
-            'items.*.unit' => 'required|string|max:50',
+            'items.*.unit' => 'nullable|string|max:50',
+            'items.*.tonnage' => 'nullable|numeric|min:0',
             'items.*.qty' => 'required|numeric|min:0.001',
             'items.*.buy_price' => 'required|numeric|min:0',
             'items.*.sell_price' => 'required|numeric|min:0',
@@ -210,7 +226,8 @@ class DeliveryOrderController extends Controller
             foreach ($request->items as $item) {
                 $deliveryOrder->items()->create([
                     'service_name' => $item['service_name'],
-                    'unit' => $item['unit'],
+                    'unit' => $item['unit'] ?? null,
+                    'tonnage' => $item['tonnage'] ?? null,
                     'qty' => $item['qty'],
                     'buy_price' => $item['buy_price'],
                     'sell_price' => $item['sell_price'],
@@ -238,7 +255,7 @@ class DeliveryOrderController extends Controller
             ->whereBetween('order_date', [$startDate, $endDate])
             ->orderByDesc('order_date')->get();
 
-        $headers = ['DO Number', 'Customer', 'Vendor', 'Delivery Type', 'Origin', 'Destination', 'Tracking', 'Service', 'Unit', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA'];
+        $headers = ['DO Number', 'Customer', 'Vendor', 'Delivery Type', 'Origin', 'Destination', 'Tracking', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA'];
 
         $rows = [];
         foreach ($sos as $so) {
@@ -253,6 +270,7 @@ class DeliveryOrderController extends Controller
                     $so->tracking_number,
                     $item->service_name,
                     $item->unit,
+                    $item->tonnage !== null ? (float) $item->tonnage : null,
                     (float) $item->qty,
                     (float) $item->buy_price,
                     (float) $item->sell_price,

@@ -10,7 +10,7 @@ class CustomerProduct extends Model
 {
     // customer_products di database lama belum punya qty, dan beberapa database belum punya service_name.
     // Maka kebutuhan layanan disimpan minimal di product_name + unit agar aman di semua database existing.
-    protected $fillable = ['customer_id', 'service_name', 'product_name', 'unit', 'description'];
+    protected $fillable = ['customer_id', 'service_name', 'product_name', 'unit', 'tonnage', 'shipping_zone', 'description'];
     protected $appends = ['display_name'];
 
     public function customer(): BelongsTo

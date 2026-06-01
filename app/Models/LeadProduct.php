@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Schema;
 
 class LeadProduct extends Model
 {
-    protected $fillable = ['lead_id', 'service_name', 'product_name', 'qty', 'unit'];
+    protected $fillable = ['lead_id', 'service_name', 'product_name', 'qty', 'unit', 'tonnage', 'shipping_zone'];
     protected $appends = ['display_name'];
 
     public function lead(): BelongsTo

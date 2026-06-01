@@ -7,10 +7,10 @@
 <style>
 .kpi-card { background:#fff;border-radius:12px;padding:18px 20px;border:1px solid #f0f0f0; }
 .kpi-icon { width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0; }
-.kpi-value { font-size:20px;font-weight:700;color:#0f1d35;margin:3px 0 2px; }
+.kpi-value { font-size:20px;font-weight:700;color:#111827;margin:3px 0 2px; }
 .kpi-label { font-size:12px;color:#6b7280; }
 .chart-card { background:#fff;border-radius:12px;border:1px solid #f0f0f0;padding:18px 20px; }
-.chart-title { font-size:14px;font-weight:600;color:#0f1d35;margin-bottom:4px; }
+.chart-title { font-size:14px;font-weight:600;color:#111827;margin-bottom:4px; }
 .funnel-row { display:flex;align-items:center;gap:10px;margin-bottom:6px; }
 .funnel-label { font-size:12px;color:#374151;width:90px;flex-shrink:0; }
 .funnel-bar-wrap { flex:1;height:32px;display:flex;align-items:center; }
@@ -58,7 +58,7 @@
 <div class="row g-3 mb-4">
     @php
     $kpis = [
-        ['bg'=>'#eff6ff','icon'=>'fas fa-dollar-sign','ico_color'=>'#3b82f6','label'=>'Revenue (Omzet)','value'=>idr($revenue),'sub'=>'Total periode ini'],
+        ['bg'=>'#f2f2f2','icon'=>'fas fa-dollar-sign','ico_color'=>'#111111','label'=>'Revenue (Omzet)','value'=>idr($revenue),'sub'=>'Total periode ini'],
         ['bg'=>'#f0fdf4','icon'=>'fas fa-chart-line','ico_color'=>'#10b981','label'=>'Gross Profit','value'=>idr($grossProfit),'sub'=>'Revenue - HPP'],
         ['bg'=>'#faf5ff','icon'=>'fas fa-wallet','ico_color'=>'#7c3aed','label'=>'Nett Profit','value'=>idr($nettProfit),'sub'=>'Revenue - Total Biaya'],
         ['bg'=>'#f0fdfa','icon'=>'fas fa-file-invoice','ico_color'=>'#0d9488','label'=>'Volume PO','value'=>$volumePo,'sub'=>'PO Done periode ini'],
@@ -99,7 +99,7 @@
         <div class="chart-card h-100">
             <div class="chart-title mb-3">Pipeline Conversion Funnel</div>
             @php
-            $funnelColors = ['Identifying'=>'#3b82f6','Approaching'=>'#10b981','Follow Up'=>'#f59e0b','Won'=>'#16a34a','Maintaining'=>'#4f46e5'];
+            $funnelColors = ['Identifying'=>'#111111','Approaching'=>'#10b981','Follow Up'=>'#f59e0b','Won'=>'#16a34a','Maintaining'=>'#4f46e5'];
             $maxCount = max(array_values($funnel->toArray()) + [1]);
             @endphp
             @foreach($funnel as $stage => $count)
@@ -134,8 +134,8 @@
                     {{ strtoupper(substr($s->name,0,2)) }}
                 </div>
                 <div style="flex:1;min-width:0">
-                    <div style="font-size:12px;font-weight:600;color:#0f1d35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $s->name }}</div>
-                    <div class="progress-sm mt-1"><div class="progress-sm-fill" style="width:{{ $pct }}%;background:#3b82f6"></div></div>
+                    <div style="font-size:12px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $s->name }}</div>
+                    <div class="progress-sm mt-1"><div class="progress-sm-fill" style="width:{{ $pct }}%;background:#111111"></div></div>
                 </div>
                 <div style="text-align:right;flex-shrink:0;min-width:60px">
                     <div style="font-size:11px;font-weight:600;color:#374151">{{ idrm($s->revenue) }}</div>
@@ -163,7 +163,7 @@
                 <canvas id="serviceDonutChart" style="width:100%;height:100%"></canvas>
                 </div>
                 <div style="flex:1">
-                    @php $totalSvc = $revenueByService->sum('total'); $svcColors = ['#3b82f6','#10b981','#f59e0b','#f97316','#8b5cf6','#ec4899']; @endphp
+                    @php $totalSvc = $revenueByService->sum('total'); $svcColors = ['#111111','#10b981','#f59e0b','#f97316','#8b5cf6','#ec4899']; @endphp
                     @foreach($revenueByService as $idx => $svc)
                     <div class="d-flex align-items-center gap-2 mb-2">
                         <div style="width:8px;height:8px;border-radius:2px;background:{{ $svcColors[$idx%count($svcColors)] }};flex-shrink:0"></div>
@@ -171,7 +171,7 @@
                             <div style="font-size:12px;font-weight:600;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ ($svc->service_type ?? "Lainnya") }}</div>
                             <div style="font-size:11px;color:#6b7280">{{ idrm($svc->total) }}</div>
                         </div>
-                        <span style="font-size:11px;font-weight:600;color:#0f1d35;flex-shrink:0">{{ $totalSvc > 0 ? round(($svc->total/$totalSvc)*100,1) : 0 }}%</span>
+                        <span style="font-size:11px;font-weight:600;color:#111827;flex-shrink:0">{{ $totalSvc > 0 ? round(($svc->total/$totalSvc)*100,1) : 0 }}%</span>
                     </div>
                     @endforeach
                 </div>
@@ -196,7 +196,7 @@
             <div class="d-flex align-items-center gap-2 mb-3">
                 <div style="font-size:11px;color:#374151;width:130px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{{ $r->product_name ?? "" }}">{{ $r->product_name ?? "-" }}</div>
                 <div style="flex:1">
-                    <div style="height:7px;border-radius:4px;background:#3b82f6;width:{{ $pct }}%"></div>
+                    <div style="height:7px;border-radius:4px;background:#111111;width:{{ $pct }}%"></div>
                 </div>
                 <div style="font-size:11px;color:#6b7280;width:80px;text-align:right;flex-shrink:0">{{ idrm($r->total) }}</div>
             </div>
@@ -217,7 +217,7 @@
                     {{ $tc['customer']->logo_initials }}
                 </div>
                 <div style="flex:1;min-width:0">
-                    <div style="font-size:12px;font-weight:600;color:#0f1d35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $tc['customer']->company_name }}</div>
+                    <div style="font-size:12px;font-weight:600;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ $tc['customer']->company_name }}</div>
                     <div style="font-size:11px;color:#6b7280">{{ $tc['deals'] }} PO · {{ $tc['repeat'] ? 'Repeat' : 'New' }}</div>
                 </div>
                 <span style="font-size:12px;font-weight:600;color:var(--primary);flex-shrink:0">{{ idrm($tc['revenue']) }}</span>
@@ -245,7 +245,7 @@
                 <div class="col-6">
                     <div style="background:#f9fafb;border-radius:8px;padding:10px;text-align:center">
                         <div style="font-size:11px;color:#6b7280">Avg Nett Margin</div>
-                        <div style="font-size:18px;font-weight:700;color:#3b82f6">{{ $avgNettMargin }}%</div>
+                        <div style="font-size:18px;font-weight:700;color:#111111">{{ $avgNettMargin }}%</div>
                     </div>
                 </div>
             </div>
@@ -263,12 +263,12 @@
                 <canvas id="leadSourceChart" style="width:100%;height:100%"></canvas>
                 </div>
                 <div style="flex:1">
-                    @php $totalSrc = $leadSources->sum('count'); $srcColors=['#3b82f6','#10b981','#f59e0b','#f97316','#8b5cf6','#9ca3af']; @endphp
+                    @php $totalSrc = $leadSources->sum('count'); $srcColors=['#111111','#10b981','#f59e0b','#f97316','#8b5cf6','#9ca3af']; @endphp
                     @foreach($leadSources as $idx => $src)
                     <div class="d-flex align-items-center gap-2 mb-2">
                         <div style="width:8px;height:8px;border-radius:2px;background:{{ $srcColors[$idx%count($srcColors)] }};flex-shrink:0"></div>
                         <div style="flex:1;font-size:12px;color:#374151">{{ $src->lead_source ?: 'Tidak diketahui' }}</div>
-                        <span style="font-size:12px;font-weight:600;color:#0f1d35">{{ $src->count }}</span>
+                        <span style="font-size:12px;font-weight:600;color:#111827">{{ $src->count }}</span>
                         <span style="font-size:11px;color:#6b7280">{{ $totalSrc > 0 ? round(($src->count/$totalSrc)*100,1) : 0 }}%</span>
                     </div>
                     @endforeach
@@ -293,11 +293,11 @@
                     <i class="fas fa-trophy" style="color:#16a34a;font-size:12px"></i>
                 </div>
                 <div style="flex:1;min-width:0">
-                    <div style="font-size:13px;font-weight:600;color:#0f1d35">{{ $deal->company_name }}</div>
+                    <div style="font-size:13px;font-weight:600;color:#111827">{{ $deal->company_name }}</div>
                     <div style="font-size:11px;color:#6b7280">{{ $deal->product_interest ?? 'N/A' }} · {{ $deal->salesUser?->name ?? '-' }}</div>
                 </div>
                 <div style="text-align:right;flex-shrink:0">
-                    <div style="font-size:12px;font-weight:600;color:#0f1d35">{{ idrm($deal->potensi_revenue) }}</div>
+                    <div style="font-size:12px;font-weight:600;color:#111827">{{ idrm($deal->potensi_revenue) }}</div>
                     <div style="font-size:11px;color:#9ca3af">{{ $deal->updated_at->format('d M Y') }}</div>
                 </div>
             </div>
@@ -333,8 +333,8 @@ $profitGross    = array_column($profitAnalysis, 'gross_profit');
 $profitNet      = array_column($profitAnalysis, 'profit');
 @endphp
 
-const svcColors = ['#3b82f6','#10b981','#f59e0b','#f97316','#8b5cf6','#ec4899'];
-const srcColors = ['#3b82f6','#10b981','#f59e0b','#f97316','#8b5cf6','#9ca3af'];
+const svcColors = ['#111111','#10b981','#f59e0b','#f97316','#8b5cf6','#ec4899'];
+const srcColors = ['#111111','#10b981','#f59e0b','#f97316','#8b5cf6','#9ca3af'];
 
 // Revenue Trend
 new Chart(document.getElementById('revenueTrendChart'), {
@@ -342,7 +342,7 @@ new Chart(document.getElementById('revenueTrendChart'), {
     data: {
         labels: {!! json_encode($trendLabels) !!},
         datasets: [
-            { label: 'Revenue', data: {!! json_encode($trendRevenue) !!}, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.08)', fill: true, tension: .4, borderWidth: 2, pointRadius: 3 },
+            { label: 'Revenue', data: {!! json_encode($trendRevenue) !!}, borderColor: '#111111', backgroundColor: 'rgba(17,17,17,.08)', fill: true, tension: .4, borderWidth: 2, pointRadius: 3 },
             { label: 'Nett Profit', data: {!! json_encode($trendProfit) !!}, borderColor: '#10b981', backgroundColor: 'transparent', fill: false, tension: .4, borderWidth: 2, pointRadius: 3 }
         ]
     },
@@ -383,7 +383,7 @@ new Chart(document.getElementById('profitChart'), {
     data: {
         labels: {!! json_encode($profitLabels) !!},
         datasets: [
-            { label: 'Revenue', data: {!! json_encode($profitRevenue) !!}, backgroundColor: '#3b82f6', borderRadius: 3, barPercentage: .5 },
+            { label: 'Revenue', data: {!! json_encode($profitRevenue) !!}, backgroundColor: '#111111', borderRadius: 3, barPercentage: .5 },
             { label: 'Total Cost', data: {!! json_encode($profitCost) !!}, backgroundColor: '#fca5a5', borderRadius: 3, barPercentage: .5 },
             { label: 'Gross Profit', data: {!! json_encode($profitGross) !!}, type: 'line', borderColor: '#10b981', backgroundColor: 'transparent', tension: .4, borderWidth: 2, pointRadius: 3 },
             { label: 'Nett Profit', data: {!! json_encode($profitNet) !!}, type: 'line', borderColor: '#7c3aed', backgroundColor: 'transparent', tension: .4, borderWidth: 2, pointRadius: 3, borderDash: [4,3] }

@@ -11,7 +11,7 @@ class Customer extends Model
 {
     use SoftDeletes;
     protected $fillable = [
-        'company_name','pic_name','pic_position','phone','email','address',
+        'customer_code','company_name','pic_name','pic_position','phone','email','address',
         'industry','location','status','value_tag','user_id','customer_since','logo','notes','products'
     ];
 
@@ -48,5 +48,14 @@ class Customer extends Model
         }
 
         return $initials ?: 'CU';
+    }
+
+    public static function generateCustomerCode(): string
+    {
+        $prefix = 'CUST-' . date('Y') . '-';
+        $last   = static::withTrashed()->where('customer_code', 'like', $prefix . '%')
+            ->orderByDesc('customer_code')->value('customer_code');
+        $seq    = $last ? (intval(substr($last, -4)) + 1) : 1;
+        return $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
     }
 }

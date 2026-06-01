@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class VendorService extends Model
 {
     protected $fillable = [
-        'vendor_id', 'service_name', 'unit', 'tariff', 'tariff_unit',
+        'vendor_id', 'service_name', 'unit', 'tonnage', 'tariff', 'tariff_unit',
         'route_origin', 'route_destination', 'description',
     ];
 

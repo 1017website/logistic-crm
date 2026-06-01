@@ -17,8 +17,8 @@ function growthBadge($val, $prev_label) {
 <div class="row g-3 mb-4">
     <div class="col-xl col-md-6">
         <div class="kpi-card">
-            <div class="kpi-icon" style="background:#dbeafe">
-                <i class="fas fa-dollar-sign" style="color:#2563eb"></i>
+            <div class="kpi-icon" style="background:#e5e5e5">
+                <i class="fas fa-dollar-sign" style="color:#111111"></i>
             </div>
             <div>
                 <div class="kpi-label">Revenue (Omzet)</div>
@@ -130,7 +130,7 @@ function growthBadge($val, $prev_label) {
                     @php
                         $slugs = ['Identifying'=>'identifying','Approaching'=>'approaching','Follow Up'=>'follow-up','Won'=>'won','Maintaining'=>'maintaining'];
                         $slug = $slugs[$stageName] ?? 'identifying';
-                        $colors = ['Identifying'=>'#2563eb','Approaching'=>'#d97706','Follow Up'=>'#7c3aed','Won'=>'#059669','Maintaining'=>'#4f46e5'];
+                        $colors = ['Identifying'=>'#111111','Approaching'=>'#d97706','Follow Up'=>'#7c3aed','Won'=>'#059669','Maintaining'=>'#4f46e5'];
                     @endphp
                     <div class="col-xl col-md-4 col-sm-6">
                         <div class="kanban-header kanban-{{ $slug }}">
@@ -169,8 +169,8 @@ function growthBadge($val, $prev_label) {
                 @forelse($todayReminders as $reminder)
                 <div class="reminder-item">
                     <div class="reminder-time">{{ $reminder->activity_at->format('H:i') }}</div>
-                    <div style="width:30px;height:30px;background:{{ $reminder->type === 'Call' ? '#d1fae5' : '#dbeafe' }};border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                        <i class="fas fa-{{ $reminder->type_icon }}" style="font-size:.7rem;color:{{ $reminder->type === 'Call' ? '#059669' : '#2563eb' }}"></i>
+                    <div style="width:30px;height:30px;background:{{ $reminder->type === 'Call' ? '#d1fae5' : '#e5e5e5' }};border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                        <i class="fas fa-{{ $reminder->type_icon }}" style="font-size:.7rem;color:{{ $reminder->type === 'Call' ? '#059669' : '#111111' }}"></i>
                     </div>
                     <div class="flex-1">
                         <div style="font-size:.78rem;font-weight:600">{{ $reminder->subject }}</div>
@@ -198,8 +198,8 @@ function growthBadge($val, $prev_label) {
             <div class="card-body p-3">
                 @foreach($recentActivities as $act)
                 <div class="activity-item">
-                    <div class="activity-icon" style="background:{{ $act->type === 'Call' ? '#d1fae5' : ($act->type === 'Visit' ? '#dbeafe' : '#fef3c7') }}">
-                        <i class="fas fa-{{ $act->type_icon }}" style="color:{{ $act->type === 'Call' ? '#059669' : ($act->type === 'Visit' ? '#2563eb' : '#d97706') }};font-size:.8rem"></i>
+                    <div class="activity-icon" style="background:{{ $act->type === 'Call' ? '#d1fae5' : ($act->type === 'Visit' ? '#e5e5e5' : '#fef3c7') }}">
+                        <i class="fas fa-{{ $act->type_icon }}" style="color:{{ $act->type === 'Call' ? '#059669' : ($act->type === 'Visit' ? '#111111' : '#d97706') }};font-size:.8rem"></i>
                     </div>
                     <div class="flex-1">
                         <div class="activity-subject">{{ $act->subject }}</div>
@@ -220,6 +220,7 @@ function growthBadge($val, $prev_label) {
                 <select class="form-select form-select-sm" style="width:120px"><option>This Month</option></select>
             </div>
             <div class="card-body p-3">
+                <div class="table-responsive">
                 <table class="table crm-table mb-0">
                     <thead>
                         <tr>
@@ -245,6 +246,7 @@ function growthBadge($val, $prev_label) {
                         @endforeach
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     </div>
@@ -257,8 +259,8 @@ function growthBadge($val, $prev_label) {
                 <div class="row g-2">
                     <div class="col-4">
                         <a href="{{ route('leads.index') }}" class="quick-action-btn">
-                            <div class="qa-icon" style="background:#dbeafe">
-                                <i class="fas fa-plus" style="color:#2563eb;font-size:.8rem"></i>
+                            <div class="qa-icon" style="background:#e5e5e5">
+                                <i class="fas fa-plus" style="color:#111111;font-size:.8rem"></i>
                             </div>
                             <span class="qa-label">Leads</span>
                         </a>
@@ -325,8 +327,8 @@ new Chart(document.getElementById('revenueChart').getContext('2d'), {
         labels,
         datasets: [{
             data: values.map(v => v / 1000000),
-            borderColor: '#2563eb',
-            backgroundColor: 'rgba(37,99,235,.1)',
+            borderColor: '#111111',
+            backgroundColor: 'rgba(17,17,17,.08)',
             fill: true, tension: .4, borderWidth: 2, pointRadius: 0,
         }]
     },

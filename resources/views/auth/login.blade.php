@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { font-family: 'Inter', sans-serif; box-sizing: border-box; margin: 0; padding: 0; }
-        body { min-height: 100vh; display: flex; background: #0f1d35; }
+        body { min-height: 100vh; display: flex; background: #0a0a0a; }
 
         /* ── LEFT PANEL ── */
         .left-panel {
@@ -20,7 +20,7 @@
         .left-panel::before {
             content: ''; position: absolute;
             width: 500px; height: 500px;
-            background: radial-gradient(circle, rgba(37,99,235,0.3) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 70%);
             top: -100px; left: -100px; border-radius: 50%;
             animation: float1 8s ease-in-out infinite;
         }
@@ -35,13 +35,13 @@
         @keyframes float2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-20px,-30px)} }
 
         .left-brand { position: relative; z-index: 2; }
-        .brand-logo { width:44px;height:44px;background:#2563eb;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px; }
+        .brand-logo { width:44px;height:44px;background:#111111;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px; }
         .brand-name { font-size:18px;font-weight:700;color:#fff;letter-spacing:.5px; }
         .brand-sub  { font-size:13px;color:rgba(255,255,255,.45);margin-top:2px; }
 
         .left-hero { position: relative; z-index: 2; }
         .left-hero h1 { font-size:38px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:16px; }
-        .left-hero h1 span { color: #3b82f6; }
+        .left-hero h1 span { color: #ffffff; text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 6px; text-decoration-color: rgba(255,255,255,.35); }
         .left-hero p { font-size:15px;color:rgba(255,255,255,.5);line-height:1.7;max-width:380px; }
 
         .stats-row { display:flex;gap:24px;margin-top:36px;position:relative;z-index:2; }
@@ -57,7 +57,7 @@
         /* ── RIGHT PANEL ── */
         .right-panel { width:480px;background:#f8fafc;display:flex;align-items:center;justify-content:center;padding:40px; }
         .login-box { width:100%;max-width:380px; }
-        .login-heading    { font-size:26px;font-weight:800;color:#0f1d35;margin-bottom:6px; }
+        .login-heading    { font-size:26px;font-weight:800;color:#0a0a0a;margin-bottom:6px; }
         .login-subheading { font-size:14px;color:#6b7280;margin-bottom:32px; }
 
         .field-label { font-size:12px;font-weight:600;color:#374151;margin-bottom:6px;display:block;letter-spacing:.02em; }
@@ -69,22 +69,22 @@
             font-size:14px;color:#111827;background:#fff;
             outline:none;transition:border-color .2s,box-shadow .2s;
         }
-        .field-wrap input:focus { border-color:#2563eb;box-shadow:0 0 0 4px rgba(37,99,235,.08); }
+        .field-wrap input:focus { border-color:#111111;box-shadow:0 0 0 4px rgba(0,0,0,.10); }
         .field-wrap input::placeholder { color:#c4c9d4; }
         .toggle-pass { position:absolute;right:14px;top:50%;transform:translateY(-50%);cursor:pointer;color:#9ca3af;font-size:14px;background:none;border:none;padding:0; }
         .toggle-pass:hover { color:#6b7280; }
 
         .remember-row { display:flex;align-items:center;margin-bottom:24px; }
         .remember-label { display:flex;align-items:center;gap:8px;font-size:13px;color:#6b7280;cursor:pointer; }
-        .remember-label input[type=checkbox] { width:15px;height:15px;accent-color:#2563eb;cursor:pointer; }
+        .remember-label input[type=checkbox] { width:15px;height:15px;accent-color:#111111;cursor:pointer; }
 
         .btn-login {
-            width:100%;padding:13px;background:#2563eb;color:#fff;
+            width:100%;padding:13px;background:#111111;color:#fff;
             border:none;border-radius:10px;font-size:14px;font-weight:600;
             cursor:pointer;transition:.2s;
             display:flex;align-items:center;justify-content:center;gap:8px;
         }
-        .btn-login:hover { background:#1d4ed8;transform:translateY(-1px);box-shadow:0 4px 16px rgba(37,99,235,.35); }
+        .btn-login:hover { background:#000000;transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.35); }
         .btn-login:active { transform:translateY(0); }
         .btn-login .spinner { display:none; }
         .btn-login.loading .spinner { display:inline-block; }
@@ -100,7 +100,7 @@
         .demo-badge { font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;flex-shrink:0;min-width:58px;text-align:center; }
         .badge-admin   { background:#fee2e2;color:#dc2626; }
         .badge-manager { background:#faf5ff;color:#7c3aed; }
-        .badge-sales   { background:#eff6ff;color:#2563eb; }
+        .badge-sales   { background:#f2f2f2;color:#111111; }
         .demo-email { font-size:12px;color:#374151;flex:1; }
         .demo-copy  { font-size:10px;color:#9ca3af;background:#f3f4f6;border-radius:4px;padding:2px 6px; }
 
@@ -140,7 +140,7 @@
         </div>
         <div class="feature-list">
             <div class="feature-item">
-                <div class="feature-icon"><i class="fas fa-filter" style="color:#3b82f6;font-size:13px"></i></div>
+                <div class="feature-icon"><i class="fas fa-filter" style="color:#111111;font-size:13px"></i></div>
                 <span class="feature-text">Pipeline visual dengan kanban board real-time</span>
             </div>
             <div class="feature-item">
@@ -239,7 +239,7 @@ function togglePass() {
 function fillCreds(el, email) {
     document.getElementById('emailInput').value = email;
     document.getElementById('passwordInput').value = 'password';
-    el.style.background = '#eff6ff';
+    el.style.background = '#f2f2f2';
     setTimeout(() => el.style.background = '', 500);
 }
 document.getElementById('loginForm').addEventListener('submit', function() {

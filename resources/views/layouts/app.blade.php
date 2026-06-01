@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="is-admin" content="{{ auth()->check() && auth()->user()->isAdmin() ? '1' : '0' }}">
+    <script>window.IS_ADMIN = {{ auth()->check() && auth()->user()->isAdmin() ? 'true' : 'false' }};</script>
     <title>@yield('title', 'CRM') - {{ \App\Models\Setting::get('company_name', 'Logistic CRM') }}</title>
     @php $favicon = \App\Models\Setting::get('company_favicon'); @endphp
     @if($favicon)
@@ -43,7 +45,7 @@
 
         .select2-container--default.select2-container--open .select2-selection--single,
         .select2-container--default.select2-container--focus .select2-selection--single {
-            border-color: #2563eb !important;
+            border-color: #111111 !important;
             box-shadow: 0 0 0 3px rgba(37, 99, 235, .1) !important;
             outline: none !important;
         }
@@ -70,7 +72,7 @@
         }
 
         .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
-            border-color: transparent transparent #2563eb transparent !important;
+            border-color: transparent transparent #111111 transparent !important;
         }
         /* Air Datepicker harus tampil di atas Bootstrap modal/backdrop */
         .air-datepicker-global-container,
@@ -88,15 +90,15 @@
         }
 
         .select2-container--default.select2-container--focus .select2-selection--multiple {
-            border-color: #2563eb !important;
+            border-color: #111111 !important;
             box-shadow: 0 0 0 3px rgba(37, 99, 235, .1) !important;
             outline: none !important;
         }
 
         .select2-container--default .select2-selection--multiple .select2-selection__choice {
-            background: #eff6ff !important;
-            border: 1px solid #bfdbfe !important;
-            color: #2563eb !important;
+            background: #f2f2f2 !important;
+            border: 1px solid #d4d4d4 !important;
+            color: #111111 !important;
             border-radius: 20px !important;
             font-size: .75rem;
             padding: 1px 8px !important;
@@ -108,7 +110,7 @@
         }
 
         .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover {
-            color: #2563eb !important;
+            color: #111111 !important;
         }
 
         /* Dropdown */
@@ -128,7 +130,7 @@
         }
 
         .select2-container--default .select2-search--dropdown .select2-search__field:focus {
-            border-color: #2563eb !important;
+            border-color: #111111 !important;
             outline: none;
         }
 
@@ -139,8 +141,8 @@
         }
 
         .select2-container--default .select2-results__option--highlighted[aria-selected] {
-            background: #eff6ff !important;
-            color: #2563eb !important;
+            background: #f2f2f2 !important;
+            color: #111111 !important;
         }
 
         .select2-container--default .select2-results__option[aria-selected=true] {
@@ -163,7 +165,7 @@
         }
 
         .flatpickr-input:focus {
-            border-color: #2563eb !important;
+            border-color: #111111 !important;
             box-shadow: 0 0 0 3px rgba(37, 99, 235, .1) !important;
         }
 
@@ -176,7 +178,7 @@
         }
 
         .flatpickr-months {
-            background: #0f1d35;
+            background: #111827;
             border-radius: 10px 10px 0 0;
             padding: 4px 0;
         }
@@ -232,27 +234,27 @@
         }
 
         .flatpickr-day:hover {
-            background: #eff6ff !important;
-            color: #2563eb !important;
+            background: #f2f2f2 !important;
+            color: #111111 !important;
             border-color: transparent !important;
         }
 
         .flatpickr-day.selected,
         .flatpickr-day.selected:hover {
-            background: #2563eb !important;
-            border-color: #2563eb !important;
+            background: #111111 !important;
+            border-color: #111111 !important;
             color: #fff !important;
             border-radius: 8px !important;
         }
 
         .flatpickr-day.today {
-            border-color: #2563eb !important;
-            color: #2563eb !important;
+            border-color: #111111 !important;
+            color: #111111 !important;
             font-weight: 600 !important;
         }
 
         .flatpickr-day.today:hover {
-            background: #eff6ff !important;
+            background: #f2f2f2 !important;
         }
 
         .flatpickr-day.today.selected {
@@ -260,7 +262,7 @@
         }
 
         .flatpickr-day.inRange {
-            background: #dbeafe !important;
+            background: #e5e5e5 !important;
             border-color: transparent !important;
         }
 
@@ -283,7 +285,7 @@
         .flatpickr-time .flatpickr-am-pm:hover,
         .flatpickr-time input:focus,
         .flatpickr-time .flatpickr-am-pm:focus {
-            background: #eff6ff !important;
+            background: #f2f2f2 !important;
         }
 
         /* Input date wrapper icon */
@@ -302,15 +304,16 @@
         }
 
         :root {
-            --sidebar-bg: #0f1d35;
+            --sidebar-bg: #0a0a0a;
             --sidebar-width: 220px;
             --sidebar-collapsed: 60px;
-            --primary: #2563eb;
-            --primary-light: #dbeafe;
+            --primary: #111111;
+            --primary-hover: #2a2a2a;
+            --primary-light: #e9e9e9;
             --success-color: #10b981;
             --warning-color: #f59e0b;
             --danger-color: #ef4444;
-            --info-color: #3b82f6;
+            --info-color: #111111;
             --purple-color: #8b5cf6;
             --teal-color: #14b8a6;
             --text-muted: #6b7280;
@@ -343,12 +346,31 @@
         }
 
         .sidebar-brand {
-            padding: 18px 16px;
+            padding: 20px 12px;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            gap: 8px;
             border-bottom: 1px solid rgba(255, 255, 255, .08);
             text-decoration: none;
+            text-align: center;
+        }
+
+        .sidebar-brand .brand-logo-img {
+            height: 64px;
+            max-width: 180px;
+            width: auto;
+            object-fit: contain;
+            object-position: center;
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* Saat sidebar di-collapse, logo mengecil agar muat */
+        body.sidebar-collapsed .sidebar-brand .brand-logo-img {
+            height: 34px;
+            max-width: 44px;
         }
 
         .sidebar-brand .brand-icon {
@@ -565,7 +587,7 @@
             width: 34px;
             height: 34px;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary), #1d4ed8);
+            background: linear-gradient(135deg, var(--primary), #000000);
             color: #fff;
             display: inline-flex;
             align-items: center;
@@ -656,7 +678,7 @@
         .sri-title {
             font-size: 13px;
             font-weight: 600;
-            color: #0f1d35;
+            color: #111827;
         }
 
         .sri-sub {
@@ -768,8 +790,8 @@
         }
 
         .badge-cold {
-            background: #dbeafe;
-            color: #2563eb;
+            background: #e5e5e5;
+            color: #111111;
             font-size: .68rem;
             font-weight: 600;
             padding: 2px 7px;
@@ -803,8 +825,8 @@
         }
 
         .badge-identifying {
-            background: #dbeafe;
-            color: #1d4ed8;
+            background: #e5e5e5;
+            color: #000000;
         }
 
         .badge-approaching {
@@ -857,8 +879,8 @@
         }
 
         .badge-planned {
-            background: #dbeafe;
-            color: #1d4ed8;
+            background: #e5e5e5;
+            color: #000000;
         }
 
         .badge-overdue {
@@ -867,8 +889,8 @@
         }
 
         .badge-today {
-            background: #dbeafe;
-            color: #1d4ed8;
+            background: #e5e5e5;
+            color: #000000;
         }
 
         .badge-tomorrow {
@@ -897,8 +919,8 @@
         }
 
         .kanban-identifying {
-            background: #dbeafe;
-            color: #1d4ed8;
+            background: #e5e5e5;
+            color: #000000;
         }
 
         .kanban-approaching {
@@ -1169,8 +1191,8 @@
         }
 
         .btn-primary:hover {
-            background: #1d4ed8;
-            border-color: #1d4ed8;
+            background: #000000;
+            border-color: #000000;
         }
 
         .btn-sm {
@@ -1227,11 +1249,98 @@
             border: 1px solid #e5e7eb; color: #374151; font-size: 12px; font-weight: 600;
             display: flex; align-items: center; justify-content: center; box-shadow: none;
         }
-        .page-item.active .page-link { background: #2563eb; border-color: #2563eb; color: #fff; }
+        .page-item.active .page-link { background: #111111; border-color: #111111; color: #fff; }
         .page-item.disabled .page-link { background: #f9fafb; color: #9ca3af; }
-        .page-link:hover { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+        .page-link:hover { background: #f2f2f2; border-color: #d4d4d4; color: #000000; }
         .pagination .page-item:first-child .page-link,
         .pagination .page-item:last-child .page-link { padding-left: 12px; padding-right: 12px; }
+
+        /* ── MOBILE HAMBURGER (hidden on desktop) ── */
+        .mobile-menu-btn {
+            display: none;
+            width: 38px; height: 38px;
+            border: none; background: transparent;
+            border-radius: 8px; cursor: pointer;
+            align-items: center; justify-content: center;
+            color: #111827; font-size: 1.1rem;
+            margin-right: 4px;
+        }
+        .mobile-menu-btn:hover { background: #f3f4f6; }
+
+        /* ── SIDEBAR OVERLAY (mobile only) ── */
+        .sidebar-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0, 0, 0, .5);
+            z-index: 1090;
+            opacity: 0; transition: opacity .25s ease;
+        }
+        .sidebar-overlay.show { opacity: 1; }
+
+        /* ════════════ RESPONSIVE: TABLET/MOBILE ≤ 991.98px ════════════ */
+        @media (max-width: 991.98px) {
+            .mobile-menu-btn { display: flex; }
+
+            /* Sidebar jadi off-canvas (geser dari kiri) */
+            .sidebar {
+                position: fixed;
+                top: 0; left: 0;
+                height: 100vh;
+                z-index: 1100;
+                transform: translateX(-100%);
+                transition: transform .28s ease;
+                box-shadow: 0 0 24px rgba(0, 0, 0, .35);
+            }
+            body.sidebar-mobile-open .sidebar { transform: translateX(0); }
+            body.sidebar-mobile-open .sidebar-overlay { display: block; }
+
+            /* Saat mobile, abaikan collapse desktop & full-width konten */
+            .main-wrapper,
+            body.sidebar-collapsed .main-wrapper { margin-left: 0; }
+
+            /* Sidebar selalu lebar penuh di mobile (batalkan collapse) */
+            body.sidebar-collapsed .sidebar { width: var(--sidebar-width); }
+            body.sidebar-collapsed .sidebar-brand .brand-text,
+            body.sidebar-collapsed .sidebar-section,
+            body.sidebar-collapsed .sidebar-item span,
+            body.sidebar-collapsed .sidebar-collapse-btn span { display: inline; opacity: 1; }
+
+            /* Sembunyikan tombol collapse desktop di mobile */
+            .sidebar-footer { display: none; }
+
+            /* Topbar rapat */
+            .topbar { padding: 0 14px; }
+            .topbar-title h5 { font-size: .95rem; }
+            .topbar-title p { display: none; }
+            .topbar-right { gap: 10px; }
+
+            /* Search mengecil / jadi ikon-friendly */
+            .topbar-search input { width: 130px; font-size: .75rem; }
+            #searchDrop { width: calc(100vw - 28px) !important; left: auto !important; right: 0 !important; }
+
+            /* Dropdown notif & user fit layar */
+            #notifDrop { width: calc(100vw - 28px) !important; right: -8px !important; }
+
+            /* Sembunyikan teks user, sisakan avatar */
+            .user-info { display: none; }
+
+            /* Konten padding lebih kecil */
+            .content, .page-content, main { padding: 14px !important; }
+            .card { border-radius: 10px; }
+
+            /* Tabel bisa di-scroll horizontal */
+            .table-responsive, .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            table { min-width: 600px; }
+
+            /* Grid KPI / kolom jadi 1 kolom */
+            .row > [class*="col-"] { margin-bottom: 12px; }
+        }
+
+        /* ════════════ RESPONSIVE: SMALL ≤ 480px ════════════ */
+        @media (max-width: 480px) {
+            .topbar-search { display: none; }
+            .topbar-title h5 { font-size: .9rem; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        }
 
     </style>
 
@@ -1248,8 +1357,7 @@
                 $companyName = \App\Models\Setting::get('company_name', 'LOGISTIC CRM');
             @endphp
             @if($companyLogo)
-                <img src="{{ Storage::url($companyLogo) }}" alt="{{ $companyName }}"
-                     style="height:36px;max-width:140px;object-fit:contain;object-position:left center">
+                <img src="{{ Storage::url($companyLogo) }}" alt="{{ $companyName }}" class="brand-logo-img">
             @else
                 <div class="brand-icon">
                     <i class="fas fa-truck text-white" style="font-size:.85rem"></i>
@@ -1314,6 +1422,9 @@
             </a>
             @endif
             @if(auth()->user()->canAccess('settings'))
+            <a href="{{ route('service-types.index') }}" class="sidebar-item {{ request()->routeIs('service-types.*') ? 'active' : '' }}">
+                <i class="fas fa-tags si-icon"></i><span>Master Service Type</span>
+            </a>
             <a href="{{ route('settings.index') }}" class="sidebar-item {{ request()->routeIs('settings.*') ? 'active' : '' }}">
                 <i class="fas fa-cog si-icon"></i><span>Settings</span>
             </a>
@@ -1328,13 +1439,21 @@
         </div>
     </aside>
 
+    <!-- SIDEBAR OVERLAY (mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
     <!-- MAIN -->
     <div class="main-wrapper" id="mainWrapper">
         <!-- TOPBAR -->
         <header class="topbar">
-            <div class="topbar-title">
-                <h5>@yield('page-title', 'Dashboard')</h5>
-                <p>@yield('page-subtitle', '')</p>
+            <div style="display:flex;align-items:center;gap:4px;min-width:0">
+                <button class="mobile-menu-btn" onclick="openMobileSidebar()" aria-label="Menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="topbar-title">
+                    <h5>@yield('page-title', 'Dashboard')</h5>
+                    <p>@yield('page-subtitle', '')</p>
+                </div>
             </div>
             <div class="topbar-right">
 
@@ -1350,10 +1469,10 @@
                         </div>
                         <div style="padding:10px 16px;border-top:1px solid #f0f0f0;display:flex;gap:8px;flex-wrap:wrap">
                             <span style="font-size:11px;color:#9ca3af">Quick:</span>
-                            <a href="{{ route('leads.index') }}" style="font-size:11px;color:#3b82f6;text-decoration:none">Leads</a>
-                            <a href="{{ route('customers.index') }}" style="font-size:11px;color:#3b82f6;text-decoration:none">Customers</a>
-                            <a href="{{ route('pipeline.index') }}" style="font-size:11px;color:#3b82f6;text-decoration:none">Pipeline</a>
-                            <a href="{{ route('tasks.index') }}" style="font-size:11px;color:#3b82f6;text-decoration:none">Tasks</a>
+                            <a href="{{ route('leads.index') }}" style="font-size:11px;color:#111111;text-decoration:none">Leads</a>
+                            <a href="{{ route('customers.index') }}" style="font-size:11px;color:#111111;text-decoration:none">Customers</a>
+                            <a href="{{ route('pipeline.index') }}" style="font-size:11px;color:#111111;text-decoration:none">Pipeline</a>
+                            <a href="{{ route('tasks.index') }}" style="font-size:11px;color:#111111;text-decoration:none">Tasks</a>
                         </div>
                     </div>
                 </div>
@@ -1367,8 +1486,8 @@
                     {{-- Notification dropdown --}}
                     <div id="notifDrop" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:320px;background:#fff;border-radius:10px;border:1px solid #e5e7eb;box-shadow:0 4px 20px rgba(0,0,0,.12);z-index:999;overflow:hidden">
                         <div style="padding:14px 16px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between">
-                            <span style="font-size:13px;font-weight:700;color:#0f1d35">Notifications</span>
-                            <button onclick="markAllRead()" style="font-size:11px;color:#3b82f6;background:none;border:none;cursor:pointer;padding:0">Mark all read</button>
+                            <span style="font-size:13px;font-weight:700;color:#111827">Notifications</span>
+                            <button onclick="markAllRead()" style="font-size:11px;color:#111111;background:none;border:none;cursor:pointer;padding:0">Mark all read</button>
                         </div>
                         <div style="max-height:320px;overflow-y:auto" id="notifList">
                             @php
@@ -1410,7 +1529,7 @@
                                     <i class="fas fa-{{ $icon }}" style="font-size:13px;color:{{ $color }}"></i>
                                 </div>
                                 <div style="flex:1;min-width:0">
-                                    <div style="font-size:12px;font-weight:600;color:#0f1d35">{{ $title }}</div>
+                                    <div style="font-size:12px;font-weight:600;color:#111827">{{ $title }}</div>
                                     <div style="font-size:11px;color:#6b7280;margin-top:2px;line-height:1.4">{{ $act->subject }} — {{ $who }}</div>
                                     <div style="font-size:10px;color:#9ca3af;margin-top:4px">{{ $diff }}</div>
                                 </div>
@@ -1420,11 +1539,11 @@
 
                             @foreach($recentLeads as $lead)
                             <div class="notif-item" style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:1px solid #f9fafb;cursor:pointer;background:#fff" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='#fff'">
-                                <div style="width:34px;height:34px;border-radius:50%;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                                    <i class="fas fa-user-plus" style="font-size:13px;color:#2563eb"></i>
+                                <div style="width:34px;height:34px;border-radius:50%;background:#f2f2f2;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                                    <i class="fas fa-user-plus" style="font-size:13px;color:#111111"></i>
                                 </div>
                                 <div style="flex:1;min-width:0">
-                                    <div style="font-size:12px;font-weight:500;color:#0f1d35">Lead Baru</div>
+                                    <div style="font-size:12px;font-weight:500;color:#111827">Lead Baru</div>
                                     <div style="font-size:11px;color:#6b7280;margin-top:2px">{{ $lead->company_name }} — {{ $lead->pipeline_stage }}</div>
                                     <div style="font-size:10px;color:#9ca3af;margin-top:4px">{{ $lead->created_at->diffForHumans() }}</div>
                                 </div>
@@ -1432,7 +1551,7 @@
                             @endforeach
                             @endif
                         </div>
-                        <a href="{{ route('tasks.index') }}" style="display:block;text-align:center;padding:12px;font-size:12px;color:#3b82f6;text-decoration:none;border-top:1px solid #f0f0f0" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
+                        <a href="{{ route('tasks.index') }}" style="display:block;text-align:center;padding:12px;font-size:12px;color:#111111;text-decoration:none;border-top:1px solid #f0f0f0" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
                             Lihat semua notifikasi →
                         </a>
                     </div>
@@ -1455,9 +1574,9 @@
                             <div style="display:flex;align-items:center;gap:10px">
                                 <div class="user-avatar" style="width:38px;height:38px;font-size:.8rem">{{ auth()->user()->avatar_initials }}</div>
                                 <div>
-                                    <div style="font-size:13px;font-weight:600;color:#0f1d35">{{ auth()->user()->name }}</div>
+                                    <div style="font-size:13px;font-weight:600;color:#111827">{{ auth()->user()->name }}</div>
                                     <div style="font-size:11px;color:#6b7280">{{ auth()->user()->email }}</div>
-                                    <span style="font-size:10px;font-weight:600;padding:1px 8px;border-radius:20px;background:#eff6ff;color:#2563eb;display:inline-block;margin-top:3px">{{ auth()->user()->role }}</span>
+                                    <span style="font-size:10px;font-weight:600;padding:1px 8px;border-radius:20px;background:#f2f2f2;color:#111111;display:inline-block;margin-top:3px">{{ auth()->user()->role }}</span>
                                 </div>
                             </div>
                         </div>
@@ -1532,6 +1651,29 @@
             icon.className = document.body.classList.contains('sidebar-collapsed') ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
         }
 
+        // ── Mobile off-canvas sidebar ──
+        function openMobileSidebar() {
+            document.body.classList.add('sidebar-mobile-open');
+            const ov = document.getElementById('sidebarOverlay');
+            if (ov) requestAnimationFrame(() => ov.classList.add('show'));
+        }
+        function closeMobileSidebar() {
+            document.body.classList.remove('sidebar-mobile-open');
+            document.getElementById('sidebarOverlay')?.classList.remove('show');
+        }
+        // Tutup sidebar saat klik menu (mobile) & saat layar dilebarkan
+        document.querySelectorAll('.sidebar-nav .sidebar-item').forEach(function(el) {
+            el.addEventListener('click', function() {
+                if (window.innerWidth <= 991) closeMobileSidebar();
+            });
+        });
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 991) closeMobileSidebar();
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeMobileSidebar();
+        });
+
         // ── Close all dropdowns when click outside ──
         document.addEventListener('click', function(e) {
             if (!document.getElementById('notifWrap')?.contains(e.target))
@@ -1589,11 +1731,11 @@
                 <i class="fas fa-${n.icon}" style="font-size:13px;color:${n.icon_color}"></i>
             </div>
             <div style="flex:1;min-width:0">
-                <div style="font-size:12px;font-weight:${n.is_read ? '500' : '600'};color:#0f1d35">${n.title}</div>
+                <div style="font-size:12px;font-weight:${n.is_read ? '500' : '600'};color:#111827">${n.title}</div>
                 <div style="font-size:11px;color:#6b7280;margin-top:2px;line-height:1.4">${n.message}</div>
                 <div style="font-size:10px;color:#9ca3af;margin-top:3px">${n.time}</div>
             </div>
-            ${!n.is_read ? '<div style="width:7px;height:7px;border-radius:50%;background:#3b82f6;flex-shrink:0;margin-top:4px"></div>' : ''}
+            ${!n.is_read ? '<div style="width:7px;height:7px;border-radius:50%;background:#111111;flex-shrink:0;margin-top:4px"></div>' : ''}
         </div>
     `).join('');
         }
@@ -1716,7 +1858,7 @@
                 vendor: 'handshake'
             };
             const colors = {
-                lead: '#eff6ff:#2563eb',
+                lead: '#f2f2f2:#111111',
                 customer: '#f0fdf4:#16a34a',
                 vendor: '#faf5ff:#7c3aed'
             };

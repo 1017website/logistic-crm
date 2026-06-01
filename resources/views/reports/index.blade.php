@@ -6,7 +6,7 @@
 @push('styles')
 <style>
 .report-tab { padding:8px 16px;border-radius:20px;border:1px solid #e5e7eb;font-size:13px;font-weight:500;cursor:pointer;background:#fff;color:#6b7280;text-decoration:none;transition:.15s; }
-.report-tab.active { background:#0f1d35;color:#fff;border-color:#0f1d35; }
+.report-tab.active { background:#111827;color:#fff;border-color:#111827; }
 .report-tab:hover:not(.active) { background:#f9fafb;color:#374151; }
 .summary-card { background:#fff;border-radius:10px;border:1px solid #f0f0f0;padding:16px 18px; }
 .report-table { font-size:13px; }
@@ -74,7 +74,7 @@
         color: #111 !important;
     }
     .report-table tr:nth-child(even) td { background: #f9fafb !important; }
-    .report-table a { color: #0f1d35 !important; text-decoration: none !important; font-weight: 600; }
+    .report-table a { color: #111827 !important; text-decoration: none !important; font-weight: 600; }
 
     /* Badges */
     span[class*="badge"] {
@@ -107,7 +107,7 @@
     text-align: center;
 }
 .print-kpi-grid .pkpi-label { font-size: 8pt; color: #6b7280; margin-bottom: 2px; }
-.print-kpi-grid .pkpi-value { font-size: 11pt; font-weight: 700; color: #0f1d35; }
+.print-kpi-grid .pkpi-value { font-size: 11pt; font-weight: 700; color: #111827; }
 </style>
 @endpush
 
@@ -171,13 +171,13 @@
     <div class="col-md-3 export-section">
         <div class="card h-100">
             <div class="card-body p-3">
-                <div style="font-size:13px;font-weight:600;color:#0f1d35;margin-bottom:10px">Export Report</div>
+                <div style="font-size:13px;font-weight:600;color:#111827;margin-bottom:10px">Export Report</div>
                 <a href="{{ route('reports.export', array_merge(request()->query(), ['report_type'=>$reportType])) }}"
                     class="d-flex align-items-center gap-2 p-2 mb-2" style="border:1px solid #bbf7d0;border-radius:8px;text-decoration:none;color:#16a34a;background:#f0fdf4;font-size:13px;font-weight:500">
                     <i class="fas fa-file-excel" style="font-size:16px"></i> Export Excel
                 </a>
                 <button type="button" onclick="window.print()"
-                    class="d-flex align-items-center gap-2 p-2 w-100" style="border:1px solid #bfdbfe;border-radius:8px;color:#2563eb;background:#eff6ff;font-size:13px;font-weight:500;cursor:pointer">
+                    class="d-flex align-items-center gap-2 p-2 w-100" style="border:1px solid #d4d4d4;border-radius:8px;color:#111111;background:#f2f2f2;font-size:13px;font-weight:500;cursor:pointer">
                     <i class="fas fa-print" style="font-size:16px"></i> Print Report
                 </button>
             </div>
@@ -228,7 +228,7 @@
 {{-- Summary KPI --}}
 <div class="row g-3 mb-4">
     @foreach([
-        ['bg'=>'#eff6ff','icon'=>'fas fa-chart-bar','color'=>'#3b82f6','label'=>'Total Revenue','value'=>idr($revenue)],
+        ['bg'=>'#f2f2f2','icon'=>'fas fa-chart-bar','color'=>'#111111','label'=>'Total Revenue','value'=>idr($revenue)],
         ['bg'=>'#f0fdf4','icon'=>'fas fa-chart-line','color'=>'#10b981','label'=>'Gross Profit','value'=>idr($grossProfit ?? 0)],
         ['bg'=>'#faf5ff','icon'=>'fas fa-wallet','color'=>'#7c3aed','label'=>'Nett Profit','value'=>idr($nettProfit ?? 0)],
         ['bg'=>'#fff7ed','icon'=>'fas fa-coins','color'=>'#f97316','label'=>'Avg Deal Value','value'=>idr($avgDealValue)],
@@ -242,7 +242,7 @@
             </div>
             <div>
                 <div style="font-size:12px;color:#6b7280">{{ $k['label'] }}</div>
-                <div style="font-size:18px;font-weight:700;color:#0f1d35">{{ $k['value'] }}</div>
+                <div style="font-size:18px;font-weight:700;color:#111827">{{ $k['value'] }}</div>
             </div>
         </div>
     </div>
@@ -252,7 +252,7 @@
 {{-- Report Table --}}
 <div class="card">
     <div class="d-flex align-items-center justify-content-between p-3 pb-0">
-        <div style="font-size:14px;font-weight:600;color:#0f1d35">
+        <div style="font-size:14px;font-weight:600;color:#111827">
             @php $titles=['sales'=>'Sales Report Detail','customer'=>'Customer Report','pipeline'=>'Pipeline Report','performance'=>'Performance Report','po'=>'PO Report']; @endphp
             {{ $titles[$reportType] ?? 'Report Detail' }}
         </div>
@@ -285,7 +285,7 @@
                     <td style="color:#9ca3af;font-size:12px">{{ $reportData->firstItem() + $i }}</td>
                     <td style="font-size:12px;white-space:nowrap">{{ $lead->created_at->format('d M Y') }}</td>
                     <td>
-                        <a href="{{ route('leads.show', $lead) }}" style="font-weight:600;color:#0f1d35;text-decoration:none;font-size:13px">{{ $lead->company_name }}</a>
+                        <a href="{{ route('leads.show', $lead) }}" style="font-weight:600;color:#111827;text-decoration:none;font-size:13px">{{ $lead->company_name }}</a>
                     </td>
                     <td style="font-size:12px;color:#6b7280">{{ $lead->pic_name }}</td>
                     <td style="font-size:12px">{{ $lead->salesUser?->name ?? '-' }}</td>
@@ -347,7 +347,7 @@
                 <tr>
                     <td style="color:#9ca3af;font-size:12px">{{ $reportData->firstItem() + $i }}</td>
                     <td>
-                        <a href="{{ route('leads.show', $lead) }}" style="font-weight:600;color:#0f1d35;text-decoration:none;font-size:13px">{{ $lead->company_name }}</a>
+                        <a href="{{ route('leads.show', $lead) }}" style="font-weight:600;color:#111827;text-decoration:none;font-size:13px">{{ $lead->company_name }}</a>
                         <div style="font-size:11px;color:#6b7280">{{ $lead->pic_name }}</div>
                     </td>
                     <td><span class="badge-stage badge-{{ $stageMap[$lead->pipeline_stage]??'identifying' }}" style="font-size:11px">{{ $lead->pipeline_stage }}</span></td>

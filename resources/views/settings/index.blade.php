@@ -32,8 +32,8 @@
         }
 
         .sn-item.active {
-            background: #eff6ff;
-            color: #2563eb;
+            background: #f2f2f2;
+            color: #111111;
             font-weight: 600;
         }
 
@@ -53,7 +53,7 @@
         .s-title {
             font-size: 15px;
             font-weight: 700;
-            color: #0f1d35;
+            color: #111827;
             margin-bottom: 4px;
         }
 
@@ -106,7 +106,7 @@
         }
 
         input:checked+.toggle-slider {
-            background: #3b82f6;
+            background: #111111;
         }
 
         input:checked+.toggle-slider:before {
@@ -211,11 +211,11 @@
                             <div class="upload-area" id="logoUploadArea"
                                 onclick="document.getElementById('logoInput').click()"
                                 style="border:2px dashed #cbd5e1;border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:all .2s"
-                                onmouseover="this.style.borderColor='#2563eb'"
+                                onmouseover="this.style.borderColor='#111111'"
                                 onmouseout="this.style.borderColor='#cbd5e1'">
                                 <i class="fas fa-image" style="font-size:1.5rem;color:#9ca3af"></i>
                                 <div style="font-size:12px;color:#6b7280;margin-top:8px">Klik untuk upload logo baru</div>
-                                <div id="logoFileName" style="font-size:11px;color:#2563eb;margin-top:4px"></div>
+                                <div id="logoFileName" style="font-size:11px;color:#111111;margin-top:4px"></div>
                             </div>
                             <input type="file" id="logoInput" name="company_logo" accept="image/*" style="display:none"
                                 onchange="previewFile(this,'logoFileName','logoPreview')">
@@ -245,11 +245,11 @@
                             @endif
                             <div class="upload-area" onclick="document.getElementById('loginLogoInput').click()"
                                 style="border:2px dashed #cbd5e1;border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:all .2s"
-                                onmouseover="this.style.borderColor='#2563eb'"
+                                onmouseover="this.style.borderColor='#111111'"
                                 onmouseout="this.style.borderColor='#cbd5e1'">
                                 <i class="fas fa-sign-in-alt" style="font-size:1.5rem;color:#9ca3af"></i>
                                 <div style="font-size:12px;color:#6b7280;margin-top:8px">Klik untuk upload logo login</div>
-                                <div id="loginLogoFileName" style="font-size:11px;color:#2563eb;margin-top:4px"></div>
+                                <div id="loginLogoFileName" style="font-size:11px;color:#111111;margin-top:4px"></div>
                             </div>
                             <input type="file" id="loginLogoInput" name="company_login_logo" accept="image/*"
                                 style="display:none" onchange="previewFile(this,'loginLogoFileName','loginLogoPreview')">
@@ -279,12 +279,12 @@
                             <div class="upload-area" id="faviconUploadArea"
                                 onclick="document.getElementById('faviconInput').click()"
                                 style="border:2px dashed #cbd5e1;border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:all .2s"
-                                onmouseover="this.style.borderColor='#2563eb'"
+                                onmouseover="this.style.borderColor='#111111'"
                                 onmouseout="this.style.borderColor='#cbd5e1'">
                                 <i class="fas fa-star" style="font-size:1.5rem;color:#9ca3af"></i>
                                 <div style="font-size:12px;color:#6b7280;margin-top:8px">Klik untuk upload favicon baru
                                 </div>
-                                <div id="faviconFileName" style="font-size:11px;color:#2563eb;margin-top:4px"></div>
+                                <div id="faviconFileName" style="font-size:11px;color:#111111;margin-top:4px"></div>
                             </div>
                             <input type="file" id="faviconInput" name="company_favicon" accept="image/*,.ico"
                                 style="display:none" onchange="previewFile(this,'faviconFileName','faviconPreview')">
@@ -429,7 +429,7 @@
                 <div class="s-desc">Tahapan pipeline penjualan yang aktif di sistem.</div>
                 @php
                     $stages = [
-                        ['Identifying', '#3b82f6', '10%'],
+                        ['Identifying', '#111111', '10%'],
                         ['Approaching', '#10b981', '30%'],
                         ['Follow Up', '#f59e0b', '50%'],
                         ['Won/Closing', '#10b981', '100%'],
@@ -464,7 +464,7 @@
                             <div
                                 style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.5px">
                                 Versi Aplikasi</div>
-                            <div style="font-size:22px;font-weight:700;color:#0f1d35;margin-top:4px">v1.0.0</div>
+                            <div style="font-size:22px;font-weight:700;color:#111827;margin-top:4px">v1.0.0</div>
                             <div style="font-size:12px;color:#6b7280">Logistic CRM</div>
                         </div>
                     </div>
@@ -473,7 +473,7 @@
                             <div
                                 style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.5px">
                                 Tech Stack</div>
-                            <div style="font-size:22px;font-weight:700;color:#0f1d35;margin-top:4px">Laravel 12</div>
+                            <div style="font-size:22px;font-weight:700;color:#111827;margin-top:4px">Laravel 12</div>
                             <div style="font-size:12px;color:#6b7280">PHP 8.2 · Bootstrap 5.3 · MySQL</div>
                         </div>
                     </div>
@@ -482,7 +482,7 @@
                             <div
                                 style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.5px">
                                 Logged In As</div>
-                            <div style="font-size:16px;font-weight:700;color:#0f1d35;margin-top:4px">
+                            <div style="font-size:16px;font-weight:700;color:#111827;margin-top:4px">
                                 {{ auth()->user()->name }}</div>
                             <div style="font-size:12px;color:#6b7280">{{ auth()->user()->email }} ·
                                 {{ auth()->user()->role }}</div>
@@ -493,7 +493,7 @@
                             <div
                                 style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.5px">
                                 Company</div>
-                            <div style="font-size:16px;font-weight:700;color:#0f1d35;margin-top:4px">
+                            <div style="font-size:16px;font-weight:700;color:#111827;margin-top:4px">
                                 {{ $settings['company_name'] ?? '-' }}</div>
                             <div style="font-size:12px;color:#6b7280">{{ $settings['company_email'] ?? '-' }}</div>
                         </div>
