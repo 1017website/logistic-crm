@@ -5,7 +5,7 @@
 
 @section('content')
 <div class="row g-3">
-<div class="col-12">
+<div class="col-lg-{{ $selectedVendor ? '8' : '12' }}">
 
     {{-- Header --}}
     <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
@@ -87,7 +87,7 @@
                         <tr>
                             <td class="px-3 py-2" style="color:#9ca3af;font-size:.75rem">{{ $vendors->firstItem() + $i }}</td>
                             <td class="px-3 py-2">
-                                <div style="font-weight:700">{{ $s->vendor_name }}</div>
+                                <a href="{{ route('vendors.index', array_merge(request()->query(), ['selected_id'=>$s->id])) }}" style="font-weight:700;color:#111;text-decoration:none">{{ $s->vendor_name }}</a>
                                 @if($s->vendor_code)<div style="font-size:10px;color:var(--text-muted);font-family:monospace">{{ $s->vendor_code }}</div>@endif
                                 @if($s->is_preferred)<span style="font-size:10px;color:#d97706">⭐ Preferred</span>@endif
                             </td>
@@ -169,6 +169,110 @@
         </div>
     </div>
 </div>
+
+{{-- RIGHT: Detail Panel --}}
+@if($selectedVendor)
+<div class="col-lg-4">
+    <div class="card" style="position:sticky;top:70px">
+        <div class="card-body p-3">
+            <div class="d-flex align-items-start justify-content-between mb-3">
+                <div class="d-flex gap-2">
+                    <div class="user-avatar" style="width:44px;height:44px;border-radius:8px;font-size:.85rem">{{ strtoupper(substr($selectedVendor->vendor_name,0,2)) }}</div>
+                    <div>
+                        <div style="font-weight:700;font-size:.9rem">{{ $selectedVendor->vendor_name }}</div>
+                        <div style="display:flex;gap:5px;align-items:center;margin-top:3px;flex-wrap:wrap">
+                            <span style="background:{{ $selectedVendor->relationship_status === 'Existing' ? '#d1fae5' : '#fef3c7' }};color:{{ $selectedVendor->relationship_status === 'Existing' ? '#059669' : '#b45309' }};font-size:.65rem;padding:2px 7px;border-radius:20px;font-weight:600">{{ $selectedVendor->relationship_status }}</span>
+                            <span style="background:#f2f2f2;color:#111;font-size:.65rem;padding:2px 7px;border-radius:20px;font-weight:600">{{ $selectedVendor->vendor_type === 'External' ? 'Local' : 'Import' }}</span>
+                            @if($selectedVendor->is_preferred)<span style="font-size:.65rem;color:#d97706">⭐ Preferred</span>@endif
+                        </div>
+                        @if($selectedVendor->vendor_code)<div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-top:3px">{{ $selectedVendor->vendor_code }}</div>@endif
+                    </div>
+                </div>
+                <a href="{{ route('vendors.index', request()->except('selected_id')) }}" style="color:var(--text-muted)"><i class="fas fa-times"></i></a>
+            </div>
+
+            {{-- Info --}}
+            <table style="width:100%;font-size:.75rem">
+                @foreach([
+                    ['PIC',$selectedVendor->pic_name ?? '-'],
+                    ['Jabatan PIC',$selectedVendor->pic_position ?? '-'],
+                    ['Phone',$selectedVendor->phone ?? '-'],
+                    ['Email',$selectedVendor->email ?? '-'],
+                    ['Service Type',$selectedVendor->service_type ?? '-'],
+                    ['Service Mode',$selectedVendor->service_mode ?? '-'],
+                    ['Payment Term',$selectedVendor->payment_term ?? '-'],
+                    ['Rating',($selectedVendor->rating ?? 0).' / 5'],
+                    ['Vendor Since',$selectedVendor->vendor_since?->format('d M Y') ?? '-'],
+                ] as $row)
+                <tr>
+                    <td style="color:var(--text-muted);padding:3px 0;vertical-align:top;width:38%">{{ $row[0] }}</td>
+                    <td style="padding:3px 0;font-weight:500">{{ $row[1] }}</td>
+                </tr>
+                @endforeach
+            </table>
+
+            {{-- Layanan Vendor --}}
+            <div style="margin-top:12px">
+                <div style="font-size:.72rem;font-weight:700;color:var(--primary);margin-bottom:6px"><i class="fas fa-boxes me-1"></i> Layanan Vendor</div>
+                @if($selectedVendor->services && $selectedVendor->services->count())
+                @foreach($selectedVendor->services as $svc)
+                <div style="background:#f9fafb;border-radius:6px;padding:6px 10px;margin-bottom:5px">
+                    <div style="font-size:.76rem;font-weight:600">{{ $svc->service_name }}</div>
+                    <div style="font-size:.68rem;color:var(--text-muted)">
+                        {{ $svc->unit }}@if($svc->unit && $svc->tonnage) · @endif@if($svc->tonnage){{ rtrim(rtrim(number_format($svc->tonnage,3,',','.'),'0'),',') }} ton @endif@if($svc->description) · {{ $svc->description }}@endif
+                    </div>
+                </div>
+                @endforeach
+                @else
+                <div style="font-size:.72rem;color:var(--text-muted)">Belum ada layanan.</div>
+                @endif
+            </div>
+
+            {{-- Stats --}}
+            <div class="row g-2 mt-2 text-center">
+                <div class="col-6">
+                    <div style="background:#f9fafb;border-radius:8px;padding:8px">
+                        <div style="font-size:.65rem;color:var(--text-muted)">Total Delivery Order</div>
+                        <div style="font-size:1rem;font-weight:800;color:var(--primary)">{{ $selectedVendor->deliveryOrders->count() }}</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div style="background:#f9fafb;border-radius:8px;padding:8px">
+                        <div style="font-size:.65rem;color:var(--text-muted)">PIC Tambahan</div>
+                        <div style="font-size:1rem;font-weight:800;color:#16a34a">{{ $selectedVendor->pics->count() }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- PIC tambahan --}}
+            @if($selectedVendor->pics && $selectedVendor->pics->count())
+            <div style="margin-top:12px">
+                <div style="font-size:.72rem;font-weight:700;color:var(--primary);margin-bottom:6px"><i class="fas fa-users me-1"></i> PIC Perusahaan</div>
+                @foreach($selectedVendor->pics as $pic)
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f3f4f6">
+                    <div>
+                        <div style="font-size:.76rem;font-weight:600">{{ $pic->pic_name }}@if($pic->is_primary)<span style="font-size:.6rem;color:#059669"> · Utama</span>@endif</div>
+                        <div style="font-size:.68rem;color:var(--text-muted)">{{ $pic->pic_position ?? '-' }}@if($pic->phone) · {{ $pic->phone }}@endif</div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+            @endif
+
+            {{-- Actions --}}
+            <div class="d-flex gap-2 mt-3">
+                <button class="btn btn-sm btn-outline-secondary flex-fill" style="font-size:.75rem" onclick="openEditVendor({{ $selectedVendor->id }})">
+                    <i class="fas fa-edit me-1"></i> Edit
+                </button>
+                <button class="btn btn-sm btn-outline-primary flex-fill" style="font-size:.75rem" onclick="openServiceModal({{ $selectedVendor->id }}, '{{ addslashes($selectedVendor->vendor_name) }}')">
+                    <i class="fas fa-boxes me-1"></i> Layanan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 </div>
 
 {{-- Modal Tambah --}}

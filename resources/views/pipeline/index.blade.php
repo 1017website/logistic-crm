@@ -194,7 +194,9 @@
                             <div style="width:{{ $pct }}%;background:var(--primary);height:4px;border-radius:20px"></div>
                         </div>
                     </div>
-                    <span style="font-size:.72rem;font-weight:600;color:var(--primary)">{{ $s->deals_closed }} deals</span>
+                    <span style="font-size:.72rem;font-weight:600;color:var(--primary);text-align:right">{{ $s->deals_closed }} deals
+                        @if($s->expected_revenue ?? 0)<br><span style="font-size:.62rem;color:var(--text-muted);font-weight:500">Rp {{ number_format(($s->expected_revenue ?? 0)/1000000, 1, ',', '.') }}M</span>@endif
+                    </span>
                 </div>
                 @empty
                 <div class="text-center py-3" style="color:var(--text-muted);font-size:.8rem">Belum ada data</div>
@@ -211,15 +213,21 @@
 $chartLabels = array_keys($pipeline);
 $chartValues = array_values(array_map(fn($l) => (float)($l->sum('potensi_revenue') / 1000000), $pipeline));
 
-// Trend: expected revenue per bulan (6 bulan terakhir) dari DB
+// Trend: revenue riil per bulan (6 bulan terakhir) dari Delivery Order Done.
 $trendLabels = [];
 $trendData = [];
 for ($i = 5; $i >= 0; $i--) {
 $month = now()->subMonths($i);
 $trendLabels[] = $month->format('M Y');
-$trendData[] = (float)(\App\Models\Lead::whereYear('created_at', $month->year)
-->whereMonth('created_at', $month->month)
-->sum('potensi_revenue') / 1000000);
+$rev = \Illuminate\Support\Facades\DB::table('delivery_orders')
+    ->join('delivery_order_items as items', 'items.delivery_order_id', '=', 'delivery_orders.id')
+    ->where('delivery_orders.status', 'Done')
+    ->where('delivery_orders.currency', 'IDR')
+    ->whereNull('delivery_orders.deleted_at')
+    ->whereYear('delivery_orders.order_date', $month->year)
+    ->whereMonth('delivery_orders.order_date', $month->month)
+    ->sum(\Illuminate\Support\Facades\DB::raw('items.qty * items.sell_price'));
+$trendData[] = (float)($rev / 1000000);
 }
 @endphp
 <script>
