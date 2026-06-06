@@ -79,11 +79,13 @@
                             onclick='openEditServiceType(@json($st))' title="Edit">
                             <i class="fas fa-pen"></i>
                         </button>
+                        @if(auth()->user()->isAdmin())
                         <form method="POST" action="{{ route('service-types.destroy', $st) }}" class="d-inline"
                             onsubmit="return confirm('Hapus service type &quot;{{ $st->name }}&quot;?')">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus"><i class="fas fa-trash"></i></button>
                         </form>
+                        @endif
                     </td>
                 </tr>
                 @empty
