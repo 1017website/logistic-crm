@@ -91,6 +91,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/delivery-orders/export', [DeliveryOrderController::class, 'export'])->name('delivery-orders.export');
         Route::get('/delivery-orders/{deliveryOrder}/edit', [DeliveryOrderController::class, 'edit'])->name('delivery-orders.edit');
         Route::resource('delivery-orders', DeliveryOrderController::class)->only(['index', 'store', 'update']);
+
+        Route::resource('service-types', ServiceTypeController::class)->only(['index', 'store', 'update', 'destroy']);
     });
 
     // ── Manager & Admin only ───────────────────────
@@ -122,7 +124,6 @@ Route::middleware('auth')->group(function () {
     // ── Admin only ─────────────────────────────────
     Route::middleware('role:Admin')->group(function () {
         Route::resource('users', UserController::class)->except(['create', 'edit', 'show']);
-        Route::resource('service-types', ServiceTypeController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
         Route::post('/settings/delete-image', [SettingsController::class, 'deleteLogo'])->name('settings.delete-image');

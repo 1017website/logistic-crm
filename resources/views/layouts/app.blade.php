@@ -1397,6 +1397,9 @@
             <a href="{{ route('vendors.index') }}" class="sidebar-item {{ request()->routeIs('vendors.*') ? 'active' : '' }}">
                 <i class="fas fa-truck-moving si-icon"></i><span>Database Vendor</span>
             </a>
+            <a href="{{ route('service-types.index') }}" class="sidebar-item {{ request()->routeIs('service-types.*') ? 'active' : '' }}">
+                <i class="fas fa-tags si-icon"></i><span>Master Service Type</span>
+            </a>
             @endif
             @if(auth()->user()->canAccess('delivery_orders'))
             <a href="{{ route('delivery-orders.index') }}" class="sidebar-item {{ request()->routeIs('delivery-orders.*') ? 'active' : '' }}">
@@ -1422,9 +1425,6 @@
             </a>
             @endif
             @if(auth()->user()->canAccess('settings'))
-            <a href="{{ route('service-types.index') }}" class="sidebar-item {{ request()->routeIs('service-types.*') ? 'active' : '' }}">
-                <i class="fas fa-tags si-icon"></i><span>Master Service Type</span>
-            </a>
             <a href="{{ route('settings.index') }}" class="sidebar-item {{ request()->routeIs('settings.*') ? 'active' : '' }}">
                 <i class="fas fa-cog si-icon"></i><span>Settings</span>
             </a>
