@@ -158,10 +158,8 @@ class LeadsController extends Controller
 
         $lead->update($validated);
 
-        // Auto-sync ke database customer setiap kali stage berubah
-        if (isset($validated['pipeline_stage'])) {
-            self::syncToCustomer($lead);
-        }
+        // Auto-sync ke database customer setiap kali lead diedit (field utama, stage, dll).
+        self::syncToCustomer($lead);
 
         // Notifikasi: Deal Won
         if (isset($validated['pipeline_stage']) && $validated['pipeline_stage'] === 'Won') {
@@ -281,9 +279,11 @@ class LeadsController extends Controller
 
             if (!$exists) {
                 $customer->productItems()->create([
-                    'service_name' => $name,
-                    'product_name' => $name,
-                    'unit'         => $unit,
+                    'service_name'  => $name,
+                    'product_name'  => $name,
+                    'unit'          => $unit,
+                    'tonnage'       => $leadProduct->tonnage ?? null,
+                    'shipping_zone' => $leadProduct->shipping_zone ?? null,
                 ]);
             }
         }

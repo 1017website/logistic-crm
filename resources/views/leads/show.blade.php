@@ -562,9 +562,15 @@
 @if(request()->boolean('edit'))
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // Buka modal edit hanya jika benar-benar diminta via tombol Edit (?edit=1),
+    // lalu bersihkan query agar refresh / klik detail berikutnya tidak ikut membuka modal.
     var el = document.getElementById('editLeadModal');
     if (el && window.bootstrap) {
         bootstrap.Modal.getOrCreateInstance(el).show();
+        if (window.history && window.history.replaceState) {
+            var url = window.location.pathname; // buang ?edit=1
+            window.history.replaceState({}, document.title, url);
+        }
     }
 });
 </script>

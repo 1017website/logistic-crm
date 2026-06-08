@@ -46,6 +46,29 @@ class LeadCustomerSync
         return Lead::where('customer_id', $customer->id)->orderByDesc('updated_at')->first();
     }
 
+    /**
+     * Mirror field utama customer -> lead terkait (dipanggil saat edit customer).
+     * Tidak mengubah pipeline_stage / status lead.
+     */
+    public static function syncCustomerFieldsToLead(Customer $customer): void
+    {
+        self::run(function () use ($customer) {
+            $lead = self::leadOfCustomer($customer);
+            if (!$lead) return;
+
+            $lead->updateQuietly([
+                'company_name' => $customer->company_name,
+                'pic_name'     => $customer->pic_name,
+                'pic_position' => $customer->pic_position,
+                'phone'        => $customer->phone,
+                'email'        => $customer->email,
+                'address'      => $customer->address,
+                'industry'     => $customer->industry,
+                'location'     => $customer->location,
+            ]);
+        });
+    }
+
     // ─────────────────────────── PIC ───────────────────────────
 
     public static function picSaved(LeadPic $pic): void
@@ -186,16 +209,23 @@ class LeadCustomerSync
         $name = trim((string) ($source->display_name ?: $source->service_name ?: $source->product_name));
         if ($name === '') return;
 
-        $exists = (clone $relation)
+        $existing = (clone $relation)
             ->whereRaw('LOWER(product_name) = ?', [mb_strtolower($name)])
-            ->exists();
+            ->first();
 
-        if (!$exists) {
-            $relation->create([
-                'service_name' => $name,
-                'product_name' => $name,
-                'unit'         => trim((string) ($source->unit ?? '')),
-            ]);
+        $payload = [
+            'service_name'  => $name,
+            'product_name'  => $name,
+            'unit'          => trim((string) ($source->unit ?? '')),
+            'tonnage'       => $source->tonnage ?? null,
+            'shipping_zone' => $source->shipping_zone ?? null,
+        ];
+
+        if ($existing) {
+            // Update agar tonase & zona ikut tersinkron bila berubah.
+            $existing->update($payload);
+        } else {
+            $relation->create($payload);
         }
     }
 

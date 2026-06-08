@@ -216,7 +216,7 @@ class CustomerController extends Controller
              * Replace seluruh customer_products dengan data dari form.
              */
             if ($request->has('products_submitted')) {
-                $customer->productItems()->delete();
+                $customer->productItems()->get()->each(fn($row) => $row->delete());
                 foreach ($productsList as $product) {
                     $name = trim($product['service_name'] ?? $product['product_name'] ?? '');
                     if ($name === '') continue;
@@ -234,7 +234,7 @@ class CustomerController extends Controller
              * pics_submitted: PIC tambahan dari modal edit dianggap final.
              */
             if ($request->has('pics_submitted')) {
-                $customer->pics()->delete();
+                $customer->pics()->get()->each(fn($row) => $row->delete());
 
                 foreach ($picsData as $pic) {
                     $picName = trim($pic['pic_name'] ?? '');
@@ -249,6 +249,9 @@ class CustomerController extends Controller
                     ]);
                 }
             }
+
+            // Mirror field utama customer -> lead terkait (nama, PIC utama, kontak, dll).
+            \App\Services\LeadCustomerSync::syncCustomerFieldsToLead($customer->fresh());
         });
 
         return redirect()->back()->with('success', 'Data customer berhasil diupdate.');
