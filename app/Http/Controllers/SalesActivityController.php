@@ -131,16 +131,24 @@ class SalesActivityController extends Controller
         }
 
         if ($request->filled('pipeline_stage') && $targetLead) {
-            $requested = $request->pipeline_stage;
-            $isExisting = $customer && $customer->status === 'Existing';
-            $allowed = $isExisting
-                ? ['Follow Up', 'Won', 'Maintaining']
-                : ['Identifying', 'Approaching', 'Follow Up', 'Won', 'Maintaining'];
-
-            if (in_array($requested, $allowed, true)) {
-                $targetLead->update(['pipeline_stage' => $requested]);
-                LeadsController::syncToCustomer($targetLead->fresh());
+            // Customer existing dibatasi: Follow Up, Won, Maintaining.
+            // Lead biasa: semua stage (sudah divalidasi).
+            $relatedCustomer = $customer;
+            if (!$relatedCustomer && $targetLead->customer_id) {
+                $relatedCustomer = Customer::find($targetLead->customer_id);
             }
+            $isExisting = $relatedCustomer && $relatedCustomer->status === 'Existing';
+            $requested  = $request->pipeline_stage;
+
+            if ($isExisting) {
+                $allowed  = ['Follow Up', 'Won', 'Maintaining'];
+                $newStage = in_array($requested, $allowed, true) ? $requested : 'Maintaining';
+            } else {
+                $newStage = $requested;
+            }
+
+            $targetLead->update(['pipeline_stage' => $newStage]);
+            LeadsController::syncToCustomer($targetLead->fresh());
         }
 
         unset($validated['photo'], $validated['client_ref']);

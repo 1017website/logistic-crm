@@ -426,13 +426,15 @@ class CustomerController extends Controller
         }
 
         if (!empty($validated['pipeline_stage'])) {
-            $allowed = $customer->status === 'Existing'
-                ? ['Follow Up','Won','Maintaining']
-                : ['Identifying','Approaching','Follow Up','Won','Maintaining'];
-            if (in_array($validated['pipeline_stage'], $allowed, true)) {
-                $lead->update(['pipeline_stage' => $validated['pipeline_stage']]);
-                LeadsController::syncToCustomer($lead->fresh());
+            // Customer existing dibatasi: Follow Up, Won, Maintaining.
+            if ($customer->status === 'Existing') {
+                $allowed  = ['Follow Up', 'Won', 'Maintaining'];
+                $newStage = in_array($validated['pipeline_stage'], $allowed, true) ? $validated['pipeline_stage'] : 'Maintaining';
+            } else {
+                $newStage = $validated['pipeline_stage'];
             }
+            $lead->update(['pipeline_stage' => $newStage]);
+            LeadsController::syncToCustomer($lead->fresh());
         }
 
         if ($lead) {

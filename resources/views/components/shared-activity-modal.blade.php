@@ -43,14 +43,7 @@
                                 </optgroup>
                                 <optgroup label="— Customer Existing —">
                                     @foreach($existingCustomers as $cust)
-                                        @php
-                                            $custLead = \App\Models\Lead::where('customer_id', $cust->id)
-                                                ->orderByDesc('updated_at')->first()
-                                                ?? \App\Models\Lead::whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower(trim($cust->company_name))])
-                                                ->orderByDesc('updated_at')->first();
-                                            $custStage = $custLead?->pipeline_stage ?: 'Maintaining';
-                                        @endphp
-                                        <option value="customer:{{ $cust->id }}" data-type="customer" data-stage="{{ $custStage }}">{{ $cust->company_name }} (Existing)</option>
+                                        <option value="customer:{{ $cust->id }}" data-type="customer" data-stage="Maintaining">{{ $cust->company_name }} (Existing)</option>
                                     @endforeach
                                 </optgroup>
                             </select>
@@ -141,24 +134,51 @@
 
         if (select.value) {
             wrap.style.display = '';
+            var type = (opt && opt.dataset && opt.dataset.type) ? opt.dataset.type : '';
             var stage = (opt && opt.dataset && opt.dataset.stage) ? opt.dataset.stage : '';
             if (stage === 'Closing') stage = 'Won';
+
+            var isCustomer = (type === 'customer');
+            var allowed = isCustomer ? ['Follow Up', 'Won', 'Maintaining'] : null;
+
+            // Tampilkan/sembunyikan opsi sesuai aturan (customer existing: 3 opsi saja).
+            Array.prototype.forEach.call(stageSelect.options, function (o) {
+                var show = !allowed || allowed.indexOf(o.value) !== -1;
+                o.hidden = !show;
+                o.disabled = !show;
+            });
+
+            // Tentukan nilai default: untuk customer, jika stage di luar allowed → Maintaining.
+            if (isCustomer && allowed.indexOf(stage) === -1) stage = 'Maintaining';
+
             if (stage) {
                 stageSelect.value = stage;
-                // refresh tampilan Select2 jika aktif
                 if ($ && $(stageSelect).data('select2')) {
+                    // re-init agar daftar opsi Select2 ikut ter-filter
+                    if ($(stageSelect).data('select2')) { $(stageSelect).select2('destroy'); }
+                    if (typeof initSelect2 === 'function') initSelect2(form);
                     $(stageSelect).val(stage).trigger('change.select2');
                 }
             }
-            // Auto-fill mengikuti pipeline terakhir client, namun tetap bisa diubah manual.
+
+            // Stage selalu bisa dipilih (tidak dikunci) — baik lead maupun customer.
             stageSelect.removeAttribute('readonly');
             stageSelect.style.pointerEvents = '';
             stageSelect.style.background = '';
             if ($ && $(stageSelect).data('select2')) {
                 $(stageSelect).next('.select2').css({'pointer-events':'', 'opacity':''});
             }
-            if (hint) hint.textContent = 'Otomatis mengikuti pipeline terakhir client, tetapi masih bisa Anda ubah.';
+            if (hint) {
+                hint.textContent = isCustomer
+                    ? 'Customer existing: pilihan stage terbatas (Follow Up, Won, Maintaining).'
+                    : 'Otomatis mengikuti pipeline terakhir client, tetapi masih bisa Anda ubah.';
+            }
         } else {
+            // Reset: tampilkan kembali semua opsi.
+            Array.prototype.forEach.call(stageSelect.options, function (o) {
+                o.hidden = false;
+                o.disabled = false;
+            });
             stageSelect.value = 'Identifying';
             if ($ && $(stageSelect).data('select2')) {
                 $(stageSelect).val('Identifying').trigger('change.select2');
