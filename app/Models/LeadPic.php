@@ -15,4 +15,10 @@ class LeadPic extends Model
     {
         return $this->belongsTo(Lead::class);
     }
+
+    protected static function booted(): void
+    {
+        static::saved(fn ($pic) => \App\Services\LeadCustomerSync::picSaved($pic));
+        static::deleted(fn ($pic) => \App\Services\LeadCustomerSync::picDeleted($pic));
+    }
 }

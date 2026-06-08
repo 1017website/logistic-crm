@@ -116,15 +116,16 @@
                                             style="padding:3px 7px" title="Lihat Detail">
                                             <i class="fas fa-eye" style="font-size:.7rem"></i>
                                         </a>
-                                        @if(auth()->user()->isAdmin())
-                                        <form method="POST" action="{{ route('leads.destroy', $lead) }}"
-                                            onsubmit="return confirmDelete('Hapus lead {{ addslashes($lead->company_name) }}?')">
-                                            @csrf @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:3px 7px">
-                                                <i class="fas fa-trash" style="font-size:.7rem"></i>
-                                            </button>
-                                        </form>
-                                        @endif
+                                        <a href="{{ route('leads.show', ['lead' => $lead, 'edit' => 1]) }}" class="btn btn-sm btn-outline-secondary"
+                                            style="padding:3px 7px" title="Edit Lead">
+                                            <i class="fas fa-edit" style="font-size:.7rem"></i>
+                                        </a>
+                                        @include('components.delete-request-button', [
+                                            'module'  => 'leads',
+                                            'id'      => $lead->id,
+                                            'label'   => $lead->company_name,
+                                            'pending' => in_array($lead->id, $pendingDeletionLeadIds ?? []),
+                                        ])
                                     </div>
                                 </td>
                             </tr>

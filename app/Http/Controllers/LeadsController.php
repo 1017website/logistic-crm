@@ -33,8 +33,9 @@ class LeadsController extends Controller
         $leads      = $query->orderBy('updated_at', 'desc')->paginate(15);
         $salesUsers = User::orderBy('name')->get();
         $vendorServices = VendorService::with('vendor')->orderBy('service_name')->get();
+        $pendingDeletionLeadIds = \App\Models\DeletionRequest::pendingIdsFor(Lead::class);
 
-        return view('leads.index', compact('leads', 'salesUsers', 'vendorServices', 'stage', 'search'));
+        return view('leads.index', compact('leads', 'salesUsers', 'vendorServices', 'stage', 'search', 'pendingDeletionLeadIds'));
     }
 
     public function show(Lead $lead)
@@ -200,6 +201,16 @@ class LeadsController extends Controller
      *   lead yang sudah pernah Won lalu pindah ke Maintaining).
      */
     public static function syncToCustomer(Lead $lead): void
+    {
+        \App\Services\LeadCustomerSync::$syncing = true;
+        try {
+            self::doSyncToCustomer($lead);
+        } finally {
+            \App\Services\LeadCustomerSync::$syncing = false;
+        }
+    }
+
+    protected static function doSyncToCustomer(Lead $lead): void
     {
         $lead->loadMissing(['products', 'pics']);
 
@@ -385,13 +396,14 @@ class LeadsController extends Controller
             'type'           => 'required|in:Call,Visit,Email,Note,Others',
             'subject'        => 'required|string|max:255',
             'description'    => 'nullable|string',
-            'activity_at'    => 'required|date',
+            'activity_at'    => 'nullable|date',
             'status'         => 'required|in:Planned,Pending,Done,Overdue',
             'user_id'        => 'nullable|exists:users,id',
             'next_follow_up' => 'nullable|date',
             'pipeline_stage' => 'nullable|in:Identifying,Approaching,Follow Up,Won,Maintaining',
         ]);
 
+        $validated['activity_at'] = now();
         $validated['lead_id'] = $lead->id;
         if ($lead->customer_id) {
             $validated['customer_id'] = $lead->customer_id;

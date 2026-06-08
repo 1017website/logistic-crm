@@ -61,6 +61,8 @@ class DeliveryOrderController extends Controller
         $vendorServices = VendorService::with('vendor')
             ->orderBy('service_name')->get(['id', 'vendor_id', 'service_name', 'unit', 'tariff', 'tariff_unit']);
 
+        $pendingDeletionDoIds = \App\Models\DeletionRequest::pendingIdsFor(DeliveryOrder::class);
+
         return view('delivery_orders.index', compact(
             'dos',
             'revenue',
@@ -75,7 +77,8 @@ class DeliveryOrderController extends Controller
             'search',
             'status',
             'startDate',
-            'endDate'
+            'endDate',
+            'pendingDeletionDoIds'
         ));
     }
 
@@ -127,7 +130,7 @@ class DeliveryOrderController extends Controller
                 'currency' => $request->currency,
                 'status' => $request->status,
                 'order_date' => $request->order_date,
-                'delivery_type' => $request->delivery_type,
+                'delivery_type' => $request->delivery_type ? ucwords(strtolower(trim($request->delivery_type))) : null,
                 'origin' => $request->origin,
                 'destination' => $request->destination,
                 'tracking_number' => $request->tracking_number,
@@ -214,7 +217,7 @@ class DeliveryOrderController extends Controller
                 'currency' => $request->currency,
                 'status' => $request->status,
                 'order_date' => $request->order_date,
-                'delivery_type' => $request->delivery_type,
+                'delivery_type' => $request->delivery_type ? ucwords(strtolower(trim($request->delivery_type))) : null,
                 'origin' => $request->origin,
                 'destination' => $request->destination,
                 'tracking_number' => $request->tracking_number,

@@ -49,6 +49,8 @@ class VendorController extends Controller
             ? Vendor::with(['deliveryOrders', 'services', 'pics'])->find($request->get('selected_id'))
             : null;
 
+        $pendingDeletionVendorIds = \App\Models\DeletionRequest::pendingIdsFor(Vendor::class);
+
         return view('vendors.index', compact(
             'vendors',
             'totalVendor',
@@ -61,7 +63,8 @@ class VendorController extends Controller
             'serviceType',
             'status',
             'relationshipStatus',
-            'search'
+            'search',
+            'pendingDeletionVendorIds'
         ));
     }
 

@@ -136,15 +136,12 @@
                                         onclick="openEditModal({{ $cust->id }})">
                                         <i class="fas fa-edit" style="font-size:.7rem"></i>
                                     </button>
-                                    @if(auth()->user()->isAdmin())
-                                    <form method="POST" action="{{ route('customers.destroy', $cust) }}" class="d-inline"
-                                        onsubmit="return confirm('Apakah Anda yakin ingin menghapus customer {{ addslashes($cust->company_name) }}? Tindakan ini tidak dapat dibatalkan.')">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:3px 7px">
-                                            <i class="fas fa-trash" style="font-size:.7rem"></i>
-                                        </button>
-                                    </form>
-                                    @endif
+                                    @include('components.delete-request-button', [
+                                        'module'  => 'customers',
+                                        'id'      => $cust->id,
+                                        'label'   => $cust->company_name,
+                                        'pending' => in_array($cust->id, $pendingDeletionCustomerIds ?? []),
+                                    ])
                                 </div>
                             </td>
                         </tr>
@@ -254,11 +251,18 @@
                             onclick="openEditModal({{ $selectedCustomer->id }})">
                             <i class="fas fa-edit me-1"></i> Edit
                         </button>
-                        @if(auth()->user()->isAdmin())
-                        <form method="POST" action="{{ route('customers.destroy', $selectedCustomer) }}" class="flex-fill"
-                            onsubmit="return confirm('Apakah Anda yakin ingin menghapus {{ addslashes($selectedCustomer->company_name) }}? Tindakan ini tidak dapat dibatalkan.')">
-                            @csrf @method('DELETE')
-                            <button type="submit" class="btn btn-sm btn-outline-danger w-100" style="font-size:.75rem"><i class="fas fa-trash me-1"></i> Hapus</button>
+                        @php $custPending = in_array($selectedCustomer->id, $pendingDeletionCustomerIds ?? []); @endphp
+                        @if($custPending && !auth()->user()->isAdmin())
+                            <span class="btn btn-sm btn-warning flex-fill disabled" style="font-size:.75rem"><i class="fas fa-clock me-1"></i> Menunggu Persetujuan Hapus</span>
+                        @else
+                        <form method="POST" action="{{ route('deletion-requests.store') }}" class="flex-fill"
+                            onsubmit="return confirm('{{ auth()->user()->isAdmin() ? 'Hapus '.addslashes($selectedCustomer->company_name).'?' : 'Ajukan permintaan hapus untuk '.addslashes($selectedCustomer->company_name).'? Perlu persetujuan administrator.' }}')">
+                            @csrf
+                            <input type="hidden" name="module" value="customers">
+                            <input type="hidden" name="model_id" value="{{ $selectedCustomer->id }}">
+                            <button type="submit" class="btn btn-sm {{ auth()->user()->isAdmin() ? 'btn-outline-danger' : 'btn-outline-warning' }} w-100" style="font-size:.75rem">
+                                <i class="fas fa-trash me-1"></i> {{ auth()->user()->isAdmin() ? 'Hapus' : 'Request Hapus' }}
+                            </button>
                         </form>
                         @endif
                     </div>

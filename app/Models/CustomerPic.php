@@ -15,4 +15,10 @@ class CustomerPic extends Model
     {
         return $this->belongsTo(Customer::class);
     }
+
+    protected static function booted(): void
+    {
+        static::saved(fn ($pic) => \App\Services\LeadCustomerSync::picSavedFromCustomer($pic));
+        static::deleted(fn ($pic) => \App\Services\LeadCustomerSync::picDeletedFromCustomer($pic));
+    }
 }

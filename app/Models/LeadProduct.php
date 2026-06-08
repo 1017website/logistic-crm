@@ -16,6 +16,12 @@ class LeadProduct extends Model
         return $this->belongsTo(Lead::class);
     }
 
+    protected static function booted(): void
+    {
+        static::saved(fn ($p) => \App\Services\LeadCustomerSync::productSaved($p));
+        static::deleted(fn ($p) => \App\Services\LeadCustomerSync::productDeleted($p));
+    }
+
     public function getDisplayNameAttribute(): string
     {
         return (string) (($this->attributes['service_name'] ?? null) ?: ($this->attributes['product_name'] ?? '') ?: '');

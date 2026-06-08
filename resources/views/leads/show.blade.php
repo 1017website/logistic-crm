@@ -559,4 +559,15 @@
     @endforeach
 </datalist>
 
+@if(request()->boolean('edit'))
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var el = document.getElementById('editLeadModal');
+    if (el && window.bootstrap) {
+        bootstrap.Modal.getOrCreateInstance(el).show();
+    }
+});
+</script>
+@endif
+
 @endsection

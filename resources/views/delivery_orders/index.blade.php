@@ -77,7 +77,7 @@
                                     <th class="py-2">Margin</th>
                                     <th class="py-2">Status</th>
                                     <th class="py-2">Tgl Order</th>
-                                    <th class="py-2">Type / Tracking</th>
+                                    <th class="py-2">Service Type</th>
                                     <th class="py-2"></th>
                                 </tr>
                             </thead>
@@ -107,7 +107,7 @@
                                         </td>
                                         <td class="py-2" style="color:#6b7280;font-size:12px">{{ $po->order_date?->format('d M Y') }}</td>
                                         <td class="py-2" style="color:#6b7280;font-size:11px">
-                                            {{ $po->delivery_type ?? '-' }}<br>
+                                            {{ $po->delivery_type ? ucwords($po->delivery_type) : '-' }}<br>
                                             @if($po->tracking_number)
                                             <span style="font-size:10px;color:#111111">{{ $po->tracking_number }}</span>
                                             @endif
@@ -116,15 +116,12 @@
                                             <button class="btn btn-sm btn-outline-secondary" style="padding:3px 7px" onclick="openEditPo({{ $po->id }})">
                                                 <i class="fas fa-pencil-alt"></i>
                                             </button>
-                                            @if(auth()->user()->isAdmin())
-                                            <form method="POST" action="{{ route('delivery-orders.destroy', $po) }}" class="d-inline"
-                                                onsubmit="return confirm('Hapus DO {{ $po->do_number }}?')">
-                                                @csrf @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:3px 7px">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </form>
-                                            @endif
+                                            @include('components.delete-request-button', [
+                                                'module'  => 'delivery-orders',
+                                                'id'      => $po->id,
+                                                'label'   => $po->do_number,
+                                                'pending' => in_array($po->id, $pendingDeletionDoIds ?? []),
+                                            ])
                                         </td>
                                     </tr>
                                     {{-- Detail row (collapsed) --}}
@@ -266,11 +263,11 @@
                         <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">DETAIL PENGIRIMAN</div>
                         <div class="row g-2 mb-3">
                             <div class="col-md-3">
-                                <label class="form-label">Delivery Type</label>
+                                <label class="form-label">Service Type</label>
                                 <select name="delivery_type" id="addDeliveryType" class="form-select form-select-sm">
                                     <option value="">- Pilih -</option>
                                     @foreach(\App\Models\Vendor::serviceTypeOptions() as $dt)
-                                        <option value="{{ $dt }}">{{ $dt }}</option>
+                                        <option value="{{ ucwords($dt) }}">{{ ucwords($dt) }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -408,11 +405,11 @@
                                 <input type="text" name="notes" id="epNotes" class="form-control">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Delivery Type</label>
+                                <label class="form-label">Service Type</label>
                                 <select name="delivery_type" id="epDeliveryType" class="form-select">
                                     <option value="">- Pilih -</option>
                                     @foreach(\App\Models\Vendor::serviceTypeOptions() as $dt)
-                                        <option value="{{ $dt }}">{{ $dt }}</option>
+                                        <option value="{{ ucwords($dt) }}">{{ ucwords($dt) }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -799,10 +796,7 @@
                 document.getElementById('editDoForm').action = `/delivery-orders/${id}`;
                 document.getElementById('editPoNumber').textContent = po.do_number;
 
-                document.getElementById('epStatus').value   = po.status;
-                document.getElementById('epCurrency').value = po.currency;
                 document.getElementById('epNotes').value    = po.notes || '';
-                if (document.getElementById('epDeliveryType')) document.getElementById('epDeliveryType').value = po.delivery_type || '';
                 if (document.getElementById('epOrigin')) document.getElementById('epOrigin').value = po.origin || '';
                 if (document.getElementById('epDestination')) document.getElementById('epDestination').value = po.destination || '';
                 if (document.getElementById('epTracking')) document.getElementById('epTracking').value = po.tracking_number || '';
@@ -812,9 +806,12 @@
                     const el = document.getElementById(elId);
                     if (!el) return;
                     const v = (val === null || val === undefined) ? '' : String(val);
-                    // Pastikan option dengan value tsb ada (untuk native maupun select2)
+                    // Jika value tidak ada di daftar opsi, sisipkan opsi sementara agar tetap tampil.
                     if (v !== '' && !Array.from(el.options).some(o => String(o.value) === v)) {
-                        // Tidak ada di daftar — biarkan kosong agar tidak memaksa value invalid
+                        const tmp = document.createElement('option');
+                        tmp.value = v;
+                        tmp.textContent = v;
+                        el.appendChild(tmp);
                     }
                     // Init Select2 bila belum (agar tampilan ter-update saat val di-set)
                     if (window.jQuery && typeof initSelect2 === 'function' && !$(el).data('select2')) {
@@ -827,9 +824,19 @@
                     }
                 };
 
-                setSelect2('epCustomer', po.customer_id);
-                setSelect2('epVendor', po.vendor_id);
-                setSelect2('epSalesPicSelect', po.user_id);
+                // Normalisasi service type ke ucwords agar cocok dengan opsi dropdown
+                var _dt = (po.delivery_type || '').toLowerCase().replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+
+                // Simpan nilai untuk re-apply setelah modal tampil (Select2 perlu modal visible)
+                const _fillSelects = () => {
+                    setSelect2('epStatus', po.status);
+                    setSelect2('epCurrency', po.currency);
+                    setSelect2('epDeliveryType', _dt);
+                    setSelect2('epCustomer', po.customer_id);
+                    setSelect2('epVendor', po.vendor_id);
+                    setSelect2('epSalesPicSelect', po.user_id);
+                };
+                _fillSelects();
 
                 // Auto-fill linked lead berdasarkan customer
                 const epCustEl = document.getElementById('epCustomer');
@@ -875,11 +882,17 @@
                 const shownHandler = function () {
                     // Re-apply Select2 values setelah modal benar-benar tampil
                     // (Select2 sering gagal render value saat di-set ketika modal masih hidden).
+                    setSelect2('epStatus', po.status);
+                    setSelect2('epCurrency', po.currency);
+                    setSelect2('epDeliveryType', _dt);
                     setSelect2('epCustomer', po.customer_id);
                     setSelect2('epVendor', po.vendor_id);
                     setSelect2('epSalesPicSelect', po.user_id);
                     setDateInputValue('epDate', po.order_date);
                     setTimeout(function () {
+                        setSelect2('epStatus', po.status);
+                        setSelect2('epCurrency', po.currency);
+                        setSelect2('epDeliveryType', _dt);
                         setSelect2('epCustomer', po.customer_id);
                         setSelect2('epVendor', po.vendor_id);
                         setSelect2('epSalesPicSelect', po.user_id);

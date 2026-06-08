@@ -146,15 +146,12 @@
                                     onclick="openServiceModal({{ $s->id }}, '{{ addslashes($s->vendor_name) }}')">
                                     <i class="fas fa-boxes" style="font-size:.7rem"></i>
                                 </button>
-                                @if(auth()->user()->isAdmin())
-                                <form method="POST" action="{{ route('vendors.destroy', $s) }}" class="d-inline"
-                                    onsubmit="return confirm('Apakah Anda yakin ingin menghapus vendor {{ addslashes($s->vendor_name) }}? Tindakan ini tidak dapat dibatalkan.')">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:3px 7px">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
-                                @endif
+                                @include('components.delete-request-button', [
+                                    'module'  => 'vendors',
+                                    'id'      => $s->id,
+                                    'label'   => $s->vendor_name,
+                                    'pending' => in_array($s->id, $pendingDeletionVendorIds ?? []),
+                                ])
                             </td>
                         </tr>
                         @empty

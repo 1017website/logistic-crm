@@ -77,7 +77,7 @@ class SalesActivityController extends Controller
             'type'           => 'required|in:Call,Visit,Email,Note,Others',
             'subject'        => 'required|string|max:255',
             'description'    => 'nullable|string',
-            'activity_at'    => 'required|date',
+            'activity_at'    => 'nullable|date',
             'status'         => 'required|in:Done,Pending,Planned,Overdue',
             'next_follow_up' => 'nullable|date',
             'pipeline_stage' => 'required|in:Identifying,Approaching,Follow Up,Won,Maintaining',
@@ -95,6 +95,7 @@ class SalesActivityController extends Controller
 
         $validated['user_id'] = auth()->id();
         $validated['sales_user_id'] = auth()->id();
+        $validated['activity_at'] = now();
 
         $targetLead = null;
         $customer = null;

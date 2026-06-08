@@ -51,9 +51,12 @@ class CustomerController extends Controller
 
         $vendorServices = VendorService::with('vendor')->orderBy('service_name')->get();
 
+        $pendingDeletionCustomerIds = \App\Models\DeletionRequest::pendingIdsFor(Customer::class);
+
         return view('customers.index', compact(
             'customers','totalCustomer','potentialCustomer','existingCustomer',
-            'industries','salesUsers','selectedCustomer','vendorServices','status','industry','search','salesId'
+            'industries','salesUsers','selectedCustomer','vendorServices','status','industry','search','salesId',
+            'pendingDeletionCustomerIds'
         ));
     }
 
@@ -388,13 +391,14 @@ class CustomerController extends Controller
             'type'           => 'required|in:Call,Visit,Email,Note,Others',
             'subject'        => 'required|string|max:255',
             'description'    => 'nullable|string',
-            'activity_at'    => 'required|date',
+            'activity_at'    => 'nullable|date',
             'status'         => 'required|in:Planned,Pending,Done,Overdue',
             'next_follow_up' => 'nullable|date',
             'pipeline_stage' => 'nullable|in:Identifying,Approaching,Follow Up,Won,Maintaining',
             'user_id'        => 'nullable|exists:users,id',
         ]);
 
+        $validated['activity_at'] = now();
         $validated['customer_id'] = $customer->id;
         $validated['user_id'] = auth()->user()->isSalesExecutive() ? auth()->id() : ($validated['user_id'] ?? $customer->user_id ?? auth()->id());
         $validated['sales_user_id'] = $validated['user_id'];

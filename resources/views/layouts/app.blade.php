@@ -1419,6 +1419,14 @@
             @endif
 
             <div class="sidebar-section">System</div>
+            @if(auth()->user()->isAdmin())
+            <a href="{{ route('deletion-requests.index') }}" class="sidebar-item {{ request()->routeIs('deletion-requests.*') ? 'active' : '' }}">
+                <i class="fas fa-trash-alt si-icon"></i><span>Permintaan Hapus</span>
+                @if(($pendingDeletionCount ?? 0) > 0)
+                    <span class="badge bg-danger ms-auto" style="font-size:.6rem">{{ $pendingDeletionCount }}</span>
+                @endif
+            </a>
+            @endif
             @if(auth()->user()->canAccess('users'))
             <a href="{{ route('users.index') }}" class="sidebar-item {{ request()->routeIs('users.*') ? 'active' : '' }}">
                 <i class="fas fa-users si-icon"></i><span>Users</span>

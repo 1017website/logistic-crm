@@ -18,6 +18,12 @@ class CustomerProduct extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    protected static function booted(): void
+    {
+        static::saved(fn ($p) => \App\Services\LeadCustomerSync::productSavedFromCustomer($p));
+        static::deleted(fn ($p) => \App\Services\LeadCustomerSync::productDeletedFromCustomer($p));
+    }
+
     public function getDisplayNameAttribute(): string
     {
         return (string) (($this->attributes['service_name'] ?? null) ?: ($this->attributes['product_name'] ?? '') ?: '');

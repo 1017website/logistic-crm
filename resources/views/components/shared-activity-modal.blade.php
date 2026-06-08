@@ -43,7 +43,14 @@
                                 </optgroup>
                                 <optgroup label="— Customer Existing —">
                                     @foreach($existingCustomers as $cust)
-                                        <option value="customer:{{ $cust->id }}" data-type="customer" data-stage="Maintaining">{{ $cust->company_name }} (Existing)</option>
+                                        @php
+                                            $custLead = \App\Models\Lead::where('customer_id', $cust->id)
+                                                ->orderByDesc('updated_at')->first()
+                                                ?? \App\Models\Lead::whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower(trim($cust->company_name))])
+                                                ->orderByDesc('updated_at')->first();
+                                            $custStage = $custLead?->pipeline_stage ?: 'Maintaining';
+                                        @endphp
+                                        <option value="customer:{{ $cust->id }}" data-type="customer" data-stage="{{ $custStage }}">{{ $cust->company_name }} (Existing)</option>
                                     @endforeach
                                 </optgroup>
                             </select>
@@ -83,11 +90,7 @@
                     </div>
 
                     <div class="row g-2 mb-3">
-                        <div class="col-md-7">
-                            <label class="form-label">Date & Time <span class="text-danger">*</span></label>
-                            <input type="datetime-local" name="activity_at" class="form-control" value="{{ $activityDefaultDate }}" required>
-                        </div>
-                        <div class="col-md-5">
+                        <div class="col-12">
                             <label class="form-label">Status <span class="text-danger">*</span></label>
                             <select name="status" class="form-select" required>
                                 <option value="Pending">Pending</option>
@@ -124,48 +127,99 @@
 @once
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.shared-client-select').forEach(function(select) {
-        select.addEventListener('change', function () {
-            const form = select.closest('form');
-            const wrap = form?.querySelector('.shared-stage-wrap');
-            const stageSelect = form?.querySelector('.shared-stage-select');
-            const opt = select.options[select.selectedIndex];
-            if (!wrap || !stageSelect) return;
-            if (select.value) {
-                wrap.style.display = '';
-                const stage = opt?.dataset?.stage || '';
-                if (stage) stageSelect.value = stage === 'Closing' ? 'Won' : stage;
-            } else {
-                stageSelect.value = 'Identifying';
+(function () {
+    function applyStage(form) {
+        if (!form) return;
+        var $ = window.jQuery;
+        var select = form.querySelector('.shared-client-select');
+        var wrap = form.querySelector('.shared-stage-wrap');
+        var stageSelect = form.querySelector('.shared-stage-select');
+        if (!select || !wrap || !stageSelect) return;
+
+        var opt = select.options[select.selectedIndex];
+        var hint = wrap.querySelector('.form-text');
+
+        if (select.value) {
+            wrap.style.display = '';
+            var stage = (opt && opt.dataset && opt.dataset.stage) ? opt.dataset.stage : '';
+            if (stage === 'Closing') stage = 'Won';
+            if (stage) {
+                stageSelect.value = stage;
+                // refresh tampilan Select2 jika aktif
+                if ($ && $(stageSelect).data('select2')) {
+                    $(stageSelect).val(stage).trigger('change.select2');
+                }
             }
-        });
-    });
+            // Kunci stage agar mengikuti pipeline terakhir client.
+            stageSelect.setAttribute('readonly', 'readonly');
+            stageSelect.style.pointerEvents = 'none';
+            stageSelect.style.background = '#f3f4f6';
+            if ($ && $(stageSelect).data('select2')) {
+                // matikan interaksi Select2 stage
+                $(stageSelect).next('.select2').css({'pointer-events':'none','opacity':'0.85'});
+            }
+            if (hint) hint.textContent = 'Stage mengikuti pipeline terakhir client yang dipilih.';
+        } else {
+            stageSelect.value = 'Identifying';
+            if ($ && $(stageSelect).data('select2')) {
+                $(stageSelect).val('Identifying').trigger('change.select2');
+            }
+        }
+    }
 
-    document.querySelectorAll('.shared-activity-form').forEach(function(form) {
-        const photoWrap = form.querySelector('.shared-photo-wrap');
-        const togglePhoto = function () {
-            const checked = form.querySelector('.shared-activity-type:checked');
-            if (photoWrap) photoWrap.style.display = checked && checked.value === 'Visit' ? '' : 'none';
-        };
-        form.querySelectorAll('.shared-activity-type').forEach(function(radio) {
-            radio.addEventListener('change', togglePhoto);
-        });
-        togglePhoto();
-    });
+    function bind() {
+        var $ = window.jQuery;
+        if ($) {
+            // Delegated change — kompatibel dengan Select2 yang memicu event via jQuery.
+            $(document).off('change.sharedStage').on('change.sharedStage', '.shared-client-select', function () {
+                applyStage(this.closest('form'));
+            });
+        } else {
+            document.querySelectorAll('.shared-client-select').forEach(function (select) {
+                select.addEventListener('change', function () { applyStage(select.closest('form')); });
+            });
+        }
 
-    document.querySelectorAll('.shared-photo-input').forEach(function(input) {
-        input.addEventListener('change', function () {
-            const wrap = input.closest('.shared-photo-wrap');
-            const preview = wrap?.querySelector('.shared-photo-preview');
-            const img = preview?.querySelector('img');
-            const file = input.files && input.files[0];
-            if (!preview || !img || !file) return;
-            img.src = URL.createObjectURL(file);
-            preview.style.display = '';
+        // Saat modal dibuka, terapkan stage jika sudah ada client terpilih (mis. context lead/customer).
+        if ($) {
+            $(document).on('shown.bs.modal', '.modal', function () {
+                var el = this.querySelector('.shared-client-select');
+                if (el && el.value) applyStage(el.closest('form'));
+            });
+        }
+
+        // Foto kunjungan (Visit)
+        document.querySelectorAll('.shared-activity-form').forEach(function (form) {
+            var photoWrap = form.querySelector('.shared-photo-wrap');
+            var togglePhoto = function () {
+                var checked = form.querySelector('.shared-activity-type:checked');
+                if (photoWrap) photoWrap.style.display = checked && checked.value === 'Visit' ? '' : 'none';
+            };
+            form.querySelectorAll('.shared-activity-type').forEach(function (radio) {
+                radio.addEventListener('change', togglePhoto);
+            });
+            togglePhoto();
         });
-    });
-});
+
+        document.querySelectorAll('.shared-photo-input').forEach(function (input) {
+            input.addEventListener('change', function () {
+                var wrap = input.closest('.shared-photo-wrap');
+                var preview = wrap && wrap.querySelector('.shared-photo-preview');
+                var img = preview && preview.querySelector('img');
+                var file = input.files && input.files[0];
+                if (!preview || !img || !file) return;
+                img.src = URL.createObjectURL(file);
+                preview.style.display = '';
+            });
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bind);
+    } else {
+        bind();
+    }
+})();
 </script>
 @endpush
 @endonce

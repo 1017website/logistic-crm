@@ -40,6 +40,7 @@ class ServiceTypeController extends Controller
             'sort_order' => 'nullable|integer|min:0',
         ]);
 
+        $validated['name']       = ucwords(strtolower(trim($validated['name'])));
         $validated['is_active']  = $request->boolean('is_active', true);
         $validated['sort_order'] = $validated['sort_order'] ?? (ServiceType::max('sort_order') + 1);
 
@@ -57,6 +58,7 @@ class ServiceTypeController extends Controller
         ]);
 
         $oldName = $serviceType->name;
+        $validated['name']      = ucwords(strtolower(trim($validated['name'])));
         $validated['is_active'] = $request->boolean('is_active', $serviceType->is_active);
 
         $serviceType->update($validated);

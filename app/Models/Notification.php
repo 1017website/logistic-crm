@@ -92,6 +92,7 @@ class Notification extends Model
             'stage_change'  => 'notif_stage',
             'weekly'        => 'notif_weekly',
             'target_warning'=> 'notif_target',
+            'delete_request'=> null,
             default         => null,
         };
     }
@@ -106,6 +107,7 @@ class Notification extends Model
             'stage_change'   => 'filter',
             'target_warning' => 'chart-line',
             'weekly'         => 'file-alt',
+            'delete_request' => 'trash-alt',
             default          => 'bell',
         };
     }
@@ -120,6 +122,7 @@ class Notification extends Model
             'stage_change'   => '#8b5cf6',
             'target_warning' => '#f97316',
             'weekly'         => '#6b7280',
+            'delete_request' => '#ef4444',
             default          => '#3b82f6',
         };
     }
