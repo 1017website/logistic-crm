@@ -150,15 +150,14 @@
                     $(stageSelect).val(stage).trigger('change.select2');
                 }
             }
-            // Kunci stage agar mengikuti pipeline terakhir client.
-            stageSelect.setAttribute('readonly', 'readonly');
-            stageSelect.style.pointerEvents = 'none';
-            stageSelect.style.background = '#f3f4f6';
+            // Auto-fill mengikuti pipeline terakhir client, namun tetap bisa diubah manual.
+            stageSelect.removeAttribute('readonly');
+            stageSelect.style.pointerEvents = '';
+            stageSelect.style.background = '';
             if ($ && $(stageSelect).data('select2')) {
-                // matikan interaksi Select2 stage
-                $(stageSelect).next('.select2').css({'pointer-events':'none','opacity':'0.85'});
+                $(stageSelect).next('.select2').css({'pointer-events':'', 'opacity':''});
             }
-            if (hint) hint.textContent = 'Stage mengikuti pipeline terakhir client yang dipilih.';
+            if (hint) hint.textContent = 'Otomatis mengikuti pipeline terakhir client, tetapi masih bisa Anda ubah.';
         } else {
             stageSelect.value = 'Identifying';
             if ($ && $(stageSelect).data('select2')) {
