@@ -43,7 +43,8 @@ class LeadsController extends Controller
         $lead->load(['salesUser', 'activities.salesUser', 'products', 'pics']);
         $salesUsers = User::orderBy('name')->get();
         $vendorServices = VendorService::with('vendor')->orderBy('service_name')->get();
-        return view('leads.show', compact('lead', 'salesUsers', 'vendorServices'));
+        $leadDeletionPending = \App\Models\DeletionRequest::pendingFor($lead);
+        return view('leads.show', compact('lead', 'salesUsers', 'vendorServices', 'leadDeletionPending'));
     }
 
     public function store(Request $request)

@@ -281,18 +281,23 @@
         </div>
 
         {{-- Hapus Lead --}}
-        @if(auth()->user()->isAdmin())
         <div class="card">
             <div class="card-body p-3">
-                <form method="POST" action="{{ route('leads.destroy', $lead) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus lead {{ addslashes($lead->company_name) }}? Tindakan ini tidak dapat dibatalkan.')">
-                    @csrf @method('DELETE')
-                    <button type="submit" class="btn btn-outline-danger btn-sm w-100">
-                        <i class="fas fa-trash me-1"></i> Hapus Lead Ini
+                @if(($leadDeletionPending ?? false) && !auth()->user()->isAdmin())
+                    <span class="btn btn-warning btn-sm w-100 disabled"><i class="fas fa-clock me-1"></i> Menunggu Persetujuan Hapus</span>
+                @else
+                <form method="POST" action="{{ route('deletion-requests.store') }}"
+                      onsubmit="return confirm('{{ auth()->user()->isAdmin() ? 'Hapus lead '.addslashes($lead->company_name).' beserta data customer terkait?' : 'Ajukan permintaan hapus lead '.addslashes($lead->company_name).'? Perlu persetujuan administrator.' }}')">
+                    @csrf
+                    <input type="hidden" name="module" value="leads">
+                    <input type="hidden" name="model_id" value="{{ $lead->id }}">
+                    <button type="submit" class="btn {{ auth()->user()->isAdmin() ? 'btn-outline-danger' : 'btn-outline-warning' }} btn-sm w-100">
+                        <i class="fas fa-trash me-1"></i> {{ auth()->user()->isAdmin() ? 'Hapus Lead Ini' : 'Request Hapus Lead' }}
                     </button>
                 </form>
+                @endif
             </div>
         </div>
-        @endif
     </div>
 </div>
 
