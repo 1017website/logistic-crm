@@ -133,8 +133,7 @@ class CustomerController extends Controller
             }
 
             // Revisi #1: create customer existing sekaligus create lead stage Maintaining
-            $lead = Lead::create([
-                'lead_code'      => Lead::generateLeadCode(),
+            $leadPayload = [
                 'customer_id'    => $customer->id,
                 'company_name'   => $customer->company_name,
                 'pic_name'       => $customer->pic_name,
@@ -147,7 +146,18 @@ class CustomerController extends Controller
                 'pipeline_stage' => 'Maintaining',
                 'temperature'    => 'Warm',
                 'user_id'        => $customer->user_id,
-            ]);
+            ];
+
+            // Retry bila lead_code bentrok (race / sisa soft-deleted).
+            $attempt = 0;
+            do {
+                try {
+                    $lead = Lead::create($leadPayload); // lead_code otomatis via creating event
+                    break;
+                } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+                    if (++$attempt >= 5) throw $e;
+                }
+            } while (true);
 
             // Salin layanan customer ke lead products agar konsisten
             foreach ($customer->productItems as $cp) {

@@ -62,7 +62,7 @@ class DeliveryOrder extends Model
     public static function generateDoNumber(): string
     {
         $prefix = 'DO-' . date('Ym') . '-';
-        $last   = static::where('do_number', 'like', $prefix . '%')
+        $last   = static::withTrashed()->where('do_number', 'like', $prefix . '%')
             ->orderByDesc('do_number')->value('do_number');
         $seq    = $last ? (intval(substr($last, -4)) + 1) : 1;
         return $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);

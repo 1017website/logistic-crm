@@ -25,6 +25,16 @@ class Lead extends Model
         'lead_score'       => 'decimal:1',
     ];
 
+    protected static function booted(): void
+    {
+        // Auto-isi lead_code bila belum diset, agar selalu unik termasuk vs baris soft-deleted.
+        static::creating(function (self $lead) {
+            if (empty($lead->lead_code)) {
+                $lead->lead_code = static::generateLeadCode();
+            }
+        });
+    }
+
     public function salesUser(): BelongsTo  { return $this->belongsTo(User::class, 'user_id'); }
     public function user(): BelongsTo       { return $this->belongsTo(User::class, 'user_id'); }
     public function customer(): BelongsTo   { return $this->belongsTo(Customer::class); }
@@ -66,7 +76,7 @@ class Lead extends Model
     public static function generateLeadCode(): string
     {
         $prefix = 'LEAD-' . date('Y') . '-';
-        $last   = static::where('lead_code', 'like', $prefix . '%')
+        $last   = static::withTrashed()->where('lead_code', 'like', $prefix . '%')
             ->orderByDesc('lead_code')->value('lead_code');
         $seq    = $last ? (intval(substr($last, -4)) + 1) : 1;
         return $prefix . str_pad($seq, 4, '0', STR_PAD_LEFT);
