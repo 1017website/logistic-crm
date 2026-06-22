@@ -79,6 +79,15 @@ class Vendor extends Model
 
     public function deliveryOrders(): HasMany
     {
+        // Order vendor tersimpan di request_orders (eks delivery_orders lama).
+        return $this->hasMany(RequestOrder::class);
+    }
+    public function requestOrders(): HasMany
+    {
+        return $this->hasMany(RequestOrder::class);
+    }
+    public function finalDeliveryOrders(): HasMany
+    {
         return $this->hasMany(DeliveryOrder::class);
     }
     public function services(): HasMany

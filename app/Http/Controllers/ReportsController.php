@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Lead;
 use App\Models\Customer;
 use App\Models\User;
-use App\Models\DeliveryOrder;
+use App\Models\RequestOrder;
 use App\Models\Activity;
 use Illuminate\Http\Request;
 
@@ -21,7 +21,7 @@ class ReportsController extends Controller
         $search     = $request->get('search');
 
         // ── Summary KPI dari PO items ──
-        $doneDOs     = DeliveryOrder::with('items')->whereBetween('order_date', [$startDate, $endDate])->where('currency', 'IDR')->where('status', 'Done')->get();
+        $doneDOs     = RequestOrder::with('items')->whereBetween('order_date', [$startDate, $endDate])->where('currency', 'IDR')->where('status', 'Done')->get();
         $revenue     = $doneDOs->sum(fn($po) => $po->total_revenue);
         $totalCost   = $doneDOs->sum(fn($po) => $po->total_cost);
         $grossProfit = $revenue - $totalCost;
@@ -75,7 +75,7 @@ class ReportsController extends Controller
                 break;
 
             case 'po':
-                $q = DeliveryOrder::with(['customer', 'vendor', 'items'])->whereBetween('order_date', [$startDate, $endDate]);
+                $q = RequestOrder::with(['customer', 'vendor', 'items'])->whereBetween('order_date', [$startDate, $endDate]);
                 if ($status) $q->where('status', $status);
                 if ($search) $q->where('do_number', 'like', "%$search%")->orWhereHas('customer', fn($c) => $c->where('company_name', 'like', "%$search%"));
                 $reportData = $q->orderBy('order_date', 'desc')->paginate(15)->withQueryString();
@@ -114,7 +114,7 @@ class ReportsController extends Controller
 
             case 'po':
                 $headers = ['DO Number', 'Customer', 'Vendor', 'Product', 'Unit', 'Qty', 'Buy Price', 'Sell Price', 'Gross Profit', 'Currency', 'Status', 'Order Date'];
-                $pos     = DeliveryOrder::with(['customer', 'vendor', 'items'])->whereBetween('order_date', [$startDate, $endDate])->get();
+                $pos     = RequestOrder::with(['customer', 'vendor', 'items'])->whereBetween('order_date', [$startDate, $endDate])->get();
                 $rows    = [];
                 foreach ($pos as $po) {
                     foreach ($po->items as $item) {

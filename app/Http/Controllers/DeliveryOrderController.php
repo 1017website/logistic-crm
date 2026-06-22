@@ -3,296 +3,231 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
-use App\Models\Lead;
 use App\Models\DeliveryOrder;
-use App\Models\DeliveryOrderItem;
 use App\Models\Vendor;
-use App\Models\VendorService;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
+/**
+ * DELIVERY ORDER (DO final) — tahap 2 alur fulfillment.
+ *
+ *   surat_jalan (upload surat jalan -> pickup)
+ *   -> pickup -> in_delivery
+ *   -> pod (upload foto POD)
+ *   -> verifikasi_pod (Sales Admin)
+ *   -> closed (input biaya aktual, tutup DO)
+ *   -> invoiced (Finance: invoice customer / tagihan vendor)
+ *   -> paid
+ */
 class DeliveryOrderController extends Controller
 {
     public function index(Request $request)
     {
-        $search = $request->get('search');
-        $status = $request->get('status');
+        $search    = $request->get('search');
+        $status    = $request->get('status');
         $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
-        $endDate = $request->get('end_date', now()->endOfMonth()->format('Y-m-d'));
+        $endDate   = $request->get('end_date', now()->endOfMonth()->format('Y-m-d'));
 
-        $query = DeliveryOrder::with(['customer', 'vendor', 'lead', 'items', 'salesUser'])
-            ->whereBetween('order_date', [$startDate, $endDate]);
-        if ($status && $status !== 'all')
-            $query->where('status', $status);
+        $query = DeliveryOrder::with(['customer', 'vendor', 'salesUser', 'requestOrder.items'])
+            ->whereBetween('do_date', [$startDate, $endDate]);
+
+        if ($status && $status !== 'all') $query->where('status', $status);
         if ($search) {
-            $query->where(
-                fn($q) => $q
-                    ->where('do_number', 'like', "%$search%")
-                    ->orWhere('tracking_number', 'like', "%$search%")
-                    ->orWhereHas('customer', fn($q) => $q->where('company_name', 'like', "%$search%"))
-                    ->orWhereHas('items', fn($q) => $q->where('service_name', 'like', "%$search%"))
-            );
+            $query->where(fn($q) => $q
+                ->where('do_number', 'like', "%$search%")
+                ->orWhere('fleet_info', 'like', "%$search%")
+                ->orWhereHas('customer', fn($q) => $q->where('company_name', 'like', "%$search%")));
         }
 
-        $dos = $query->orderByDesc('order_date')->orderByDesc('id')->paginate(15)->withQueryString();
+        $dos = $query->orderByDesc('do_date')->orderByDesc('id')->paginate(15)->withQueryString();
 
-        // KPI — hitung dari items
-        $allDone = DeliveryOrder::with('items')
-            ->whereBetween('order_date', [$startDate, $endDate])
-            ->where('status', 'Done')->where('currency', 'IDR')->get();
+        // KPI
+        $closed = DeliveryOrder::with('requestOrder.items')
+            ->whereBetween('do_date', [$startDate, $endDate])
+            ->whereIn('status', ['closed', 'invoiced', 'paid'])->get();
 
-        $revenue = $allDone->sum(fn($so) => $so->total_revenue);
-        $totalCost = $allDone->sum(fn($so) => $so->total_cost);
+        $revenue     = $closed->sum(fn($d) => $d->total_revenue);
+        $totalCost   = $closed->sum(fn($d) => $d->total_cost);
         $grossProfit = $revenue - $totalCost;
-        $volumeDo = $allDone->count();
-
-        $customers = Customer::where('status', 'Existing')
-            ->orderBy('company_name')
-            ->get(['id', 'company_name', 'user_id']);
-        $vendors = Vendor::where('status', 'Active')->orderBy('vendor_name')->get(['id', 'vendor_name', 'vendor_type', 'service_type']);
-        $salesUsers = User::orderBy('name')->get(['id', 'name']);
-        $leads = Lead::where(function ($q) {
-            $q->whereIn('pipeline_stage', ['Won', 'Maintaining'])
-                ->orWhereNotNull('customer_id');
-        })->orderBy('company_name')->get(['id', 'company_name', 'lead_code', 'customer_id']);
-
-        // Vendor services untuk dropdown DO items
-        $vendorServices = VendorService::with('vendor')
-            ->orderBy('service_name')->get(['id', 'vendor_id', 'service_name', 'unit', 'tariff', 'tariff_unit']);
+        $volumeDo    = $dos->total();
 
         $pendingDeletionDoIds = \App\Models\DeletionRequest::pendingIdsFor(DeliveryOrder::class);
+        $flowOptions = DeliveryOrder::FLOW;
 
         return view('delivery_orders.index', compact(
-            'dos',
-            'revenue',
-            'grossProfit',
-            'volumeDo',
-            'totalCost',
-            'customers',
-            'vendors',
-            'leads',
-            'vendorServices',
-            'salesUsers',
-            'search',
-            'status',
-            'startDate',
-            'endDate',
-            'pendingDeletionDoIds'
+            'dos', 'revenue', 'grossProfit', 'volumeDo', 'totalCost',
+            'search', 'status', 'flowOptions', 'startDate', 'endDate', 'pendingDeletionDoIds'
         ));
     }
 
-    public function store(Request $request)
+    public function show(DeliveryOrder $deliveryOrder)
+    {
+        $deliveryOrder->load([
+            'customer', 'vendor', 'salesUser', 'podVerifier', 'closer',
+            'requestOrder.items', 'requestOrder.salesUser',
+            'statusLogs.user',
+        ]);
+        return view('delivery_orders.show', compact('deliveryOrder'));
+    }
+
+    // ─────────────────── SURAT JALAN (upload -> pickup) ───────────────────
+    public function uploadSuratJalan(Request $request, DeliveryOrder $deliveryOrder)
     {
         $request->validate([
-            'customer_id' => 'required|exists:customers,id',
-            'vendor_id' => 'nullable|exists:vendors,id',
-            'lead_id' => 'nullable|exists:leads,id',
-            'user_id' => 'required|exists:users,id',
-            'currency' => 'required|in:IDR,USD,SGD',
-            'status' => 'required|in:Done,In Progress,Cancelled',
-            'order_date' => 'required|date',
-            'delivery_type' => 'nullable|string|max:100',
-            'origin' => 'nullable|string|max:255',
-            'destination' => 'nullable|string|max:255',
-            'tracking_number' => 'nullable|string|max:100',
-            'estimated_arrival' => 'nullable|date',
-            'notes' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.service_name' => 'required|string|max:255',
-            'items.*.unit' => 'nullable|string|max:50',
-            'items.*.tonnage' => 'nullable|numeric|min:0',
-            'items.*.qty' => 'required|numeric|min:0.001',
-            'items.*.buy_price' => 'required|numeric|min:0',
-            'items.*.sell_price' => 'required|numeric|min:0',
-            'items.*.description' => 'nullable|string',
+            'surat_jalan_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'note'             => 'nullable|string|max:1000',
         ]);
 
-
-        $customer = Customer::findOrFail($request->customer_id);
-        if ($customer->status !== 'Existing') {
-            return back()->withInput()->withErrors(['customer_id' => 'Customer harus berstatus Existing/Won sebelum dibuatkan Delivery Order.']);
+        if ($deliveryOrder->status !== 'surat_jalan') {
+            return back()->withErrors(['general' => 'DO tidak berada di tahap surat jalan.']);
         }
 
-        DB::transaction(function () use ($request) {
-            $userId = null;
-            if ($request->lead_id) {
-                $userId = Lead::find($request->lead_id)?->user_id;
-            }
-            $userId = $request->user_id ?: ($userId ?? auth()->id());
+        $path = $request->file('surat_jalan_file')->store('delivery-orders/surat-jalan', 'public');
+        $deliveryOrder->update(['surat_jalan_file' => $path]);
+        $deliveryOrder->transition('pickup', $request->note ?: 'Surat jalan diterbitkan.', auth()->id());
 
-            $so = DeliveryOrder::create([
-                'do_number' => DeliveryOrder::generateDoNumber(),
-                'customer_id' => $request->customer_id,
-                'vendor_id' => $request->vendor_id,
-                'lead_id' => $request->lead_id,
-                'user_id' => $userId,
-                'currency' => $request->currency,
-                'status' => $request->status,
-                'order_date' => $request->order_date,
-                'delivery_type' => $request->delivery_type ? ucwords(strtolower(trim($request->delivery_type))) : null,
-                'origin' => $request->origin,
-                'destination' => $request->destination,
-                'tracking_number' => $request->tracking_number,
-                'estimated_arrival' => $request->estimated_arrival,
-                'notes' => $request->notes,
-            ]);
-
-            foreach ($request->items as $item) {
-                $so->items()->create([
-                    'service_name' => $item['service_name'],
-                    'unit' => $item['unit'] ?? null,
-                    'tonnage' => $item['tonnage'] ?? null,
-                    'qty' => $item['qty'],
-                    'buy_price' => $item['buy_price'],
-                    'sell_price' => $item['sell_price'],
-                    'description' => $item['description'] ?? null,
-                ]);
-            }
-
-            // Lead yang sudah Won/Closing → pindah ke Maintaining setelah DO dibuat.
-            if ($request->lead_id) {
-                $lead = Lead::find($request->lead_id);
-                if ($lead && in_array($lead->pipeline_stage, ['Won', 'Closing'])) {
-                    $lead->update(['pipeline_stage' => 'Maintaining']);
-                }
-            } else {
-                // DO tanpa lead langsung: pindahkan lead Won/Closing milik customer ini ke Maintaining.
-                Lead::where('customer_id', $request->customer_id)
-                    ->whereIn('pipeline_stage', ['Won', 'Closing'])
-                    ->update(['pipeline_stage' => 'Maintaining']);
-            }
-        });
-
-        return redirect()->route('delivery-orders.index')->with('success', 'Delivery Order berhasil ditambahkan.');
+        return back()->with('success', 'Surat jalan diunggah. DO siap pickup.');
     }
 
-    public function edit(DeliveryOrder $deliveryOrder)
+    // ─────────────────── PICKUP -> DELIVERY ───────────────────
+    public function markPickup(Request $request, DeliveryOrder $deliveryOrder)
     {
-        $deliveryOrder->load(['items', 'customer', 'vendor', 'lead']);
-        $data = $deliveryOrder->toArray();
-        $data['order_date'] = $deliveryOrder->order_date?->format('Y-m-d');
-        $data['estimated_arrival'] = $deliveryOrder->estimated_arrival?->format('Y-m-d');
-        return response()->json($data);
+        if ($deliveryOrder->status !== 'pickup') {
+            return back()->withErrors(['general' => 'DO tidak berada di tahap pickup.']);
+        }
+        $deliveryOrder->update(['pickup_date' => $request->pickup_date ?: now()->toDateString()]);
+        $deliveryOrder->transition('in_delivery', $request->note ?: 'Barang sudah dipickup, dalam perjalanan.', auth()->id());
+        return back()->with('success', 'Status diperbarui: dalam pengiriman.');
     }
 
-    public function update(Request $request, DeliveryOrder $deliveryOrder)
+    // ─────────────────── DELIVERY -> POD ───────────────────
+    public function markDelivered(Request $request, DeliveryOrder $deliveryOrder)
+    {
+        if ($deliveryOrder->status !== 'in_delivery') {
+            return back()->withErrors(['general' => 'DO tidak berada di tahap delivery.']);
+        }
+        $deliveryOrder->update(['delivery_date' => $request->delivery_date ?: now()->toDateString()]);
+        $deliveryOrder->transition('pod', $request->note ?: 'Barang sampai tujuan, menunggu POD.', auth()->id());
+        return back()->with('success', 'Status diperbarui: menunggu POD.');
+    }
+
+    // ─────────────────── POD (upload foto bukti terima) ───────────────────
+    public function uploadPod(Request $request, DeliveryOrder $deliveryOrder)
     {
         $request->validate([
-            'customer_id' => 'required|exists:customers,id',
-            'vendor_id' => 'nullable|exists:vendors,id',
-            'lead_id' => 'nullable|exists:leads,id',
-            'user_id' => 'required|exists:users,id',
-            'currency' => 'required|in:IDR,USD,SGD',
-            'status' => 'required|in:Done,In Progress,Cancelled',
-            'order_date' => 'required|date',
-            'delivery_type' => 'nullable|string|max:100',
-            'origin' => 'nullable|string|max:255',
-            'destination' => 'nullable|string|max:255',
-            'tracking_number' => 'nullable|string|max:100',
-            'estimated_arrival' => 'nullable|date',
-            'notes' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.service_name' => 'required|string|max:255',
-            'items.*.unit' => 'nullable|string|max:50',
-            'items.*.tonnage' => 'nullable|numeric|min:0',
-            'items.*.qty' => 'required|numeric|min:0.001',
-            'items.*.buy_price' => 'required|numeric|min:0',
-            'items.*.sell_price' => 'required|numeric|min:0',
-            'items.*.description' => 'nullable|string',
+            'pod_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'note'     => 'nullable|string|max:1000',
         ]);
 
+        if ($deliveryOrder->status !== 'pod') {
+            return back()->withErrors(['general' => 'DO tidak berada di tahap POD.']);
+        }
 
-        $customer = Customer::findOrFail($request->customer_id);
-        if ($customer->status !== 'Existing') {
-            return back()->withInput()->withErrors(['customer_id' => 'Customer harus berstatus Existing/Won sebelum dibuatkan Delivery Order.']);
+        $path = $request->file('pod_file')->store('delivery-orders/pod', 'public');
+        $deliveryOrder->update(['pod_file' => $path, 'pod_at' => now()]);
+        $deliveryOrder->transition('verifikasi_pod', $request->note ?: 'POD diunggah.', auth()->id());
+
+        return back()->with('success', 'POD diunggah. Menunggu verifikasi Sales Admin.');
+    }
+
+    // ─────────────────── VERIFIKASI POD + INPUT BIAYA + TUTUP DO (Sales Admin) ───────────────────
+    public function closeDo(Request $request, DeliveryOrder $deliveryOrder)
+    {
+        $request->validate([
+            'actual_cost' => 'required|numeric|min:0',
+            'other_cost'  => 'nullable|numeric|min:0',
+            'note'        => 'nullable|string|max:1000',
+        ]);
+
+        if ($deliveryOrder->status !== 'verifikasi_pod') {
+            return back()->withErrors(['general' => 'DO belum siap ditutup (POD belum diverifikasi).']);
         }
 
         DB::transaction(function () use ($request, $deliveryOrder) {
             $deliveryOrder->update([
-                'customer_id' => $request->customer_id,
-                'vendor_id' => $request->vendor_id,
-                'lead_id' => $request->lead_id,
-                'user_id' => $request->user_id,
-                'currency' => $request->currency,
-                'status' => $request->status,
-                'order_date' => $request->order_date,
-                'delivery_type' => $request->delivery_type ? ucwords(strtolower(trim($request->delivery_type))) : null,
-                'origin' => $request->origin,
-                'destination' => $request->destination,
-                'tracking_number' => $request->tracking_number,
-                'estimated_arrival' => $request->estimated_arrival,
-                'notes' => $request->notes,
+                'pod_verified_by' => auth()->id(),
+                'pod_verified_at' => now(),
+                'actual_cost'     => $request->actual_cost,
+                'other_cost'      => $request->other_cost ?? 0,
+                'closed_by'       => auth()->id(),
+                'closed_at'       => now(),
             ]);
+            $deliveryOrder->transition('closed', $request->note ?: 'POD terverifikasi, biaya diinput, DO ditutup.', auth()->id());
 
-            $deliveryOrder->items()->delete();
-            foreach ($request->items as $item) {
-                $deliveryOrder->items()->create([
-                    'service_name' => $item['service_name'],
-                    'unit' => $item['unit'] ?? null,
-                    'tonnage' => $item['tonnage'] ?? null,
-                    'qty' => $item['qty'],
-                    'buy_price' => $item['buy_price'],
-                    'sell_price' => $item['sell_price'],
-                    'description' => $item['description'] ?? null,
-                ]);
-            }
+            // Tandai request order terkait sebagai Done.
+            $deliveryOrder->requestOrder?->update(['status' => 'Done']);
         });
 
-        return redirect()->route('delivery-orders.index')->with('success', 'Delivery Order berhasil diperbarui.');
+        return back()->with('success', 'DO ditutup. Siap diteruskan ke Finance.');
+    }
+
+    // ─────────────────── FINANCE: INVOICE ───────────────────
+    public function invoice(Request $request, DeliveryOrder $deliveryOrder)
+    {
+        $request->validate(['note' => 'nullable|string|max:1000']);
+
+        if ($deliveryOrder->status !== 'closed') {
+            return back()->withErrors(['general' => 'DO belum ditutup, belum bisa di-invoice.']);
+        }
+        $deliveryOrder->transition('invoiced', $request->note ?: 'Invoice customer & tagihan vendor diterbitkan.', auth()->id());
+        return back()->with('success', 'Status diperbarui: invoice terbit.');
+    }
+
+    // ─────────────────── FINANCE: PAYMENT ───────────────────
+    public function pay(Request $request, DeliveryOrder $deliveryOrder)
+    {
+        $request->validate(['note' => 'nullable|string|max:1000']);
+
+        if ($deliveryOrder->status !== 'invoiced') {
+            return back()->withErrors(['general' => 'DO belum di-invoice.']);
+        }
+        $deliveryOrder->transition('paid', $request->note ?: 'Pembayaran lunas.', auth()->id());
+        return back()->with('success', 'DO ditandai lunas. Alur selesai.');
     }
 
     public function destroy(DeliveryOrder $deliveryOrder)
     {
-        $soNumber = $deliveryOrder->do_number;
+        $no = $deliveryOrder->do_number;
+        // bersihkan file
+        foreach (['surat_jalan_file', 'pod_file'] as $col) {
+            if ($deliveryOrder->$col) Storage::disk('public')->delete($deliveryOrder->$col);
+        }
         $deliveryOrder->delete();
-        return redirect()->route('delivery-orders.index')->with('success', 'DO ' . $soNumber . ' berhasil dihapus.');
+        return redirect()->route('delivery-orders.index')->with('success', 'DO ' . $no . ' berhasil dihapus.');
     }
 
     public function export(Request $request)
     {
         $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
-        $endDate = $request->get('end_date', now()->endOfMonth()->format('Y-m-d'));
+        $endDate   = $request->get('end_date', now()->endOfMonth()->format('Y-m-d'));
 
-        $sos = DeliveryOrder::with(['customer', 'vendor', 'items'])
-            ->whereBetween('order_date', [$startDate, $endDate])
-            ->orderByDesc('order_date')->get();
+        $dos = DeliveryOrder::with(['customer', 'vendor', 'requestOrder.items'])
+            ->whereBetween('do_date', [$startDate, $endDate])
+            ->orderByDesc('do_date')->get();
 
-        $headers = ['DO Number', 'Customer', 'Vendor', 'Delivery Type', 'Origin', 'Destination', 'Tracking', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA'];
+        $headers = ['DO Number', 'Request DO', 'Customer', 'Armada/Vendor', 'Tipe', 'Origin', 'Destination', 'Flow', 'Pickup', 'Delivery', 'Revenue', 'Actual Cost', 'Other Cost', 'Gross Profit', 'POD At', 'Closed At'];
 
         $rows = [];
-        foreach ($sos as $so) {
-            foreach ($so->items as $item) {
-                $rows[] = [
-                    $so->do_number,
-                    $so->customer?->company_name ?? '-',
-                    $so->vendor?->vendor_name ?? '-',
-                    $so->delivery_type,
-                    $so->origin,
-                    $so->destination,
-                    $so->tracking_number,
-                    $item->service_name,
-                    $item->unit,
-                    $item->tonnage !== null ? (float) $item->tonnage : null,
-                    (float) $item->qty,
-                    (float) $item->buy_price,
-                    (float) $item->sell_price,
-                    (float) $item->subtotal_revenue,
-                    (float) $item->subtotal_cost,
-                    (float) $item->gross_profit,
-                    $so->currency,
-                    $so->status,
-                    $so->order_date?->format('Y-m-d'),
-                    $so->estimated_arrival?->format('Y-m-d'),
-                ];
-            }
+        foreach ($dos as $d) {
+            $rows[] = [
+                $d->do_number,
+                $d->requestOrder?->do_number ?? '-',
+                $d->customer?->company_name ?? '-',
+                $d->fleet_info ?? ($d->vendor?->vendor_name ?? '-'),
+                $d->assignment_type,
+                $d->origin, $d->destination,
+                $d->flow_label,
+                $d->pickup_date?->format('Y-m-d'), $d->delivery_date?->format('Y-m-d'),
+                (float) $d->total_revenue, (float) $d->actual_cost, (float) $d->other_cost,
+                (float) $d->gross_profit,
+                $d->pod_at?->format('Y-m-d H:i'), $d->closed_at?->format('Y-m-d H:i'),
+            ];
         }
 
         return \App\Helpers\ExcelExport::download(
-            'delivery-orders-' . $startDate . '-sd-' . $endDate,
-            $headers,
-            $rows,
-            'Delivery Orders'
+            'delivery-orders-' . $startDate . '-sd-' . $endDate, $headers, $rows, 'Delivery Orders'
         );
     }
 }

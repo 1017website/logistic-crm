@@ -1401,6 +1401,11 @@
                 <i class="fas fa-tags si-icon"></i><span>Master Service Type</span>
             </a>
             @endif
+            @if(auth()->user()->canAccess('request_orders'))
+            <a href="{{ route('request-orders.index') }}" class="sidebar-item {{ request()->routeIs('request-orders.*') ? 'active' : '' }}">
+                <i class="fas fa-clipboard-list si-icon"></i><span>Request DO</span>
+            </a>
+            @endif
             @if(auth()->user()->canAccess('delivery_orders'))
             <a href="{{ route('delivery-orders.index') }}" class="sidebar-item {{ request()->routeIs('delivery-orders.*') ? 'active' : '' }}">
                 <i class="fas fa-truck si-icon"></i><span>Delivery Orders</span>

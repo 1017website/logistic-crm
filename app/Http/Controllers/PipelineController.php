@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Lead;
 use App\Models\User;
-use App\Models\DeliveryOrder;
+use App\Models\RequestOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -65,19 +65,19 @@ class PipelineController extends Controller
     /** Base query DO Done (IDR) join items, untuk agregasi revenue riil. */
     private function doRevenueQuery()
     {
-        return DB::table('delivery_orders')
-            ->join('delivery_order_items as items', 'items.delivery_order_id', '=', 'delivery_orders.id')
-            ->where('delivery_orders.status', 'Done')
-            ->where('delivery_orders.currency', 'IDR')
-            ->whereNull('delivery_orders.deleted_at');
+        return DB::table('request_orders')
+            ->join('request_order_items as items', 'items.request_order_id', '=', 'request_orders.id')
+            ->where('request_orders.status', 'Done')
+            ->where('request_orders.currency', 'IDR')
+            ->whereNull('request_orders.deleted_at');
     }
 
     /** Revenue DO per user_id (sales). */
     private function doRevenuePerUser(): array
     {
         return $this->doRevenueQuery()
-            ->select('delivery_orders.user_id as uid', DB::raw('SUM(items.qty * items.sell_price) as total'))
-            ->groupBy('delivery_orders.user_id')
+            ->select('request_orders.user_id as uid', DB::raw('SUM(items.qty * items.sell_price) as total'))
+            ->groupBy('request_orders.user_id')
             ->pluck('total', 'uid')
             ->toArray();
     }

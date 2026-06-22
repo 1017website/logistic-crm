@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Lead;
 use App\Models\Customer;
 use App\Models\User;
-use App\Models\DeliveryOrder;
+use App\Models\RequestOrder;
 use App\Models\Activity;
-use App\Models\DeliveryOrderItem;
+use App\Models\RequestOrderItem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
@@ -20,17 +20,17 @@ class AnalyticsController extends Controller
         $salesId   = $request->get('user_id');
 
         // ── KPI Utama dari DO Done ──
-        $doneDOs = DeliveryOrder::with('items')
+        $doneDOs = RequestOrder::with('items')
             ->whereBetween('order_date', [$startDate, $endDate])
             ->where('status', 'Done')->where('currency', 'IDR');
         if ($salesId) $doneDOs->where('user_id', $salesId);
 
         $volumePo    = (clone $doneDOs)->count();
-        $totalsQuery = DeliveryOrderItem::join('delivery_orders', 'delivery_orders.id', '=', 'delivery_order_items.delivery_order_id')
-            ->whereBetween('delivery_orders.order_date', [$startDate, $endDate])
-            ->where('delivery_orders.status', 'Done')
-            ->where('delivery_orders.currency', 'IDR');
-        if ($salesId) $totalsQuery->where('delivery_orders.user_id', $salesId);
+        $totalsQuery = RequestOrderItem::join('request_orders', 'request_orders.id', '=', 'request_order_items.request_order_id')
+            ->whereBetween('request_orders.order_date', [$startDate, $endDate])
+            ->where('request_orders.status', 'Done')
+            ->where('request_orders.currency', 'IDR');
+        if ($salesId) $totalsQuery->where('request_orders.user_id', $salesId);
         $totals = $totalsQuery->selectRaw('COALESCE(SUM(qty * sell_price),0) as revenue, COALESCE(SUM(qty * buy_price),0) as total_cost')->first();
         $revenue     = (float) $totals->revenue;
         $totalCost   = (float) $totals->total_cost;
@@ -49,12 +49,12 @@ class AnalyticsController extends Controller
         $profitAnalysis = [];
         for ($i = 5; $i >= 0; $i--) {
             $m = now()->subMonths($i);
-            $monthlyQuery = DeliveryOrderItem::join('delivery_orders', 'delivery_orders.id', '=', 'delivery_order_items.delivery_order_id')
-                ->whereYear('delivery_orders.order_date', $m->year)
-                ->whereMonth('delivery_orders.order_date', $m->month)
-                ->where('delivery_orders.currency', 'IDR')
-                ->where('delivery_orders.status', 'Done');
-            if ($salesId) $monthlyQuery->where('delivery_orders.user_id', $salesId);
+            $monthlyQuery = RequestOrderItem::join('request_orders', 'request_orders.id', '=', 'request_order_items.request_order_id')
+                ->whereYear('request_orders.order_date', $m->year)
+                ->whereMonth('request_orders.order_date', $m->month)
+                ->where('request_orders.currency', 'IDR')
+                ->where('request_orders.status', 'Done');
+            if ($salesId) $monthlyQuery->where('request_orders.user_id', $salesId);
 
             $monthly = $monthlyQuery->selectRaw('COALESCE(SUM(qty * sell_price),0) as revenue, COALESCE(SUM(qty * buy_price),0) as total_cost')->first();
             $rev = (float) $monthly->revenue;
@@ -72,10 +72,10 @@ class AnalyticsController extends Controller
         }
 
         // ── Revenue by product (top 5) ──
-        $productQuery = DeliveryOrderItem::join('delivery_orders', 'delivery_orders.id', '=', 'delivery_order_items.delivery_order_id')
-            ->where('delivery_orders.status', 'Done')->where('delivery_orders.currency', 'IDR')
-            ->whereBetween('delivery_orders.order_date', [$startDate, $endDate]);
-        if ($salesId) $productQuery->where('delivery_orders.user_id', $salesId);
+        $productQuery = RequestOrderItem::join('request_orders', 'request_orders.id', '=', 'request_order_items.request_order_id')
+            ->where('request_orders.status', 'Done')->where('request_orders.currency', 'IDR')
+            ->whereBetween('request_orders.order_date', [$startDate, $endDate]);
+        if ($salesId) $productQuery->where('request_orders.user_id', $salesId);
         $revenueByProduct = $productQuery->selectRaw('service_name, SUM(qty * sell_price) as total')
             ->groupBy('service_name')->orderByDesc('total')->limit(5)->get();
 
@@ -96,12 +96,12 @@ class AnalyticsController extends Controller
                 ->whereBetween('updated_at', [$startDate, $endDate])
                 ->count();
 
-            $doTotals = DeliveryOrderItem::join('delivery_orders', 'delivery_orders.id', '=', 'delivery_order_items.delivery_order_id')
-                ->where('delivery_orders.user_id', $u->id)
-                ->where('delivery_orders.status', 'Done')
-                ->where('delivery_orders.currency', 'IDR')
-                ->whereBetween('delivery_orders.order_date', [$startDate, $endDate])
-                ->selectRaw('COUNT(DISTINCT delivery_orders.id) as deals, COALESCE(SUM(qty * sell_price),0) as revenue')
+            $doTotals = RequestOrderItem::join('request_orders', 'request_orders.id', '=', 'request_order_items.request_order_id')
+                ->where('request_orders.user_id', $u->id)
+                ->where('request_orders.status', 'Done')
+                ->where('request_orders.currency', 'IDR')
+                ->whereBetween('request_orders.order_date', [$startDate, $endDate])
+                ->selectRaw('COUNT(DISTINCT request_orders.id) as deals, COALESCE(SUM(qty * sell_price),0) as revenue')
                 ->first();
 
             $u->deals_closed = max((int) $won, (int) ($doTotals->deals ?? 0));
@@ -134,10 +134,10 @@ class AnalyticsController extends Controller
             ? round(collect($marginData)->avg(fn($m) => $m['revenue'] > 0 ? (($m['gross_profit'] / $m['revenue']) * 100) : 0), 1)
             : 0;
         $avgNettMargin = $avgGrossMargin; // logistic: nett = gross (belum ada other_cost)
-        $serviceQuery = DeliveryOrderItem::join('delivery_orders', 'delivery_orders.id', '=', 'delivery_order_items.delivery_order_id')
-            ->where('delivery_orders.status', 'Done')->where('delivery_orders.currency', 'IDR')
-            ->whereBetween('delivery_orders.order_date', [$startDate, $endDate]);
-        if ($salesId) $serviceQuery->where('delivery_orders.user_id', $salesId);
+        $serviceQuery = RequestOrderItem::join('request_orders', 'request_orders.id', '=', 'request_order_items.request_order_id')
+            ->where('request_orders.status', 'Done')->where('request_orders.currency', 'IDR')
+            ->whereBetween('request_orders.order_date', [$startDate, $endDate]);
+        if ($salesId) $serviceQuery->where('request_orders.user_id', $salesId);
         $revenueByService = $serviceQuery->selectRaw('service_name as service_type, SUM(qty * sell_price) as total')
             ->groupBy('service_name')->orderByDesc('total')->limit(5)->get();
 

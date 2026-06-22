@@ -18,15 +18,28 @@ class User extends Authenticatable
     protected $hidden = ['password', 'remember_token'];
     protected $casts  = ['password' => 'hashed'];
 
+    /** Semua role yang valid di sistem. */
+    public const ROLES = [
+        'Admin',
+        'Sales Manager',
+        'Sales Executive',
+        'Sales Admin',
+        'Transport Planner',
+        'Finance',
+    ];
+
     // ── Relasi Sales ──
     public function leads(): HasMany      { return $this->hasMany(Lead::class, 'user_id'); }
     public function activities(): HasMany { return $this->hasMany(Activity::class, 'user_id'); }
     public function customers(): HasMany  { return $this->hasMany(Customer::class, 'user_id'); }
 
     // ── Role helpers ──
-    public function isAdmin(): bool          { return $this->role === 'Admin'; }
-    public function isSalesManager(): bool   { return $this->role === 'Sales Manager'; }
-    public function isSalesExecutive(): bool { return $this->role === 'Sales Executive'; }
+    public function isAdmin(): bool            { return $this->role === 'Admin'; }
+    public function isSalesManager(): bool     { return $this->role === 'Sales Manager'; }
+    public function isSalesExecutive(): bool   { return $this->role === 'Sales Executive'; }
+    public function isSalesAdmin(): bool       { return $this->role === 'Sales Admin'; }
+    public function isTransportPlanner(): bool { return $this->role === 'Transport Planner'; }
+    public function isFinance(): bool          { return $this->role === 'Finance'; }
 
     public function canAccess(string $feature): bool
     {
@@ -35,8 +48,23 @@ class User extends Authenticatable
             'users'           => in_array($this->role, ['Admin', 'Sales Manager']),
             'reports'         => in_array($this->role, ['Admin', 'Sales Manager']),
             'analytics'       => in_array($this->role, ['Admin', 'Sales Manager']),
-            'vendors'         => in_array($this->role, ['Admin', 'Sales Manager']),
-            'delivery_orders' => in_array($this->role, ['Admin', 'Sales Manager']),
+            'vendors'         => in_array($this->role, ['Admin', 'Sales Manager', 'Transport Planner']),
+
+            // Request DO: dibuat sales, dilihat semua peran terkait alur.
+            'request_orders'  => in_array($this->role, [
+                'Admin', 'Sales Manager', 'Sales Executive', 'Sales Admin', 'Transport Planner', 'Finance',
+            ]),
+            // Verifikasi data request DO
+            'verify_request'  => in_array($this->role, ['Admin', 'Sales Admin']),
+            // Penugasan armada/vendor
+            'dispatch'        => in_array($this->role, ['Admin', 'Transport Planner']),
+            // Approval penugasan
+            'approve_assign'  => in_array($this->role, ['Admin', 'Sales Manager']),
+            // DO final + alur lapangan + tutup DO
+            'delivery_orders' => in_array($this->role, ['Admin', 'Sales Manager', 'Sales Admin', 'Transport Planner', 'Finance']),
+            'pod_field'       => in_array($this->role, ['Admin', 'Sales Admin']),
+            // Finance: invoice & payment
+            'finance'         => in_array($this->role, ['Admin', 'Finance']),
             default           => true,
         };
     }
@@ -55,4 +83,3 @@ class User extends Authenticatable
         return trim($first . $second) ?: 'US';
     }
 }
-

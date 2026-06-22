@@ -167,7 +167,7 @@
                 <div class="col-12"><label class="form-label">Jabatan / Position</label><input type="text" name="position" class="form-control" placeholder="Contoh: Senior Sales Executive"></div>
                 <div class="col-md-6"><label class="form-label">Role <span class="text-danger">*</span></label>
                     <select name="role" class="form-select" required>
-                        @foreach(['Sales Executive','Sales Manager','Admin','Marketing'] as $r)
+                        @foreach(\App\Models\User::ROLES as $r)
                         <option>{{ $r }}</option>
                         @endforeach
                     </select>
@@ -198,7 +198,7 @@
                 <div class="col-12"><label class="form-label">Jabatan / Position</label><input type="text" name="position" id="euPosition" class="form-control"></div>
                 <div class="col-md-6"><label class="form-label">Role</label>
                     <select name="role" id="euRole" class="form-select">
-                        @foreach(['Sales Executive','Sales Manager','Admin','Marketing'] as $r)
+                        @foreach(\App\Models\User::ROLES as $r)
                         <option>{{ $r }}</option>
                         @endforeach
                     </select>

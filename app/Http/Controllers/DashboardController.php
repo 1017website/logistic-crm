@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\Lead;
 use App\Models\Customer;
 use App\Models\Activity;
-use App\Models\DeliveryOrder;
+use App\Models\RequestOrder;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -22,18 +22,18 @@ class DashboardController extends Controller
         $prevLabel  = $now->copy()->subMonth()->format('M Y');
 
         // ── KPI bulan ini ──
-        $doneDOs    = DeliveryOrder::with('items')->whereBetween('order_date', [$startMonth, $endMonth])->where('status','Done')->where('currency','IDR')->get();
+        $doneDOs    = RequestOrder::with('items')->whereBetween('order_date', [$startMonth, $endMonth])->where('status','Done')->where('currency','IDR')->get();
         $revenue    = $doneDOs->sum(fn($po) => $po->total_revenue);
-        $totalDo    = DeliveryOrder::whereBetween('order_date', [$startMonth, $endMonth])->count();
+        $totalDo    = RequestOrder::whereBetween('order_date', [$startMonth, $endMonth])->count();
         $activeLeads = Lead::whereNotIn('pipeline_stage', ['Won','Lost'])->count();
         $dealClosed  = Lead::where('pipeline_stage','Won')->whereBetween('updated_at', [$startMonth, $endMonth])->count();
         $totalLeads  = Lead::count();
         $conversionRate = $totalLeads > 0 ? round(($dealClosed / max($totalLeads, 1)) * 100, 1) : 0;
 
         // ── KPI bulan lalu (growth %) ──
-        $doneDOsPrev    = DeliveryOrder::with('items')->whereBetween('order_date', [$startPrev, $endPrev])->where('status','Done')->where('currency','IDR')->get();
+        $doneDOsPrev    = RequestOrder::with('items')->whereBetween('order_date', [$startPrev, $endPrev])->where('status','Done')->where('currency','IDR')->get();
         $revenuePrev    = $doneDOsPrev->sum(fn($po) => $po->total_revenue);
-        $totalDoPrev    = DeliveryOrder::whereBetween('order_date', [$startPrev, $endPrev])->count();
+        $totalDoPrev    = RequestOrder::whereBetween('order_date', [$startPrev, $endPrev])->count();
         $dealClosedPrev = Lead::where('pipeline_stage','Won')->whereBetween('updated_at', [$startPrev, $endPrev])->count();
         $activeLeadsPrev = Lead::whereNotIn('pipeline_stage', ['Won','Lost'])->where('created_at','<',$startMonth)->count();
 
@@ -74,16 +74,16 @@ class DashboardController extends Controller
         $chartStart = $now->copy()->subDays(30)->toDateString();
         $chartEnd   = $now->copy()->toDateString();
 
-        $revenueRows = DB::table('delivery_order_items')
-            ->join('delivery_orders', 'delivery_orders.id', '=', 'delivery_order_items.delivery_order_id')
-            ->whereBetween('delivery_orders.order_date', [$chartStart, $chartEnd])
-            ->where('delivery_orders.status', 'Done')
-            ->where('delivery_orders.currency', 'IDR')
-            ->selectRaw('DATE(delivery_orders.order_date) as date_key, COALESCE(SUM(delivery_order_items.qty * delivery_order_items.sell_price),0) as total')
+        $revenueRows = DB::table('request_order_items')
+            ->join('request_orders', 'request_orders.id', '=', 'request_order_items.request_order_id')
+            ->whereBetween('request_orders.order_date', [$chartStart, $chartEnd])
+            ->where('request_orders.status', 'Done')
+            ->where('request_orders.currency', 'IDR')
+            ->selectRaw('DATE(request_orders.order_date) as date_key, COALESCE(SUM(request_order_items.qty * request_order_items.sell_price),0) as total')
             ->groupBy('date_key')
             ->pluck('total', 'date_key');
 
-        $volumeRows = DeliveryOrder::whereBetween('order_date', [$chartStart, $chartEnd])
+        $volumeRows = RequestOrder::whereBetween('order_date', [$chartStart, $chartEnd])
             ->selectRaw('DATE(order_date) as date_key, COUNT(*) as total')
             ->groupBy('date_key')
             ->pluck('total', 'date_key');

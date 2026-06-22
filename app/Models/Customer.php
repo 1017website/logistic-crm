@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\RequestOrder;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,7 +23,10 @@ class Customer extends Model
     public function salesUser(): BelongsTo    { return $this->belongsTo(User::class, 'user_id'); }
     public function leads(): HasMany          { return $this->hasMany(Lead::class); }
     public function activities(): HasMany     { return $this->hasMany(Activity::class); }
-    public function deliveryOrders(): HasMany { return $this->hasMany(DeliveryOrder::class); }
+    // Revenue & status order tersimpan di request_orders (eks delivery_orders lama).
+    public function deliveryOrders(): HasMany { return $this->hasMany(RequestOrder::class); }
+    public function requestOrders(): HasMany  { return $this->hasMany(RequestOrder::class); }
+    public function finalDeliveryOrders(): HasMany { return $this->hasMany(DeliveryOrder::class); }
     public function pics(): HasMany           { return $this->hasMany(CustomerPic::class); }
 
     // Kebutuhan layanan (field disamakan dengan vendor_services)

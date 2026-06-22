@@ -42,6 +42,12 @@ class DeletionRequest extends Model
             'route'       => 'vendors.index',
             'title'       => 'Vendor',
         ],
+        \App\Models\RequestOrder::class => [
+            'module'      => 'request-orders',
+            'label_field' => 'do_number',
+            'route'       => 'request-orders.index',
+            'title'       => 'Request DO',
+        ],
         \App\Models\DeliveryOrder::class => [
             'module'      => 'delivery-orders',
             'label_field' => 'do_number',

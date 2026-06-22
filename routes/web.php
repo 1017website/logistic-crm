@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DeliveryOrderController;
+use App\Http\Controllers\RequestOrderController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
@@ -91,18 +92,55 @@ Route::middleware('auth')->group(function () {
     Route::patch('/customers/{customer}/transfer-sales', [CustomerController::class, 'transferSales'])->name('customers.transfer-sales');
     Route::resource('customers', CustomerController::class)->except(['destroy']);
 
-    // Vendors & Shipment Orders (Admin & Sales Manager only)
-    Route::middleware('role:Admin,Sales Manager')->group(function () {
+    // Vendors (Admin, Sales Manager, Transport Planner)
+    Route::middleware('role:Admin,Sales Manager,Transport Planner')->group(function () {
         Route::get('/vendors/export', [VendorController::class, 'export'])->name('vendors.export');
         Route::post('/vendors/{vendor}/services', [VendorController::class, 'storeService'])->name('vendors.services.store');
         Route::post('/vendors/{vendor}/pics', [VendorController::class, 'storePic'])->name('vendors.pics.store');
         Route::resource('vendors', VendorController::class)->only(['index', 'store', 'update']);
 
-        Route::get('/delivery-orders/export', [DeliveryOrderController::class, 'export'])->name('delivery-orders.export');
-        Route::get('/delivery-orders/{deliveryOrder}/edit', [DeliveryOrderController::class, 'edit'])->name('delivery-orders.edit');
-        Route::resource('delivery-orders', DeliveryOrderController::class)->only(['index', 'store', 'update']);
-
         Route::resource('service-types', ServiceTypeController::class)->only(['index', 'store', 'update', 'destroy']);
+    });
+
+    // ── REQUEST DO (tahap 1: order → verifikasi → dispatch → approval) ──
+    Route::middleware('role:Admin,Sales Manager,Sales Executive,Sales Admin,Transport Planner,Finance')->group(function () {
+        Route::get('/request-orders/export', [RequestOrderController::class, 'export'])->name('request-orders.export');
+        Route::get('/request-orders/{requestOrder}/edit', [RequestOrderController::class, 'edit'])->name('request-orders.edit');
+        Route::resource('request-orders', RequestOrderController::class)
+            ->parameters(['request-orders' => 'requestOrder'])
+            ->only(['index', 'show', 'store', 'update']);
+    });
+
+    // Verifikasi data (Sales Admin / Admin)
+    Route::middleware('role:Admin,Sales Admin')->group(function () {
+        Route::post('/request-orders/{requestOrder}/verify', [RequestOrderController::class, 'verify'])->name('request-orders.verify');
+    });
+    // Dispatch / penugasan armada (Transport Planner / Admin)
+    Route::middleware('role:Admin,Transport Planner')->group(function () {
+        Route::post('/request-orders/{requestOrder}/dispatch', [RequestOrderController::class, 'dispatchAssign'])->name('request-orders.dispatch');
+    });
+    // Approval penugasan (Sales Manager / Admin)
+    Route::middleware('role:Admin,Sales Manager')->group(function () {
+        Route::post('/request-orders/{requestOrder}/approve', [RequestOrderController::class, 'approveAssign'])->name('request-orders.approve');
+    });
+
+    // ── DELIVERY ORDER (tahap 2: surat jalan → pickup → delivery → POD → tutup → finance) ──
+    Route::middleware('role:Admin,Sales Manager,Sales Admin,Transport Planner,Finance')->group(function () {
+        Route::get('/delivery-orders/export', [DeliveryOrderController::class, 'export'])->name('delivery-orders.export');
+        Route::resource('delivery-orders', DeliveryOrderController::class)->only(['index', 'show']);
+    });
+    // Aksi lapangan & tutup DO (Sales Admin / Admin)
+    Route::middleware('role:Admin,Sales Admin')->group(function () {
+        Route::post('/delivery-orders/{deliveryOrder}/surat-jalan', [DeliveryOrderController::class, 'uploadSuratJalan'])->name('delivery-orders.surat-jalan');
+        Route::post('/delivery-orders/{deliveryOrder}/pickup', [DeliveryOrderController::class, 'markPickup'])->name('delivery-orders.pickup');
+        Route::post('/delivery-orders/{deliveryOrder}/delivered', [DeliveryOrderController::class, 'markDelivered'])->name('delivery-orders.delivered');
+        Route::post('/delivery-orders/{deliveryOrder}/pod', [DeliveryOrderController::class, 'uploadPod'])->name('delivery-orders.pod');
+        Route::post('/delivery-orders/{deliveryOrder}/close', [DeliveryOrderController::class, 'closeDo'])->name('delivery-orders.close');
+    });
+    // Finance: invoice & payment (Finance / Admin)
+    Route::middleware('role:Admin,Finance')->group(function () {
+        Route::post('/delivery-orders/{deliveryOrder}/invoice', [DeliveryOrderController::class, 'invoice'])->name('delivery-orders.invoice');
+        Route::post('/delivery-orders/{deliveryOrder}/pay', [DeliveryOrderController::class, 'pay'])->name('delivery-orders.pay');
     });
 
     // ── Manager & Admin only ───────────────────────
@@ -128,6 +166,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/vendors/{vendor}/services/{service}', [VendorController::class, 'destroyService'])->name('vendors.services.destroy');
         Route::delete('/vendors/{vendor}/pics/{pic}', [VendorController::class, 'destroyPic'])->name('vendors.pics.destroy');
 
+        Route::delete('/request-orders/{requestOrder}', [RequestOrderController::class, 'destroy'])->name('request-orders.destroy');
         Route::delete('/delivery-orders/{deliveryOrder}', [DeliveryOrderController::class, 'destroy'])->name('delivery-orders.destroy');
     });
 
