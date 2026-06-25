@@ -187,6 +187,22 @@ class DeliveryOrderController extends Controller
         return back()->with('success', 'DO ditandai lunas. Alur selesai.');
     }
 
+    // ─────────────────── CETAK SURAT JALAN INTERNAL (HTML + barcode) ───────────────────
+    public function printSuratJalan(DeliveryOrder $deliveryOrder)
+    {
+        $deliveryOrder->load(['customer', 'vendor', 'salesUser', 'requestOrder.items']);
+
+        $company = [
+            'name'    => \App\Models\Setting::get('company_name', 'Perusahaan'),
+            'address' => \App\Models\Setting::get('company_address', ''),
+            'phone'   => \App\Models\Setting::get('company_phone', ''),
+            'email'   => \App\Models\Setting::get('company_email', ''),
+            'logo'    => \App\Models\Setting::get('company_logo', ''),
+        ];
+
+        return view('delivery_orders.surat_jalan_print', compact('deliveryOrder', 'company'));
+    }
+
     public function destroy(DeliveryOrder $deliveryOrder)
     {
         $no = $deliveryOrder->do_number;

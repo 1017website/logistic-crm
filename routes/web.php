@@ -131,6 +131,7 @@ Route::middleware('auth')->group(function () {
     // ── DELIVERY ORDER (tahap 2: surat jalan → pickup → delivery → POD → tutup → finance) ──
     Route::middleware('role:Admin,Sales Manager,Sales Admin,Transport Planner,Finance')->group(function () {
         Route::get('/delivery-orders/export', [DeliveryOrderController::class, 'export'])->name('delivery-orders.export');
+        Route::get('/delivery-orders/{deliveryOrder}/surat-jalan/print', [DeliveryOrderController::class, 'printSuratJalan'])->name('delivery-orders.surat-jalan.print');
         Route::resource('delivery-orders', DeliveryOrderController::class)->only(['index', 'show']);
     });
     // Aksi lapangan & tutup DO (Sales Admin / Admin)

@@ -67,6 +67,9 @@
                 @if($do->surat_jalan_file)
                 <a href="{{ asset('storage/'.$do->surat_jalan_file) }}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="fas fa-file-alt me-1"></i> Surat Jalan</a>
                 @else <span class="text-muted">Surat jalan belum diunggah.</span> @endif
+                @if($do->assignment_type === 'internal')
+                <a href="{{ route('delivery-orders.surat-jalan.print', $do->id) }}" target="_blank" class="btn btn-sm btn-outline-dark"><i class="fas fa-barcode me-1"></i> Cetak SJ Internal</a>
+                @endif
                 @if($do->pod_file)
                 <a href="{{ asset('storage/'.$do->pod_file) }}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="fas fa-image me-1"></i> POD</a>
                 @endif

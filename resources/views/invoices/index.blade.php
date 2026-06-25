@@ -147,7 +147,7 @@ document.getElementById('invCustomer')?.addEventListener('change', async functio
     try {
         const res = await fetch(`${availUrl}?customer_id=${this.value}`);
         const dos = await res.json();
-        if (!dos.length) { wrap.innerHTML = '<div class="text-muted">Tidak ada DO siap tagih.</div>'; recalcInv(); return; }
+        if (!dos.length) { wrap.innerHTML = '<div class="text-muted small">Tidak ada DO siap tagih untuk customer ini.<br>DO baru muncul di sini setelah: <b>Request DO</b> diisi <b>Rincian Biaya per Pekerjaan</b> lalu di-<b>Approve DO</b>, dan belum pernah diinvoice.</div>'; recalcInv(); return; }
         wrap.innerHTML = dos.map(d => `
             <label class="d-flex align-items-center gap-2 py-1 border-bottom" style="cursor:pointer">
                 <input type="checkbox" name="do_ids[]" value="${d.id}" class="doChk" data-hpp="${d.hpp}" data-jual="${d.jual}">

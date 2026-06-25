@@ -868,6 +868,19 @@
             vertical-align: middle;
         }
 
+        /* Bootstrap tidak punya bg-purple / bg-indigo bawaan → badge tampil tanpa background
+           sehingga teks putih tidak terbaca. Definisikan di sini. */
+        .badge.bg-purple,
+        .bg-purple {
+            background-color: #7c3aed !important;
+            color: #fff !important;
+        }
+        .badge.bg-indigo,
+        .bg-indigo {
+            background-color: #4f46e5 !important;
+            color: #fff !important;
+        }
+
         .badge-done {
             background: #d1fae5;
             color: #047857;
@@ -2053,22 +2066,61 @@
                 initStaticModals(this);
             });
 
-            // ── Format input IDR — separator real-time saat ketik ──
-            $(document).on('keyup input', '.idr-input', function() {
-                let raw = $(this).val().replace(/\D/g, '');
-                if (raw === '') {
-                    $(this).val('');
-                    return;
+            // ════════════════════════════════════════════════════════════════
+            // SEPARATOR RIBUAN UNIVERSAL untuk semua input angka.
+            // Berlaku untuk: input[type=number], .idr-input, .num-sep.
+            // Dikecualikan (TIDAK diberi separator):
+            //   - input dengan atribut data-no-sep
+            //   - input desimal (step bukan "1"/"any" integer, mis. step="0.01")
+            //   - input persen / tahun (name/id mengandung 'persen','ppn','tahun','year','step')
+            // ════════════════════════════════════════════════════════════════
+            function shouldSeparate(el) {
+                const $el = $(el);
+                if ($el.is('[data-no-sep]')) return false;
+                const step = ($el.attr('step') || '').toLowerCase();
+                // step desimal → jangan ganggu (biarkan input number asli)
+                if (step && step !== '1' && step !== 'any' && step.indexOf('.') !== -1) return false;
+                const key = (($el.attr('name') || '') + ' ' + ($el.attr('id') || '')).toLowerCase();
+                if (/persen|percent|ppn|tahun|year|rate|qty_decimal/.test(key)) {
+                    // boleh tetap diseparasi kalau memang qty besar; default: skip persen & tahun
+                    if (/persen|percent|ppn|tahun|year/.test(key)) return false;
                 }
-                let formatted = parseInt(raw, 10).toLocaleString('id-ID');
-                $(this).val(formatted);
+                return true;
+            }
+
+            // Ubah input[type=number] yang layak → text+numeric agar bisa tampil separator.
+            function upgradeNumberInputs(scope) {
+                $(scope || document).find('input[type="number"]').each(function() {
+                    if (!shouldSeparate(this)) return;
+                    const $el = $(this);
+                    // simpan batasan agar tetap validasi di server (min/max tetap dikirim apa adanya)
+                    $el.attr('type', 'text');
+                    $el.attr('inputmode', 'numeric');
+                    $el.addClass('num-sep');
+                    // format nilai awal jika ada
+                    const v = ($el.val() || '').toString().replace(/[^\d]/g, '');
+                    if (v !== '') $el.val(parseInt(v, 10).toLocaleString('id-ID'));
+                });
+            }
+
+            // Format saat mengetik (idr-input lama + num-sep baru).
+            $(document).on('keyup input', '.idr-input, .num-sep', function() {
+                let raw = $(this).val().replace(/\D/g, '');
+                if (raw === '') { $(this).val(''); return; }
+                $(this).val(parseInt(raw, 10).toLocaleString('id-ID'));
             });
 
-            // Strip separator sebelum form submit agar validasi numeric lolos
+            // Strip separator sebelum submit agar lolos validasi numeric di server.
             $(document).on('submit', 'form', function() {
-                $(this).find('.idr-input').each(function() {
+                $(this).find('.idr-input, .num-sep').each(function() {
                     $(this).val($(this).val().replace(/\./g, '').replace(/,/g, ''));
                 });
+            });
+
+            // Jalankan saat load + setiap modal dibuka (karena modal sering di-render dinamis).
+            upgradeNumberInputs(document);
+            $(document).on('shown.bs.modal', '.modal', function() {
+                upgradeNumberInputs(this);
             });
         });
     </script>
