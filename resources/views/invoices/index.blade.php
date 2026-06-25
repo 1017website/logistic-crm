@@ -113,7 +113,7 @@
         <div class="modal-body" style="font-size:13px">
             <div class="row g-2 mb-2">
                 <div class="col-md-5"><label class="form-label">Customer</label>
-                    <select name="customer_id" id="invCustomer" class="form-select form-select-sm" required>
+                    <select name="customer_id" id="invCustomer" class="form-select form-select-sm no-select2" required>
                         <option value="">— Pilih Customer —</option>
                         @foreach($customers as $c)<option value="{{ $c->id }}">{{ $c->company_name }} @if($c->customer_code)({{ $c->customer_code }})@endif</option>@endforeach
                     </select>
@@ -169,16 +169,16 @@ async function loadAvailableDos(customerId){
     }
 }
 
-// Pakai jQuery agar event dari Select2 ikut tertangkap (Select2 tidak memicu native change).
+// #invCustomer kini native (no-select2) → event change pasti jalan.
+const _invCust = document.getElementById('invCustomer');
+if (_invCust) {
+    _invCust.addEventListener('change', function(){ loadAvailableDos(this.value); });
+}
+// Saat modal dibuka, muat ulang sesuai customer yang sedang terpilih.
 if (window.jQuery) {
-    jQuery(document).on('change', '#invCustomer', function(){ loadAvailableDos(this.value); });
-    // Saat modal dibuka, muat ulang sesuai customer yang sedang terpilih.
     jQuery(document).on('shown.bs.modal', '#addInvoiceModal', function(){
-        const v = document.getElementById('invCustomer')?.value;
-        loadAvailableDos(v);
+        loadAvailableDos(document.getElementById('invCustomer')?.value);
     });
-} else {
-    document.getElementById('invCustomer')?.addEventListener('change', function(){ loadAvailableDos(this.value); });
 }
 
 function recalcInv(){
