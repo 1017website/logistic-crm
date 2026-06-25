@@ -29,6 +29,13 @@ class RequestOrder extends Model
         'delivery_type', 'origin', 'destination',
         'tracking_number', 'estimated_arrival',
         'cost', 'other_cost',
+        // Field operasional muatan
+        'checker', 'jenis_truck', 'depo', 'muat', 'tgl_muat', 'bongkar', 'tgl_bongkar',
+        'komoditi', 'tujuan', 'sektor', 'kode_sektor', 'no_container', 'no_seal', 'grade',
+        'no_pol', 'supir', 'hp_supir', 'empty_full', 'bongkar_empty_full',
+        'kota', 'kecamatan', 'kelurahan', 'keterangan',
+        // Penagihan & approval DO
+        'invoice_status', 'do_approved',
     ];
 
     protected $casts = [
@@ -36,6 +43,9 @@ class RequestOrder extends Model
         'pickup_date'       => 'date',
         'estimated_arrival' => 'date',
         'verified_at'       => 'datetime',
+        'tgl_muat'          => 'date',
+        'tgl_bongkar'       => 'date',
+        'do_approved'       => 'boolean',
     ];
 
     /** Tahapan alur Request DO */
@@ -62,6 +72,8 @@ class RequestOrder extends Model
     public function salesUser(): BelongsTo { return $this->belongsTo(User::class, 'user_id'); }
     public function verifier(): BelongsTo  { return $this->belongsTo(User::class, 'verified_by'); }
     public function items(): HasMany       { return $this->hasMany(RequestOrderItem::class); }
+    public function jobDetails(): HasMany  { return $this->hasMany(OrderJobDetail::class); }
+    public function invoiceItems(): HasMany { return $this->hasMany(InvoiceItem::class); }
     public function assignment(): HasMany  { return $this->hasMany(OrderAssignment::class)->latest(); }
     public function deliveryOrder(): HasMany { return $this->hasMany(DeliveryOrder::class); }
 
@@ -70,13 +82,27 @@ class RequestOrder extends Model
         return $this->morphMany(OrderStatusLog::class, 'loggable')->latest();
     }
 
+    /**
+     * Revenue (Jual): utamakan rincian pekerjaan (riil_jual), fallback ke item layanan.
+     */
     public function getTotalRevenueAttribute(): float
     {
+        if ($this->relationLoaded('jobDetails') || $this->jobDetails()->exists()) {
+            $sum = $this->jobDetails->sum(fn($j) => (float) $j->riil_jual);
+            if ($sum > 0) return $sum;
+        }
         return $this->items->sum(fn($i) => $i->qty * $i->sell_price);
     }
 
+    /**
+     * HPP (Cost): utamakan rincian pekerjaan (riil_biaya), fallback ke item layanan.
+     */
     public function getTotalCostAttribute(): float
     {
+        if ($this->relationLoaded('jobDetails') || $this->jobDetails()->exists()) {
+            $sum = $this->jobDetails->sum(fn($j) => (float) $j->riil_biaya);
+            if ($sum > 0) return $sum;
+        }
         return $this->items->sum(fn($i) => $i->qty * $i->buy_price);
     }
 

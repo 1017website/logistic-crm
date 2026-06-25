@@ -27,6 +27,7 @@ class Customer extends Model
     public function deliveryOrders(): HasMany { return $this->hasMany(RequestOrder::class); }
     public function requestOrders(): HasMany  { return $this->hasMany(RequestOrder::class); }
     public function finalDeliveryOrders(): HasMany { return $this->hasMany(DeliveryOrder::class); }
+    public function invoices(): HasMany       { return $this->hasMany(Invoice::class); }
     public function pics(): HasMany           { return $this->hasMany(CustomerPic::class); }
 
     // Kebutuhan layanan (field disamakan dengan vendor_services)

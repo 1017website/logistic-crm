@@ -54,6 +54,12 @@ class DeletionRequest extends Model
             'route'       => 'delivery-orders.index',
             'title'       => 'Delivery Order',
         ],
+        \App\Models\Invoice::class => [
+            'module'      => 'invoices',
+            'label_field' => 'invoice_number',
+            'route'       => 'invoices.index',
+            'title'       => 'Invoice',
+        ],
     ];
 
     public function target(): MorphTo

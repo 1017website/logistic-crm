@@ -343,6 +343,31 @@ class RequestOrderController extends Controller
         return back()->with('success', 'Penugasan disetujui & Delivery Order otomatis diterbitkan.');
     }
 
+    // ─────────────────── APPROVAL DO (bandingkan Jual vs HPP) ───────────────────
+    public function approveDo(Request $request, RequestOrder $requestOrder)
+    {
+        $request->validate([
+            'action' => 'required|in:approve,unapprove',
+            'note'   => 'nullable|string|max:1000',
+        ]);
+
+        $requestOrder->loadMissing('jobDetails', 'items');
+
+        if ($request->action === 'approve') {
+            $requestOrder->update(['do_approved' => true]);
+            \App\Models\OrderStatusLog::record(
+                $requestOrder, null, 'do_approved', auth()->id(),
+                $request->note ?: 'DO disetujui. Jual ' . number_format($requestOrder->total_revenue) . ' / HPP ' . number_format($requestOrder->total_cost) . '.'
+            );
+            $msg = 'DO disetujui & siap diinvoice.';
+        } else {
+            $requestOrder->update(['do_approved' => false]);
+            $msg = 'Approval DO dibatalkan.';
+        }
+
+        return back()->with('success', $msg);
+    }
+
     public function destroy(RequestOrder $requestOrder)
     {
         $no = $requestOrder->do_number;

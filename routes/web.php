@@ -3,6 +3,10 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DeliveryOrderController;
 use App\Http\Controllers\RequestOrderController;
+use App\Http\Controllers\OrderJobDetailController;
+use App\Http\Controllers\PekerjaanController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\LogisticReportController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
@@ -141,6 +145,51 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:Admin,Finance')->group(function () {
         Route::post('/delivery-orders/{deliveryOrder}/invoice', [DeliveryOrderController::class, 'invoice'])->name('delivery-orders.invoice');
         Route::post('/delivery-orders/{deliveryOrder}/pay', [DeliveryOrderController::class, 'pay'])->name('delivery-orders.pay');
+    });
+
+    // ── RINCIAN BIAYA PER PEKERJAAN (Sales Admin / Admin) ──
+    Route::middleware('role:Admin,Sales Admin')->group(function () {
+        Route::post('/request-orders/{requestOrder}/job-details', [OrderJobDetailController::class, 'store'])->name('job-details.store');
+        Route::put('/job-details/{jobDetail}', [OrderJobDetailController::class, 'update'])->name('job-details.update');
+        // Approval DO (bandingkan jual vs hpp) — siapkan DO untuk ditagih
+        Route::post('/request-orders/{requestOrder}/approve-do', [RequestOrderController::class, 'approveDo'])->name('request-orders.approve-do');
+    });
+    // Hapus rincian (Admin only — destructive)
+    Route::middleware('role:Admin')->group(function () {
+        Route::delete('/job-details/{jobDetail}', [OrderJobDetailController::class, 'destroy'])->name('job-details.destroy');
+    });
+
+    // ── MASTER PEKERJAAN (Admin / Sales Manager / Transport Planner) ──
+    Route::middleware('role:Admin,Sales Manager,Transport Planner')->group(function () {
+        Route::resource('pekerjaan', PekerjaanController::class)->only(['index', 'store', 'update']);
+        Route::delete('/pekerjaan/{pekerjaan}', [PekerjaanController::class, 'destroy'])->name('pekerjaan.destroy')->middleware('role:Admin');
+    });
+
+    // ── INVOICE (Finance / Admin / Sales Manager) ──
+    Route::middleware('role:Admin,Finance,Sales Manager')->group(function () {
+        Route::get('/invoices/available-dos', [InvoiceController::class, 'availableDos'])->name('invoices.available-dos');
+        Route::get('/invoices/export', [InvoiceController::class, 'export'])->name('invoices.export');
+        Route::get('/invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('invoices.print');
+        Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+        Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
+        Route::post('/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
+        Route::post('/invoices/{invoice}/submit', [InvoiceController::class, 'submit'])->name('invoices.submit');
+        Route::post('/invoices/{invoice}/unsubmit', [InvoiceController::class, 'unsubmit'])->name('invoices.unsubmit');
+        Route::post('/invoices/{invoice}/pay', [InvoiceController::class, 'pay'])->name('invoices.pay');
+        Route::put('/invoices/{invoice}/number', [InvoiceController::class, 'updateNumber'])->name('invoices.number');
+        Route::put('/invoices/{invoice}/ppn', [InvoiceController::class, 'updatePpn'])->name('invoices.ppn');
+    });
+    Route::middleware('role:Admin,Finance')->group(function () {
+        Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
+    });
+
+    // ── LAPORAN LOGISTIK: DO & Invoice (Admin/Sales Manager/Finance) ──
+    Route::middleware('role:Admin,Sales Manager,Finance')->group(function () {
+        Route::get('/laporan-logistik', [LogisticReportController::class, 'index'])->name('logistic-reports.index');
+        Route::get('/laporan-logistik/do', [LogisticReportController::class, 'do'])->name('logistic-reports.do');
+        Route::get('/laporan-logistik/do/export', [LogisticReportController::class, 'doExport'])->name('logistic-reports.do.export');
+        Route::get('/laporan-logistik/invoice', [LogisticReportController::class, 'invoice'])->name('logistic-reports.invoice');
+        Route::get('/laporan-logistik/invoice/export', [LogisticReportController::class, 'invoiceExport'])->name('logistic-reports.invoice.export');
     });
 
     // ── Manager & Admin only ───────────────────────

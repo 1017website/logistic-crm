@@ -307,6 +307,34 @@
                             </div>
                         </div>
 
+                        {{-- Detail Operasional Muatan (opsional) --}}
+                        <details class="mb-2">
+                            <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#374151">DETAIL OPERASIONAL MUATAN (opsional)</summary>
+                            <div class="row g-2 mt-1">
+                                <div class="col-md-3"><label class="form-label">Checker</label><input type="text" name="checker" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Jenis Truck</label><input type="text" name="jenis_truck" class="form-control form-control-sm" placeholder="Trailer 20'/40'"></div>
+                                <div class="col-md-3"><label class="form-label">No. Polisi</label><input type="text" name="no_pol" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Komoditi</label><input type="text" name="komoditi" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Depo</label><input type="text" name="depo" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Muat</label><input type="text" name="muat" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Tgl Muat</label><input type="date" name="tgl_muat" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Bongkar</label><input type="text" name="bongkar" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Tgl Bongkar</label><input type="date" name="tgl_bongkar" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Tujuan</label><input type="text" name="tujuan" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">No. Container</label><input type="text" name="no_container" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">No. Seal</label><input type="text" name="no_seal" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Grade</label><input type="text" name="grade" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Sektor</label><input type="text" name="sektor" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Supir</label><input type="text" name="supir" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">HP Supir</label><input type="text" name="hp_supir" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Kota</label><input type="text" name="kota" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Empty/Full</label><input type="text" name="empty_full" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Bongkar Empty/Full</label><input type="text" name="bongkar_empty_full" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Kecamatan</label><input type="text" name="kecamatan" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Kelurahan</label><input type="text" name="kelurahan" class="form-control form-control-sm"></div>
+                            </div>
+                        </details>
+
                         {{-- Line Items --}}
                         <div class="d-flex align-items-center justify-content-between mb-2">
                             <div style="font-size:12px;font-weight:700;color:#374151">ITEM LAYANAN</div>

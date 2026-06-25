@@ -65,6 +65,11 @@ class User extends Authenticatable
             'pod_field'       => in_array($this->role, ['Admin', 'Sales Admin']),
             // Finance: invoice & payment
             'finance'         => in_array($this->role, ['Admin', 'Finance']),
+            'invoices'        => in_array($this->role, ['Admin', 'Finance', 'Sales Manager']),
+            'pekerjaan'       => in_array($this->role, ['Admin', 'Sales Manager', 'Transport Planner']),
+            'job_details'     => in_array($this->role, ['Admin', 'Sales Admin']),
+            'approve_do'      => in_array($this->role, ['Admin', 'Sales Admin']),
+            'logistic_reports'=> in_array($this->role, ['Admin', 'Sales Manager', 'Finance']),
             default           => true,
         };
     }

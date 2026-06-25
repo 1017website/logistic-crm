@@ -1411,6 +1411,16 @@
                 <i class="fas fa-truck si-icon"></i><span>Delivery Orders</span>
             </a>
             @endif
+            @if(auth()->user()->canAccess('invoices'))
+            <a href="{{ route('invoices.index') }}" class="sidebar-item {{ request()->routeIs('invoices.*') ? 'active' : '' }}">
+                <i class="fas fa-file-invoice-dollar si-icon"></i><span>Invoice</span>
+            </a>
+            @endif
+            @if(auth()->user()->canAccess('pekerjaan'))
+            <a href="{{ route('pekerjaan.index') }}" class="sidebar-item {{ request()->routeIs('pekerjaan.*') ? 'active' : '' }}">
+                <i class="fas fa-briefcase si-icon"></i><span>Master Pekerjaan</span>
+            </a>
+            @endif
             <div class="sidebar-section">Analytics</div>
             @if(auth()->user()->canAccess('analytics'))
             <a href="{{ route('analytics.index') }}" class="sidebar-item {{ request()->routeIs('analytics.*') ? 'active' : '' }}">
@@ -1420,6 +1430,11 @@
             @if(auth()->user()->canAccess('reports'))
             <a href="{{ route('reports.index') }}" class="sidebar-item {{ request()->routeIs('reports.*') ? 'active' : '' }}">
                 <i class="fas fa-file-alt si-icon"></i><span>Reports</span>
+            </a>
+            @endif
+            @if(auth()->user()->canAccess('logistic_reports'))
+            <a href="{{ route('logistic-reports.index') }}" class="sidebar-item {{ request()->routeIs('logistic-reports.*') ? 'active' : '' }}">
+                <i class="fas fa-clipboard-list si-icon"></i><span>Laporan Logistik</span>
             </a>
             @endif
 

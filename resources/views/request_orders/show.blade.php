@@ -62,6 +62,89 @@
             </div>
         </div>
 
+        {{-- Rincian biaya per pekerjaan --}}
+        @php
+            $jobs = $requestOrder->jobDetails()->with('vendor','pekerjaan')->get();
+            $sumBiaya = $jobs->sum(fn($j)=>(float)$j->riil_biaya);
+            $sumJual  = $jobs->sum(fn($j)=>(float)$j->riil_jual);
+            $u = auth()->user();
+        @endphp
+        <div class="card mb-3">
+            <div class="card-body p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0" style="font-weight:700;font-size:13px;text-transform:uppercase;color:#6b7280">Rincian Biaya per Pekerjaan</h6>
+                    @if($u->canAccess('job_details'))
+                    <button class="btn btn-sm btn-primary" style="padding:3px 10px" data-bs-toggle="modal" data-bs-target="#addJobModal"><i class="fas fa-plus me-1"></i> Tambah</button>
+                    @endif
+                </div>
+                <div class="table-responsive">
+                <table class="table table-sm mb-0" style="font-size:12px">
+                    <thead><tr>
+                        <th>Pekerjaan</th><th class="text-end">Biaya (HPP)</th><th class="text-end">Jual</th>
+                        <th class="text-end">Laba</th><th>Bayar</th><th>Vendor</th>
+                        @if($u->canAccess('job_details'))<th></th>@endif
+                    </tr></thead>
+                    <tbody>
+                        @forelse($jobs as $j)
+                        <tr>
+                            <td>{{ $j->job_name }} @if($j->job_code)<span class="text-muted">({{ $j->job_code }})</span>@endif</td>
+                            <td class="text-end">{{ idr($j->riil_biaya) }}</td>
+                            <td class="text-end">{{ idr($j->riil_jual) }}</td>
+                            <td class="text-end" style="color:{{ $j->laba >= 0 ? '#10b981' : '#dc2626' }}">{{ idr($j->laba) }}</td>
+                            <td><span class="badge bg-{{ $j->status_pembayaran === 'Lunas' ? 'success' : 'secondary' }}">{{ $j->status_pembayaran }}</span></td>
+                            <td>{{ $j->vendor?->vendor_name ?? '-' }}</td>
+                            @if($u->canAccess('job_details'))
+                            <td class="text-nowrap">
+                                <button class="btn btn-sm btn-outline-secondary" style="padding:2px 6px"
+                                    onclick='openEditJob(@json($j))'><i class="fas fa-pencil-alt"></i></button>
+                                @if($u->isAdmin())
+                                <form method="POST" action="{{ route('job-details.destroy', $j->id) }}" class="d-inline" onsubmit="return confirm('Hapus rincian ini?')">
+                                    @csrf @method('DELETE')
+                                    <button class="btn btn-sm btn-outline-danger" style="padding:2px 6px"><i class="fas fa-trash"></i></button>
+                                </form>
+                                @endif
+                            </td>
+                            @endif
+                        </tr>
+                        @empty
+                        <tr><td colspan="{{ $u->canAccess('job_details') ? 7 : 6 }}" class="text-muted">Belum ada rincian pekerjaan.</td></tr>
+                        @endforelse
+                    </tbody>
+                    <tfoot>
+                        <tr style="font-weight:700">
+                            <td class="text-end">Total</td>
+                            <td class="text-end" style="color:#dc2626">{{ idr($sumBiaya) }}</td>
+                            <td class="text-end" style="color:var(--primary)">{{ idr($sumJual) }}</td>
+                            <td class="text-end" style="color:#10b981">{{ idr($sumJual - $sumBiaya) }}</td>
+                            <td colspan="{{ $u->canAccess('job_details') ? 3 : 2 }}"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+                </div>
+
+                {{-- Approval DO --}}
+                @if($u->canAccess('approve_do'))
+                <div class="mt-3 pt-2 border-top">
+                    @if($requestOrder->do_approved)
+                        <span class="badge bg-success"><i class="fas fa-check me-1"></i> DO Disetujui (siap invoice)</span>
+                        <form method="POST" action="{{ route('request-orders.approve-do', $requestOrder->id) }}" class="d-inline">
+                            @csrf <input type="hidden" name="action" value="unapprove">
+                            <button class="btn btn-sm btn-link text-danger" style="font-size:11px">Batalkan approval</button>
+                        </form>
+                    @else
+                        <form method="POST" action="{{ route('request-orders.approve-do', $requestOrder->id) }}">
+                            @csrf <input type="hidden" name="action" value="approve">
+                            <button class="btn btn-sm btn-success" {{ $jobs->isEmpty() ? 'disabled' : '' }}>
+                                <i class="fas fa-check-double me-1"></i> Approve DO (Jual {{ idr($sumJual) }} / HPP {{ idr($sumBiaya) }})
+                            </button>
+                            @if($jobs->isEmpty())<small class="text-muted ms-2">Isi rincian dulu</small>@endif
+                        </form>
+                    @endif
+                </div>
+                @endif
+            </div>
+        </div>
+
         {{-- Timeline audit --}}
         <div class="card">
             <div class="card-body p-3">
@@ -201,4 +284,98 @@
         @endif
     </div>
 </div>
+
+{{-- Modal Tambah/Edit Rincian Pekerjaan --}}
+@php $u = auth()->user(); @endphp
+@if($u->canAccess('job_details'))
+@php
+    $pekerjaanList = \App\Models\Pekerjaan::where('is_active',true)->orderBy('name')->get();
+    $vendorList = \App\Models\Vendor::where('status','Active')->orderBy('vendor_name')->get();
+@endphp
+<div class="modal fade" id="addJobModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" id="jobForm" action="{{ route('job-details.store', $requestOrder->id) }}">
+        @csrf
+        <input type="hidden" name="_method" id="jobMethod" value="POST">
+        <div class="modal-header"><h6 class="modal-title" id="jobModalTitle">Tambah Rincian Pekerjaan</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body" style="font-size:13px">
+          <div class="mb-2">
+            <label class="form-label">Pekerjaan</label>
+            <select name="pekerjaan_id" id="jobPekerjaan" class="form-select form-select-sm">
+              <option value="">— Pilih / isi manual —</option>
+              @foreach($pekerjaanList as $p)
+              <option value="{{ $p->id }}" data-code="{{ $p->code }}">{{ $p->label }}</option>
+              @endforeach
+            </select>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-8"><label class="form-label">Nama (manual)</label><input type="text" name="job_name" id="jobName" class="form-control form-control-sm" placeholder="Mis. Trucking"></div>
+            <div class="col-4"><label class="form-label">Kode</label><input type="text" name="job_code" id="jobCode" class="form-control form-control-sm" placeholder="TR"></div>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-6"><label class="form-label">Anggaran Biaya</label><input type="number" name="anggaran_biaya" id="jobAB" class="form-control form-control-sm" min="0" value="0"></div>
+            <div class="col-6"><label class="form-label">Anggaran Jual</label><input type="number" name="anggaran_jual" id="jobAJ" class="form-control form-control-sm" min="0" value="0"></div>
+            <div class="col-6"><label class="form-label">Riil Biaya (HPP)</label><input type="number" name="riil_biaya" id="jobRB" class="form-control form-control-sm" min="0" value="0"></div>
+            <div class="col-6"><label class="form-label">Riil Jual</label><input type="number" name="riil_jual" id="jobRJ" class="form-control form-control-sm" min="0" value="0"></div>
+            <div class="col-6"><label class="form-label">Dibayar</label><input type="number" name="dibayar" id="jobDibayar" class="form-control form-control-sm" min="0" value="0"></div>
+            <div class="col-6"><label class="form-label">Status Bayar</label>
+              <select name="status_pembayaran" id="jobStatus" class="form-select form-select-sm"><option>Tempo</option><option>Lunas</option></select></div>
+          </div>
+          <div class="mb-2"><label class="form-label">Vendor</label>
+            <select name="vendor_id" id="jobVendor" class="form-select form-select-sm">
+              <option value="">— Tidak ada —</option>
+              @foreach($vendorList as $v)<option value="{{ $v->id }}">{{ $v->vendor_name }}</option>@endforeach
+            </select></div>
+          <div class="row g-2 mb-2">
+            <div class="col-6"><label class="form-label">Tgl Transaksi</label><input type="date" name="tgl_transaksi" id="jobTgl" class="form-control form-control-sm"></div>
+            <div class="col-6"><label class="form-label">Tgl Realisasi</label><input type="date" name="tgl_realisasi" id="jobTglR" class="form-control form-control-sm"></div>
+          </div>
+          <div class="mb-2"><label class="form-label">Catatan</label><textarea name="catatan" id="jobCatatan" class="form-control form-control-sm" rows="2"></textarea></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button class="btn btn-sm btn-primary">Simpan</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+const jobStoreUrl = "{{ route('job-details.store', $requestOrder->id) }}";
+document.getElementById('jobPekerjaan')?.addEventListener('change', function(){
+    const opt = this.options[this.selectedIndex];
+    if (opt.value) {
+        document.getElementById('jobName').value = opt.text.split(' - ')[0];
+        document.getElementById('jobCode').value = opt.dataset.code || '';
+    }
+});
+function openEditJob(j){
+    const f = document.getElementById('jobForm');
+    f.action = `/job-details/${j.id}`;
+    document.getElementById('jobMethod').value = 'PUT';
+    document.getElementById('jobModalTitle').textContent = 'Edit Rincian Pekerjaan';
+    document.getElementById('jobPekerjaan').value = j.pekerjaan_id || '';
+    document.getElementById('jobName').value = j.job_name || '';
+    document.getElementById('jobCode').value = j.job_code || '';
+    document.getElementById('jobAB').value = j.anggaran_biaya || 0;
+    document.getElementById('jobAJ').value = j.anggaran_jual || 0;
+    document.getElementById('jobRB').value = j.riil_biaya || 0;
+    document.getElementById('jobRJ').value = j.riil_jual || 0;
+    document.getElementById('jobDibayar').value = j.dibayar || 0;
+    document.getElementById('jobStatus').value = j.status_pembayaran || 'Tempo';
+    document.getElementById('jobVendor').value = j.vendor_id || '';
+    document.getElementById('jobTgl').value = j.tgl_transaksi ? j.tgl_transaksi.substring(0,10) : '';
+    document.getElementById('jobTglR').value = j.tgl_realisasi ? j.tgl_realisasi.substring(0,10) : '';
+    document.getElementById('jobCatatan').value = j.catatan || '';
+    new bootstrap.Modal(document.getElementById('addJobModal')).show();
+}
+document.getElementById('addJobModal')?.addEventListener('hidden.bs.modal', function(){
+    const f = document.getElementById('jobForm');
+    f.reset(); f.action = jobStoreUrl;
+    document.getElementById('jobMethod').value = 'POST';
+    document.getElementById('jobModalTitle').textContent = 'Tambah Rincian Pekerjaan';
+});
+</script>
+@endif
 @endsection
