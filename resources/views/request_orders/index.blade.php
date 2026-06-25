@@ -41,10 +41,10 @@
                             <div class="col-md-2"><input type="date" name="end_date" class="form-control form-control-sm"
                                     value="{{ $endDate }}"></div>
                             <div class="col-md-2">
-                                <select name="status" class="form-select form-select-sm">
-                                    <option value="all">All Status</option>
-                                    @foreach(['Done', 'In Progress', 'Cancelled'] as $st)
-                                        <option value="{{ $st }}" @selected($status == $st)>{{ $st }}</option>
+                                <select name="flow" class="form-select form-select-sm">
+                                    <option value="all">Semua Tahap</option>
+                                    @foreach($flowOptions as $key => $label)
+                                        <option value="{{ $key }}" @selected($flow == $key)>{{ $label }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -75,7 +75,6 @@
                                     <th class="py-2">HPP</th>
                                     <th class="py-2">Gross Profit</th>
                                     <th class="py-2">Margin</th>
-                                    <th class="py-2">Status</th>
                                     <th class="py-2">Tahap Flow</th>
                                     <th class="py-2">Tgl Order</th>
                                     <th class="py-2">Service Type</th>
@@ -103,9 +102,6 @@
                                         <td class="py-2" style="color:#dc2626;font-size:12px;white-space:nowrap">{{ idr($po->total_cost) }}</td>
                                         <td class="py-2" style="font-weight:600;color:#10b981;white-space:nowrap">{{ idr($po->gross_profit) }}</td>
                                         <td class="py-2" style="font-size:12px;color:#6b7280">{{ $po->gross_margin }}%</td>
-                                        <td class="py-2">
-                                            <span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;background:{{ $c[0] }};color:{{ $c[1] }}">{{ $po->status }}</span>
-                                        </td>
                                         <td class="py-2">
                                             @php
                                                 $flowColors = [
@@ -145,7 +141,7 @@
                                     {{-- Detail row (collapsed) --}}
                                     <tr id="po-detail-{{ $po->id }}" style="display:none;background:#f8faff">
                                         <td></td>
-                                        <td colspan="12" class="px-3 py-2">
+                                        <td colspan="11" class="px-3 py-2">
                                             <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">
                                                 Detail Item — {{ $po->do_number }}
                                                 @if($po->notes) <span style="font-weight:400;color:#9ca3af;margin-left:8px"><i class="fas fa-sticky-note me-1"></i>{{ $po->notes }}</span> @endif
@@ -189,7 +185,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="11" class="text-center py-4" style="color:#9ca3af">Belum ada data DO pada
+                                        <td colspan="10" class="text-center py-4" style="color:#9ca3af">Belum ada data DO pada
                                             periode ini</td>
                                     </tr>
                                 @endforelse
@@ -255,14 +251,6 @@
                                     required>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Status <span class="text-danger">*</span></label>
-                                <select name="status" class="form-select" required>
-                                    <option value="In Progress">In Progress</option>
-                                    <option value="Done">Done</option>
-                                    <option value="Cancelled">Cancelled</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
                                 <label class="form-label">Currency</label>
                                 <select name="currency" class="form-select">
                                     <option value="IDR">IDR</option>
@@ -270,7 +258,7 @@
                                     <option value="SGD">SGD</option>
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-6">
                                 <label class="form-label">Notes</label>
                                 <input type="text" name="notes" class="form-control" placeholder="Keterangan tambahan">
                             </div>
@@ -431,14 +419,6 @@
                                 <input type="date" name="order_date" id="epDate" class="form-control" required>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Status <span class="text-danger">*</span></label>
-                                <select name="status" id="epStatus" class="form-select" required>
-                                    <option value="In Progress">In Progress</option>
-                                    <option value="Done">Done</option>
-                                    <option value="Cancelled">Cancelled</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
                                 <label class="form-label">Currency</label>
                                 <select name="currency" id="epCurrency" class="form-select">
                                     <option value="IDR">IDR</option>
@@ -476,6 +456,34 @@
                                 <input type="date" name="estimated_arrival" id="epEta" class="form-control">
                             </div>
                         </div>
+
+                        {{-- Detail Operasional Muatan (opsional) — disamakan dengan modal Tambah --}}
+                        <details class="mb-2">
+                            <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#374151">DETAIL OPERASIONAL MUATAN (opsional)</summary>
+                            <div class="row g-2 mt-1">
+                                <div class="col-md-3"><label class="form-label">Checker</label><input type="text" name="checker" id="epChecker" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Jenis Truck</label><input type="text" name="jenis_truck" id="epJenisTruck" class="form-control form-control-sm" placeholder="Trailer 20'/40'"></div>
+                                <div class="col-md-3"><label class="form-label">No. Polisi</label><input type="text" name="no_pol" id="epNoPol" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Komoditi</label><input type="text" name="komoditi" id="epKomoditi" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Depo</label><input type="text" name="depo" id="epDepo" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Muat</label><input type="text" name="muat" id="epMuat" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Tgl Muat</label><input type="date" name="tgl_muat" id="epTglMuat" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Bongkar</label><input type="text" name="bongkar" id="epBongkar" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Tgl Bongkar</label><input type="date" name="tgl_bongkar" id="epTglBongkar" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Tujuan</label><input type="text" name="tujuan" id="epTujuan" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">No. Container</label><input type="text" name="no_container" id="epNoContainer" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">No. Seal</label><input type="text" name="no_seal" id="epNoSeal" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Grade</label><input type="text" name="grade" id="epGrade" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Sektor</label><input type="text" name="sektor" id="epSektor" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Supir</label><input type="text" name="supir" id="epSupir" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">HP Supir</label><input type="text" name="hp_supir" id="epHpSupir" class="form-control form-control-sm"></div>
+                                <div class="col-md-4"><label class="form-label">Kota</label><input type="text" name="kota" id="epKota" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Empty/Full</label><input type="text" name="empty_full" id="epEmptyFull" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Bongkar Empty/Full</label><input type="text" name="bongkar_empty_full" id="epBongkarEmptyFull" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Kecamatan</label><input type="text" name="kecamatan" id="epKecamatan" class="form-control form-control-sm"></div>
+                                <div class="col-md-3"><label class="form-label">Kelurahan</label><input type="text" name="kelurahan" id="epKelurahan" class="form-control form-control-sm"></div>
+                            </div>
+                        </details>
                         <div class="d-flex align-items-center justify-content-between mb-2">
                             <div style="font-size:12px;font-weight:700;color:#374151">ITEM LAYANAN</div>
                             <button type="button" class="btn btn-outline-primary btn-sm"
@@ -848,6 +856,25 @@
                 if (document.getElementById('epTracking')) document.getElementById('epTracking').value = po.tracking_number || '';
                 if (document.getElementById('epEta')) document.getElementById('epEta').value = po.estimated_arrival || '';
 
+                // Field operasional muatan (disamakan dengan modal Tambah)
+                const opMap = {
+                    epChecker:'checker', epJenisTruck:'jenis_truck', epNoPol:'no_pol', epKomoditi:'komoditi',
+                    epDepo:'depo', epMuat:'muat', epTglMuat:'tgl_muat', epBongkar:'bongkar', epTglBongkar:'tgl_bongkar',
+                    epTujuan:'tujuan', epNoContainer:'no_container', epNoSeal:'no_seal', epGrade:'grade', epSektor:'sektor',
+                    epSupir:'supir', epHpSupir:'hp_supir', epKota:'kota', epEmptyFull:'empty_full',
+                    epBongkarEmptyFull:'bongkar_empty_full', epKecamatan:'kecamatan', epKelurahan:'kelurahan'
+                };
+                Object.keys(opMap).forEach(function(elId){
+                    const el = document.getElementById(elId);
+                    if (!el) return;
+                    let val = po[opMap[elId]] ?? '';
+                    // Normalisasi tanggal (kolom tgl_muat / tgl_bongkar bisa berformat ISO datetime)
+                    if ((elId === 'epTglMuat' || elId === 'epTglBongkar') && val) {
+                        val = String(val).substring(0, 10);
+                    }
+                    el.value = val;
+                });
+
                 const setSelect2 = (elId, val) => {
                     const el = document.getElementById(elId);
                     if (!el) return;
@@ -875,7 +902,6 @@
 
                 // Simpan nilai untuk re-apply setelah modal tampil (Select2 perlu modal visible)
                 const _fillSelects = () => {
-                    setSelect2('epStatus', po.status);
                     setSelect2('epCurrency', po.currency);
                     setSelect2('epDeliveryType', _dt);
                     setSelect2('epCustomer', po.customer_id);
@@ -928,7 +954,6 @@
                 const shownHandler = function () {
                     // Re-apply Select2 values setelah modal benar-benar tampil
                     // (Select2 sering gagal render value saat di-set ketika modal masih hidden).
-                    setSelect2('epStatus', po.status);
                     setSelect2('epCurrency', po.currency);
                     setSelect2('epDeliveryType', _dt);
                     setSelect2('epCustomer', po.customer_id);
@@ -936,7 +961,6 @@
                     setSelect2('epSalesPicSelect', po.user_id);
                     setDateInputValue('epDate', po.order_date);
                     setTimeout(function () {
-                        setSelect2('epStatus', po.status);
                         setSelect2('epCurrency', po.currency);
                         setSelect2('epDeliveryType', _dt);
                         setSelect2('epCustomer', po.customer_id);

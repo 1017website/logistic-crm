@@ -140,14 +140,22 @@
 <script>
 const availUrl = "{{ route('invoices.available-dos') }}";
 const fmtRp = n => 'Rp ' + (n||0).toLocaleString('id-ID');
-document.getElementById('invCustomer')?.addEventListener('change', async function(){
+
+async function loadAvailableDos(customerId){
     const wrap = document.getElementById('doListWrap');
+    if (!wrap) return;
     wrap.innerHTML = '<div class="text-muted">Memuat...</div>';
-    if (!this.value) { wrap.innerHTML = '<div class="text-muted">Pilih customer dulu.</div>'; return; }
+    if (!customerId) { wrap.innerHTML = '<div class="text-muted">Pilih customer dulu.</div>'; recalcInv(); return; }
     try {
-        const res = await fetch(`${availUrl}?customer_id=${this.value}`);
+        const res = await fetch(`${availUrl}?customer_id=${customerId}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         const dos = await res.json();
-        if (!dos.length) { wrap.innerHTML = '<div class="text-muted small">Tidak ada DO siap tagih untuk customer ini.<br>DO baru muncul di sini setelah: <b>Request DO</b> diisi <b>Rincian Biaya per Pekerjaan</b> lalu di-<b>Approve DO</b>, dan belum pernah diinvoice.</div>'; recalcInv(); return; }
+        if (!dos.length) {
+            wrap.innerHTML = '<div class="text-muted small">Tidak ada DO siap tagih untuk customer ini.<br>DO baru muncul setelah <b>Request DO</b> diisi <b>Rincian Biaya per Pekerjaan</b> lalu di-<b>Approve DO</b>, dan belum pernah diinvoice.</div>';
+            recalcInv(); return;
+        }
         wrap.innerHTML = dos.map(d => `
             <label class="d-flex align-items-center gap-2 py-1 border-bottom" style="cursor:pointer">
                 <input type="checkbox" name="do_ids[]" value="${d.id}" class="doChk" data-hpp="${d.hpp}" data-jual="${d.jual}">
@@ -156,14 +164,29 @@ document.getElementById('invCustomer')?.addEventListener('change', async functio
             </label>`).join('');
         wrap.querySelectorAll('.doChk').forEach(c => c.addEventListener('change', recalcInv));
         recalcInv();
-    } catch(e) { wrap.innerHTML = '<div class="text-danger">Gagal memuat DO.</div>'; }
-});
+    } catch(e) {
+        wrap.innerHTML = '<div class="text-danger small">Gagal memuat DO: ' + (e.message||e) + '</div>';
+    }
+}
+
+// Pakai jQuery agar event dari Select2 ikut tertangkap (Select2 tidak memicu native change).
+if (window.jQuery) {
+    jQuery(document).on('change', '#invCustomer', function(){ loadAvailableDos(this.value); });
+    // Saat modal dibuka, muat ulang sesuai customer yang sedang terpilih.
+    jQuery(document).on('shown.bs.modal', '#addInvoiceModal', function(){
+        const v = document.getElementById('invCustomer')?.value;
+        loadAvailableDos(v);
+    });
+} else {
+    document.getElementById('invCustomer')?.addEventListener('change', function(){ loadAvailableDos(this.value); });
+}
+
 function recalcInv(){
     let hpp=0, jual=0, n=0;
     document.querySelectorAll('.doChk:checked').forEach(c=>{ hpp+=+c.dataset.hpp; jual+=+c.dataset.jual; n++; });
-    document.getElementById('sumHpp').textContent = fmtRp(hpp);
-    document.getElementById('sumJual').textContent = fmtRp(jual);
-    document.getElementById('invSubmitBtn').disabled = n===0;
+    const eh = document.getElementById('sumHpp'); if (eh) eh.textContent = fmtRp(hpp);
+    const ej = document.getElementById('sumJual'); if (ej) ej.textContent = fmtRp(jual);
+    const btn = document.getElementById('invSubmitBtn'); if (btn) btn.disabled = n===0;
 }
 </script>
 @endsection

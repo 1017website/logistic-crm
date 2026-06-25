@@ -120,7 +120,7 @@ class RequestOrderController extends Controller
                 'estimated_arrival' => $request->estimated_arrival,
                 'pickup_date'    => $request->pickup_date,
                 'notes'          => $request->notes,
-            ]);
+            ] + $this->operationalFields($request));
 
             foreach ($request->items as $item) {
                 $ro->items()->create([
@@ -175,7 +175,7 @@ class RequestOrderController extends Controller
                 'estimated_arrival' => $request->estimated_arrival,
                 'pickup_date'    => $request->pickup_date,
                 'notes'          => $request->notes,
-            ]);
+            ] + $this->operationalFields($request));
 
             $requestOrder->items()->delete();
             foreach ($request->items as $item) {
@@ -436,5 +436,21 @@ class RequestOrderController extends Controller
             'items.*.sell_price'    => 'required|numeric|min:0',
             'items.*.description'   => 'nullable|string',
         ];
+    }
+
+    /** Field operasional muatan (opsional) — dipakai bersama oleh store() & update(). */
+    private function operationalFields(Request $request): array
+    {
+        $keys = [
+            'checker', 'jenis_truck', 'no_pol', 'komoditi', 'depo', 'muat', 'tgl_muat',
+            'bongkar', 'tgl_bongkar', 'tujuan', 'no_container', 'no_seal', 'grade', 'sektor',
+            'supir', 'hp_supir', 'kota', 'empty_full', 'bongkar_empty_full',
+            'kecamatan', 'kelurahan', 'keterangan',
+        ];
+        $out = [];
+        foreach ($keys as $k) {
+            $out[$k] = $request->input($k);
+        }
+        return $out;
     }
 }
