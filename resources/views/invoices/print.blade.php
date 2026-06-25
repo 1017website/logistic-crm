@@ -2,93 +2,196 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Pro Forma Invoice {{ $invoice->invoice_number }}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoice {{ $invoice->invoice_number }}</title>
 <style>
-    * { font-family: Arial, sans-serif; box-sizing: border-box; }
-    body { margin: 24px; color: #111; font-size: 12px; }
-    .head { text-align: center; margin-bottom: 12px; }
-    .head h1 { margin: 0; font-size: 20px; letter-spacing: 1px; }
-    .head .sub { font-size: 11px; color: #555; }
-    .tag { background: #ffeb3b; padding: 2px 8px; font-weight: bold; font-size: 11px; display: inline-block; }
-    .meta { width: 100%; margin: 10px 0; }
-    .meta td { vertical-align: top; padding: 1px 4px; }
-    table.items { width: 100%; border-collapse: collapse; margin-top: 8px; }
-    table.items th, table.items td { border: 1px solid #333; padding: 5px 7px; font-size: 11px; }
-    table.items th { background: #f0f0f0; text-align: left; }
-    .right { text-align: right; }
-    .foot { margin-top: 6px; font-size: 10px; text-align: center; color: #444; }
-    @media print { .noprint { display: none; } body { margin: 8px; } }
+    :root { --ink:#1a1a1a; --muted:#6b7280; --line:#d1d5db; --accent:#111827; --soft:#f9fafb; }
+    * { font-family:'Segoe UI', Arial, Helvetica, sans-serif; box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    body { margin:0; color:var(--ink); font-size:12px; background:#f3f4f6; }
+
+    .sheet { width:210mm; min-height:297mm; margin:16px auto; background:#fff; padding:16mm 15mm; box-shadow:0 1px 8px rgba(0,0,0,.12); }
+
+    /* Header */
+    .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; }
+    .hdr .brand { display:flex; gap:13px; align-items:flex-start; }
+    .hdr .brand img { max-height:60px; max-width:140px; object-fit:contain; }
+    .hdr .brand .co h1 { margin:0; font-size:20px; font-weight:800; letter-spacing:.3px; color:var(--accent); }
+    .hdr .brand .co .info { font-size:10.5px; color:var(--muted); line-height:1.6; margin-top:4px; }
+    .hdr .doc { text-align:right; }
+    .hdr .doc .ttl { font-size:24px; font-weight:800; letter-spacing:2px; color:var(--accent); }
+    .hdr .doc .pf { font-size:9.5px; letter-spacing:1px; color:var(--muted); }
+    .hdr .doc .badge { display:inline-block; margin-top:6px; font-size:10px; font-weight:700; padding:3px 12px; border-radius:99px; }
+    .badge.s-draft { background:#f3f4f6; color:#6b7280; }
+    .badge.s-invoice { background:#dbeafe; color:#1d4ed8; }
+    .badge.s-paid { background:#d1fae5; color:#047857; }
+
+    .rule { height:3px; background:var(--accent); border-radius:2px; margin:14px 0 16px; }
+
+    /* Bill-to & meta */
+    .topgrid { display:flex; justify-content:space-between; gap:22px; margin-bottom:16px; }
+    .billto { flex:1; }
+    .billto .lbl { font-size:9.5px; letter-spacing:.6px; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:4px; }
+    .billto .name { font-size:14px; font-weight:700; }
+    .billto .addr { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.5; }
+    .metabox { width:230px; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+    .metabox .r { display:flex; justify-content:space-between; padding:6px 12px; font-size:11px; border-bottom:1px solid var(--line); }
+    .metabox .r:last-child { border-bottom:0; }
+    .metabox .r .k { color:var(--muted); }
+    .metabox .r .v { font-weight:700; }
+
+    /* Items */
+    table.items { width:100%; border-collapse:collapse; }
+    table.items thead th { background:var(--accent); color:#fff; font-size:10.5px; font-weight:700; letter-spacing:.3px; padding:9px 10px; text-align:left; }
+    table.items thead th.r { text-align:right; }
+    table.items tbody td { border-bottom:1px solid var(--line); padding:9px 10px; font-size:11px; vertical-align:top; }
+    table.items tbody tr:nth-child(even) td { background:var(--soft); }
+    table.items td.r { text-align:right; white-space:nowrap; }
+    table.items td.c { text-align:center; }
+    table.items .det { font-size:9.5px; color:var(--muted); line-height:1.5; margin-top:2px; }
+
+    /* Totals */
+    .totwrap { display:flex; justify-content:space-between; gap:22px; margin-top:14px; }
+    .terbilang { flex:1; font-size:10.5px; color:var(--muted); padding-top:6px; }
+    .terbilang b { color:var(--ink); }
+    .totals { width:260px; }
+    .totals .r { display:flex; justify-content:space-between; padding:5px 0; font-size:12px; }
+    .totals .r .k { color:var(--muted); }
+    .totals .grand { border-top:2px solid var(--accent); margin-top:4px; padding-top:8px; font-size:15px; font-weight:800; }
+
+    /* Signature + footer */
+    .sign { margin-top:38px; display:flex; justify-content:flex-end; }
+    .sign .col { width:200px; text-align:center; font-size:11px; }
+    .sign .col .role { color:var(--muted); }
+    .sign .col .line { margin-top:56px; border-top:1px solid var(--ink); padding-top:5px; font-weight:600; }
+
+    .foot { margin-top:22px; padding-top:10px; border-top:1px dashed var(--line); font-size:9.5px; color:var(--muted); text-align:center; line-height:1.6; }
+
+    .toolbar { width:210mm; margin:16px auto 0; display:flex; gap:8px; }
+    .toolbar button, .toolbar a { font-size:13px; padding:8px 16px; border-radius:8px; border:1px solid var(--line); background:#fff; cursor:pointer; text-decoration:none; color:var(--ink); font-weight:600; }
+    .toolbar button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+    @media print {
+        body { background:#fff; }
+        .toolbar { display:none; }
+        .sheet { width:auto; min-height:auto; margin:0; padding:8mm; box-shadow:none; }
+        @page { size:A4; margin:8mm; }
+    }
 </style>
 </head>
 <body>
-    <div class="noprint" style="margin-bottom:12px">
-        <button onclick="window.print()" style="padding:6px 14px;cursor:pointer">🖨️ Cetak</button>
+
+@php
+    $statusClass = ['draft'=>'s-draft','invoice'=>'s-invoice','paid'=>'s-paid'][$invoice->status] ?? 's-draft';
+    $statusText  = ['draft'=>'DRAFT','invoice'=>'INVOICE','paid'=>'LUNAS'][$invoice->status] ?? strtoupper($invoice->status);
+@endphp
+
+<div class="toolbar">
+    <button class="primary" onclick="window.print()">🖨️ Cetak</button>
+    <a href="{{ route('invoices.show', $invoice->id) }}">← Kembali</a>
+</div>
+
+<div class="sheet">
+
+    <div class="hdr">
+        <div class="brand">
+            @if(!empty($company['logo']))
+                <img src="{{ \Illuminate\Support\Facades\Storage::url($company['logo']) }}" alt="Logo">
+            @endif
+            <div class="co">
+                <h1>{{ $company['name'] }}</h1>
+                <div class="info">
+                    {!! nl2br(e($company['address'])) !!}
+                    @if($company['phone'])<br>Telp: {{ $company['phone'] }}@endif
+                    @if($company['email'])<br>{{ $company['email'] }}@endif
+                    @if($company['website'])<br>{{ $company['website'] }}@endif
+                </div>
+            </div>
+        </div>
+        <div class="doc">
+            <div class="ttl">INVOICE</div>
+            <div class="pf">PRO FORMA</div>
+            <div><span class="badge {{ $statusClass }}">{{ $statusText }}</span></div>
+        </div>
     </div>
 
-    <div class="head">
-        <span class="tag">PRO FORMA INVOICE</span>
-        <h1>FIRMAN TANGGUH</h1>
-        <div class="sub">THE TRANSPORTER</div>
-    </div>
+    <div class="rule"></div>
 
-    <table class="meta">
-        <tr>
-            <td style="width:55%">
-                <b>PENERIMA</b><br>
-                {{ $invoice->customer?->company_name ?? '-' }}<br>
-                {{ $invoice->customer?->address ?? '' }}
-            </td>
-            <td style="width:45%">
-                <table style="width:100%">
-                    <tr><td>Tanggal</td><td>: {{ $invoice->tgl_buat?->format('d M Y') ?? '-' }}</td></tr>
-                    <tr><td>No Invoice</td><td>: {{ $invoice->invoice_number }}</td></tr>
-                    <tr><td>Jatuh Tempo</td><td>: {{ $invoice->tgl_tempo?->format('d M Y') ?? '-' }}</td></tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+    <div class="topgrid">
+        <div class="billto">
+            <div class="lbl">Ditagihkan Kepada</div>
+            <div class="name">{{ $invoice->customer?->company_name ?? '-' }}</div>
+            <div class="addr">{{ $invoice->customer?->address ?? '' }}</div>
+        </div>
+        <div class="metabox">
+            <div class="r"><span class="k">No. Invoice</span><span class="v">{{ $invoice->invoice_number }}</span></div>
+            <div class="r"><span class="k">Tanggal</span><span class="v">{{ $invoice->tgl_buat?->format('d M Y') ?? '-' }}</span></div>
+            <div class="r"><span class="k">Jatuh Tempo</span><span class="v">{{ $invoice->tgl_tempo?->format('d M Y') ?? '-' }}</span></div>
+            @if($invoice->status === 'paid' && $invoice->tgl_pencairan)
+            <div class="r"><span class="k">Tgl Cair</span><span class="v">{{ $invoice->tgl_pencairan?->format('d M Y') }}</span></div>
+            @endif
+        </div>
+    </div>
 
     <table class="items">
         <thead>
             <tr>
-                <th style="width:30px">No</th>
-                <th style="width:80px">Tgl Kirim</th>
+                <th style="width:34px" class="c">No</th>
+                <th style="width:78px">Tgl Kirim</th>
                 <th>Keterangan</th>
-                <th style="width:120px" class="right">Jumlah (Rp)</th>
+                <th style="width:130px" class="r">Jumlah (Rp)</th>
             </tr>
         </thead>
         <tbody>
             @php $no = 1; @endphp
             @foreach($invoice->items as $it)
-            @php $do = $it->requestOrder; @endphp
-            <tr>
-                <td>{{ $no++ }}</td>
-                <td>{{ $do?->tgl_muat?->format('d-m-y') ?? $do?->order_date?->format('d-m-y') ?? '-' }}</td>
-                <td>
-                    Depo: {{ $do?->depo ?? '-' }} | Muat: {{ $do?->muat ?? $do?->origin ?? '-' }} | Bongkar: {{ $do?->bongkar ?? $do?->destination ?? '-' }}
-                    | Tujuan: {{ $do?->tujuan ?? '-' }}, Komoditas: {{ $do?->komoditi ?? '-' }}
-                    (No. Container: {{ $do?->no_container ?? '-' }}, No Seal: {{ $do?->no_seal ?? '-' }}, No. Pol: {{ $do?->no_pol ?? '-' }}, Armada: {{ $do?->jenis_truck ?? '-' }})
-                </td>
-                <td class="right">{{ number_format($it->jual, 0, ',', '.') }}</td>
-            </tr>
+                @php $do = $it->requestOrder; @endphp
+                <tr>
+                    <td class="c">{{ $no++ }}</td>
+                    <td>{{ $do?->tgl_muat?->format('d-m-y') ?? $do?->order_date?->format('d-m-y') ?? '-' }}</td>
+                    <td>
+                        <b>{{ $do?->do_number ?? 'DO' }}</b> — {{ $do?->muat ?? $do?->origin ?? '-' }} &rarr; {{ $do?->bongkar ?? $do?->destination ?? $do?->tujuan ?? '-' }}
+                        <div class="det">
+                            @if($do?->komoditi)Komoditas: {{ $do->komoditi }} · @endif
+                            @if($do?->no_container)Container: {{ $do->no_container }} · @endif
+                            @if($do?->no_seal)Seal: {{ $do->no_seal }} · @endif
+                            @if($do?->no_pol)No.Pol: {{ $do->no_pol }} · @endif
+                            @if($do?->jenis_truck)Armada: {{ $do->jenis_truck }}@endif
+                        </div>
+                    </td>
+                    <td class="r">{{ number_format($it->jual, 0, ',', '.') }}</td>
+                </tr>
             @endforeach
         </tbody>
-        <tfoot>
-            <tr>
-                <td colspan="3"><b>Terbilang :</b> {{ ucwords(trim(\App\Models\Invoice::terbilang($invoice->grand_total ?: $invoice->total_jual))) }} rupiah</td>
-                <td class="right"><b>Total</b><br>{{ number_format($invoice->total_jual, 0, ',', '.') }}</td>
-            </tr>
-            @if(($ppnPersen ?? 0) > 0 || $invoice->ppn_nominal > 0)
-            <tr><td colspan="3" class="right">PPN {{ rtrim(rtrim(number_format($invoice->ppn_persen,2),'0'),'.') }}%</td><td class="right">{{ number_format($invoice->ppn_nominal, 0, ',', '.') }}</td></tr>
-            @endif
-            <tr><td colspan="3" class="right"><b>Grand Total</b></td><td class="right"><b>{{ number_format($invoice->grand_total ?: $invoice->total_jual, 0, ',', '.') }}</b></td></tr>
-        </tfoot>
     </table>
 
-    <div class="foot">
-        PT. Firman Tangguh Logistik<br>
-        Jl. Griya Kebraon Barat Block CK 23, Karangpilang, Surabaya | 031-76800968<br>
-        ft-logistik.com | info@ft-logistik.com
+    <div class="totwrap">
+        <div class="terbilang">
+            <b>Terbilang:</b> {{ ucwords(trim(\App\Models\Invoice::terbilang($invoice->grand_total ?: $invoice->total_jual))) }} rupiah
+        </div>
+        <div class="totals">
+            <div class="r"><span class="k">Subtotal</span><span>Rp {{ number_format($invoice->total_jual, 0, ',', '.') }}</span></div>
+            @if(($ppnPersen ?? 0) > 0 || $invoice->ppn_nominal > 0)
+            <div class="r"><span class="k">PPN {{ rtrim(rtrim(number_format($invoice->ppn_persen,2),'0'),'.') }}%</span><span>Rp {{ number_format($invoice->ppn_nominal, 0, ',', '.') }}</span></div>
+            @endif
+            <div class="r grand"><span>Grand Total</span><span>Rp {{ number_format($invoice->grand_total ?: $invoice->total_jual, 0, ',', '.') }}</span></div>
+        </div>
     </div>
+
+    <div class="sign">
+        <div class="col">
+            <div class="role">Hormat kami,</div>
+            <div class="line">{{ $company['name'] }}</div>
+        </div>
+    </div>
+
+    <div class="foot">
+        {{ $company['name'] }}
+        @if($company['address']) · {{ str_replace(["\r\n","\n"], ' ', $company['address']) }}@endif<br>
+        @if($company['phone']){{ $company['phone'] }}@endif
+        @if($company['website']) · {{ $company['website'] }}@endif
+        @if($company['email']) · {{ $company['email'] }}@endif
+    </div>
+
+</div>
 </body>
 </html>

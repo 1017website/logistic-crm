@@ -206,7 +206,17 @@ class InvoiceController extends Controller
     {
         $invoice->load(['customer', 'items.requestOrder']);
         $ppnPersen = $request->get('ppn', $invoice->ppn_persen);
-        return view('invoices.print', compact('invoice', 'ppnPersen'));
+
+        $company = [
+            'name'    => \App\Models\Setting::get('company_name', 'Perusahaan'),
+            'address' => \App\Models\Setting::get('company_address', ''),
+            'phone'   => \App\Models\Setting::get('company_phone', ''),
+            'email'   => \App\Models\Setting::get('company_email', ''),
+            'website' => \App\Models\Setting::get('company_website', ''),
+            'logo'    => \App\Models\Setting::get('company_logo', ''),
+        ];
+
+        return view('invoices.print', compact('invoice', 'ppnPersen', 'company'));
     }
 
     public function export(Request $request)
