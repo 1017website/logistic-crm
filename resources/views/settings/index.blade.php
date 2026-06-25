@@ -291,6 +291,38 @@
                             <img id="faviconPreview" src="" alt=""
                                 style="display:none;margin-top:8px;width:32px;height:32px;object-fit:contain;border:1px solid #e5e7eb">
                         </div>
+
+                        {{-- Logo Dokumen (Invoice & Surat Jalan) --}}
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Logo Dokumen (Invoice &amp; Surat Jalan)</label>
+                            <div style="font-size:11px;color:#6b7280;margin-bottom:8px">Ditampilkan di <strong>cetak Invoice</strong> dan <strong>cetak Surat Jalan</strong>. Bisa berbeda dari logo sidebar (mis. versi berwarna/horizontal untuk kop dokumen). Jika kosong, otomatis memakai logo sidebar. Format: PNG, WebP, SVG. Maks 2MB.</div>
+                            @if(!empty($settings['company_doc_logo']))
+                                <div class="d-flex align-items-center gap-3 mb-3 p-3 rounded"
+                                    style="background:#f8f9fa;border:1px solid #e5e7eb">
+                                    <img src="{{ Storage::url($settings['company_doc_logo']) }}" alt="Logo Dokumen"
+                                        style="max-height:48px;max-width:120px;object-fit:contain;border-radius:6px">
+                                    <div>
+                                        <div style="font-size:12px;font-weight:600;color:#374151">Logo dokumen aktif</div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger mt-1"
+                                            style="font-size:11px;padding:2px 8px" onclick="deleteImage('doc_logo')">
+                                            <i class="fas fa-trash me-1"></i> Hapus
+                                        </button>
+                                    </div>
+                                </div>
+                            @endif
+                            <div class="upload-area" onclick="document.getElementById('docLogoInput').click()"
+                                style="border:2px dashed #cbd5e1;border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:all .2s"
+                                onmouseover="this.style.borderColor='#111111'"
+                                onmouseout="this.style.borderColor='#cbd5e1'">
+                                <i class="fas fa-file-invoice" style="font-size:1.5rem;color:#9ca3af"></i>
+                                <div style="font-size:12px;color:#6b7280;margin-top:8px">Klik untuk upload logo dokumen</div>
+                                <div id="docLogoFileName" style="font-size:11px;color:#111111;margin-top:4px"></div>
+                            </div>
+                            <input type="file" id="docLogoInput" name="company_doc_logo" accept="image/*"
+                                style="display:none" onchange="previewFile(this,'docLogoFileName','docLogoPreview')">
+                            <img id="docLogoPreview" src="" alt=""
+                                style="display:none;margin-top:8px;max-height:48px;border-radius:6px;border:1px solid #e5e7eb">
+                        </div>
                     </div>
 
                     <div class="s-divider"></div>
@@ -317,7 +349,7 @@
                 }
 
                 function deleteImage(type) {
-                    const labels = { logo: 'logo sidebar', login_logo: 'logo login', favicon: 'favicon' };
+                    const labels = { logo: 'logo sidebar', login_logo: 'logo login', favicon: 'favicon', doc_logo: 'logo dokumen' };
                     if (!confirm('Hapus ' + (labels[type] || type) + '?')) return;
                     document.getElementById('deleteImageType').value = type;
                     document.getElementById('deleteImageForm').submit();

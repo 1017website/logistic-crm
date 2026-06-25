@@ -197,7 +197,7 @@ class DeliveryOrderController extends Controller
             'address' => \App\Models\Setting::get('company_address', ''),
             'phone'   => \App\Models\Setting::get('company_phone', ''),
             'email'   => \App\Models\Setting::get('company_email', ''),
-            'logo'    => \App\Models\Setting::get('company_logo', ''),
+            'logo'    => \App\Models\Setting::get('company_doc_logo') ?: \App\Models\Setting::get('company_logo', ''),
         ];
 
         return view('delivery_orders.surat_jalan_print', compact('deliveryOrder', 'company'));

@@ -22,6 +22,7 @@ class SettingsController extends Controller
             'company_phone' => 'nullable|string|max:20',
             'company_logo' => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:2048',
             'company_login_logo' => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:2048',
+            'company_doc_logo' => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:2048',
             'company_favicon' => 'nullable|mimes:png,jpg,jpeg,ico|max:512',
         ]);
 
@@ -63,6 +64,16 @@ class SettingsController extends Controller
             Setting::set('company_login_logo', $path);
         }
 
+        // Upload Logo Dokumen (Invoice & Surat Jalan)
+        if ($request->hasFile('company_doc_logo') && $request->file('company_doc_logo')->isValid()) {
+            $oldLogo = Setting::get('company_doc_logo');
+            if ($oldLogo && Storage::disk('public')->exists($oldLogo)) {
+                Storage::disk('public')->delete($oldLogo);
+            }
+            $path = $request->file('company_doc_logo')->store('branding', 'public');
+            Setting::set('company_doc_logo', $path);
+        }
+
         // Upload Favicon
         if ($request->hasFile('company_favicon') && $request->file('company_favicon')->isValid()) {
             $oldFavicon = Setting::get('company_favicon');
@@ -88,6 +99,7 @@ class SettingsController extends Controller
         $key = match ($type) {
             'favicon' => 'company_favicon',
             'login_logo' => 'company_login_logo',
+            'doc_logo' => 'company_doc_logo',
             default => 'company_logo',
         };
         $path = Setting::get($key);
