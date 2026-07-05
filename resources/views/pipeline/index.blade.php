@@ -213,19 +213,19 @@
 $chartLabels = array_keys($pipeline);
 $chartValues = array_values(array_map(fn($l) => (float)($l->sum('potensi_revenue') / 1000000), $pipeline));
 
-// Trend: revenue riil per bulan (6 bulan terakhir) dari Delivery Order Done.
+// Trend: revenue riil per bulan (6 bulan terakhir) dari Request DO Done.
 $trendLabels = [];
 $trendData = [];
 for ($i = 5; $i >= 0; $i--) {
 $month = now()->subMonths($i);
 $trendLabels[] = $month->format('M Y');
-$rev = \Illuminate\Support\Facades\DB::table('delivery_orders')
-    ->join('delivery_order_items as items', 'items.delivery_order_id', '=', 'delivery_orders.id')
-    ->where('delivery_orders.status', 'Done')
-    ->where('delivery_orders.currency', 'IDR')
-    ->whereNull('delivery_orders.deleted_at')
-    ->whereYear('delivery_orders.order_date', $month->year)
-    ->whereMonth('delivery_orders.order_date', $month->month)
+$rev = \Illuminate\Support\Facades\DB::table('request_orders')
+    ->join('request_order_items as items', 'items.request_order_id', '=', 'request_orders.id')
+    ->where('request_orders.status', 'Done')
+    ->where('request_orders.currency', 'IDR')
+    ->whereNull('request_orders.deleted_at')
+    ->whereYear('request_orders.order_date', $month->year)
+    ->whereMonth('request_orders.order_date', $month->month)
     ->sum(\Illuminate\Support\Facades\DB::raw('items.qty * items.sell_price'));
 $trendData[] = (float)($rev / 1000000);
 }
