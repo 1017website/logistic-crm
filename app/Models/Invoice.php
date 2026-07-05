@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * Invoice penagihan — bisa menggabungkan banyak DO untuk satu customer.
  *
  * Penomoran:
- *   invoice_number = {seq per customer (jalan terus)}/{customer_code}/FTINV/{romawi bulan}/{tahun}
+ *   invoice_number = {seq per customer (jalan terus)}/{invoice_code customer}/FTINV/{romawi bulan}/{tahun}
  *   contoh: 0002/MIF/FTINV/VI/2026
  */
 class Invoice extends Model
@@ -90,13 +90,13 @@ class Invoice extends Model
     }
 
     /** Bangun nomor invoice format {seq}/{code}/FTINV/{romawi}/{tahun}. */
-    public static function buildInvoiceNumber(int $seq, ?string $customerCode, ?\DateTimeInterface $date = null): string
+    public static function buildInvoiceNumber(int $seq, ?string $customerInvoiceCode, ?\DateTimeInterface $date = null): string
     {
         $date  = $date ?? now();
         $month = (int) $date->format('n');
         $roman = self::toRoman($month);
         $year  = $date->format('Y');
-        $code  = $customerCode ?: 'CUST';
+        $code  = $customerInvoiceCode ?: 'CUST';
         return str_pad((string) $seq, 4, '0', STR_PAD_LEFT) . '/' . $code . '/FTINV/' . $roman . '/' . $year;
     }
 

@@ -96,7 +96,7 @@
                                     <div>
                                         <a href="{{ route('customers.index', array_merge(request()->query(), ['selected_id'=>$cust->id])) }}"
                                             style="font-weight:600;color:#111;text-decoration:none;font-size:.82rem">{{ $cust->company_name }}</a>
-                                        <div style="font-size:.7rem;color:var(--text-muted)">@if($cust->customer_code)<span style="font-family:monospace">{{ $cust->customer_code }}</span> · @endif{{ $cust->pic_name }}</div>
+                                        <div style="font-size:.7rem;color:var(--text-muted)">@if($cust->customer_code)<span style="font-family:monospace">{{ $cust->customer_code }}</span> · @endif@if($cust->invoice_code)<span style="font-family:monospace;color:#2563eb">INV: {{ $cust->invoice_code }}</span> · @endif{{ $cust->pic_name }}</div>
                                     </div>
                                 </div>
                             </td>
@@ -195,6 +195,8 @@
                 {{-- Tab Overview --}}
                 <div id="tab-overview">
                     @foreach([
+                        ['Kode Customer',$selectedCustomer->customer_code ?: '-'],
+                        ['Kode Invoice',$selectedCustomer->invoice_code ?: '-'],
                         ['PIC Utama',$selectedCustomer->pic_name],
                         ['Jabatan',$selectedCustomer->pic_position??'-'],
                         ['Phone',$selectedCustomer->phone??'-'],
@@ -405,7 +407,8 @@
                 </div>
                 <div class="col-12"><div style="font-size:.78rem;font-weight:600;color:var(--primary)"><i class="fas fa-building me-1"></i> Info Perusahaan</div></div>
                 <div class="col-md-6"><label class="form-label">Company Name <span class="text-danger">*</span></label><input type="text" name="company_name" class="form-control" required></div>
-                <div class="col-md-6"><label class="form-label">Industry</label><input type="text" name="industry" class="form-control" placeholder="Manufaktur, Retail, dll"></div>
+                <div class="col-md-3"><label class="form-label">Kode Invoice</label><input type="text" name="invoice_code" class="form-control" placeholder="Contoh: HMS" style="text-transform:uppercase"><div class="form-text" style="font-size:.68rem">Dipakai di nomor invoice.</div></div>
+                <div class="col-md-3"><label class="form-label">Industry</label><input type="text" name="industry" class="form-control" placeholder="Manufaktur, Retail, dll"></div>
                 <div class="col-md-6"><label class="form-label">Lokasi</label><input type="text" name="location" class="form-control" placeholder="Kota/Wilayah"></div>
                 <div class="col-md-6"><label class="form-label">Customer Since</label><input type="date" name="customer_since" class="form-control"></div>
                 <div class="col-12"><label class="form-label">Alamat</label><textarea name="address" class="form-control" rows="2"></textarea></div>
@@ -452,7 +455,8 @@
             <input type="hidden" name="products_submitted" value="1">
             <div class="modal-body"><div class="row g-3">
                 <div class="col-md-6"><label class="form-label">Company Name</label><input type="text" name="company_name" id="editCompanyName" class="form-control" required></div>
-                <div class="col-md-6"><label class="form-label">Industry</label><input type="text" name="industry" id="editIndustry" class="form-control"></div>
+                <div class="col-md-3"><label class="form-label">Kode Invoice</label><input type="text" name="invoice_code" id="editInvoiceCode" class="form-control" placeholder="Contoh: HMS" style="text-transform:uppercase"><div class="form-text" style="font-size:.68rem">Untuk format nomor invoice.</div></div>
+                <div class="col-md-3"><label class="form-label">Industry</label><input type="text" name="industry" id="editIndustry" class="form-control"></div>
                 <div class="col-md-6"><label class="form-label">PIC Name</label><input type="text" name="pic_name" id="editPicName" class="form-control" required></div>
                 <div class="col-md-6"><label class="form-label">Jabatan PIC</label><input type="text" name="pic_position" id="editPicPosition" class="form-control"></div>
                 <div class="col-md-6"><label class="form-label">Phone</label><input type="text" name="phone" id="editPhone" class="form-control"></div>
@@ -539,6 +543,7 @@
             return [$c->id => [
                 'id' => $c->id,
                 'company_name' => $c->company_name,
+                'invoice_code' => $c->invoice_code,
                 'pic_name' => $c->pic_name,
                 'pic_position' => $c->pic_position,
                 'phone' => $c->phone,
@@ -672,6 +677,7 @@ function openEditModal(id) {
 
     form.action = `/customers/${id}`;
     document.getElementById('editCompanyName').value = safeValue(data.company_name);
+    if (document.getElementById('editInvoiceCode')) document.getElementById('editInvoiceCode').value = safeValue(data.invoice_code);
     document.getElementById('editPicName').value = safeValue(data.pic_name);
     document.getElementById('editPicPosition').value = safeValue(data.pic_position);
     document.getElementById('editPhone').value = safeValue(data.phone);

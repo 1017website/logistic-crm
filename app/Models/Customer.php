@@ -13,7 +13,7 @@ class Customer extends Model
 {
     use SoftDeletes;
     protected $fillable = [
-        'customer_code','company_name','pic_name','pic_position','phone','email','address',
+        'customer_code','invoice_code','company_name','pic_name','pic_position','phone','email','address',
         'industry','location','status','value_tag','user_id','customer_since','logo','notes','products'
     ];
 
@@ -54,6 +54,17 @@ class Customer extends Model
         }
 
         return $initials ?: 'CU';
+    }
+
+    public function getInvoiceNumberCodeAttribute(): string
+    {
+        return $this->invoice_code ?: ($this->customer_code ?: 'CUST');
+    }
+
+    public static function normalizeInvoiceCode(?string $code): ?string
+    {
+        $code = strtoupper(trim((string) $code));
+        return $code === '' ? null : $code;
     }
 
     public static function generateCustomerCode(): string

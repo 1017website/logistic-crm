@@ -115,7 +115,7 @@
                 <div class="col-md-5"><label class="form-label">Customer</label>
                     <select name="customer_id" id="invCustomer" class="form-select form-select-sm no-select2" required>
                         <option value="">— Pilih Customer —</option>
-                        @foreach($customers as $c)<option value="{{ $c->id }}">{{ $c->company_name }} @if($c->customer_code)({{ $c->customer_code }})@endif</option>@endforeach
+                        @foreach($customers as $c)<option value="{{ $c->id }}">{{ $c->company_name }} @if($c->invoice_code)({{ $c->invoice_code }})@elseif($c->customer_code)({{ $c->customer_code }})@endif</option>@endforeach
                     </select>
                 </div>
                 <div class="col-md-3"><label class="form-label">Tgl Buat</label><input type="date" name="tgl_buat" class="form-control form-control-sm" value="{{ now()->toDateString() }}" required></div>

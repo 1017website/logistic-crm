@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Alur status: draft -> invoice (submit) -> paid (pencairan).
  * Penomoran invoice_number per customer JALAN TERUS (tidak reset):
- *   {seq}/{customer_code}/FTINV/{romawi bulan}/{tahun}
+ *   {seq}/{invoice_code customer}/FTINV/{romawi bulan}/{tahun}
  */
 class InvoiceController extends Controller
 {
@@ -40,7 +40,7 @@ class InvoiceController extends Controller
 
         $invoices = $query->orderByDesc('id')->paginate(25)->withQueryString();
 
-        $customers = Customer::orderBy('company_name')->get(['id', 'company_name', 'customer_code']);
+        $customers = Customer::orderBy('company_name')->get(['id', 'company_name', 'customer_code', 'invoice_code']);
 
         $pendingDeletionIds = \App\Models\DeletionRequest::pendingIdsFor(Invoice::class);
 
@@ -103,7 +103,7 @@ class InvoiceController extends Controller
 
             $invoice = Invoice::create([
                 'invoice_id'     => Invoice::generateInvoiceId(),
-                'invoice_number' => Invoice::buildInvoiceNumber($seq, $customer->customer_code, \Carbon\Carbon::parse($request->tgl_buat)),
+                'invoice_number' => Invoice::buildInvoiceNumber($seq, $customer->invoice_number_code, \Carbon\Carbon::parse($request->tgl_buat)),
                 'customer_seq'   => $seq,
                 'customer_id'    => $customer->id,
                 'status'         => 'draft',

@@ -10,6 +10,7 @@ use App\Models\VendorService;
 use App\Models\Lead;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
 {
@@ -34,7 +35,9 @@ class CustomerController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('company_name', 'like', "%$search%")
                   ->orWhere('pic_name', 'like', "%$search%")
-                  ->orWhere('phone', 'like', "%$search%");
+                  ->orWhere('phone', 'like', "%$search%")
+                  ->orWhere('customer_code', 'like', "%$search%")
+                  ->orWhere('invoice_code', 'like', "%$search%");
             });
         }
 
@@ -64,6 +67,7 @@ class CustomerController extends Controller
     {
         $validated = $request->validate([
             'company_name'   => 'required|string|max:255',
+            'invoice_code'   => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('customers', 'invoice_code')],
             'pic_name'       => 'required|string|max:255',
             'pic_position'   => 'nullable|string|max:100',
             'phone'          => 'required|string|max:20',
@@ -86,6 +90,8 @@ class CustomerController extends Controller
             'products_list.*.tonnage'      => 'nullable|numeric|min:0',
             'products_list.*.shipping_zone' => 'nullable|string|max:255',
         ]);
+
+        $validated['invoice_code'] = Customer::normalizeInvoiceCode($validated['invoice_code'] ?? null);
 
         // Revisi #1: customer dari menu Customer SELALU Existing
         $validated['status'] = 'Existing';
@@ -179,6 +185,7 @@ class CustomerController extends Controller
     {
         $validated = $request->validate([
             'company_name'   => 'sometimes|string|max:255',
+            'invoice_code'   => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('customers', 'invoice_code')->ignore($customer->id)],
             'pic_name'       => 'sometimes|string|max:255',
             'pic_position'   => 'nullable|string|max:100',
             'phone'          => 'nullable|string|max:20',
@@ -203,6 +210,8 @@ class CustomerController extends Controller
             'products_list.*.tonnage'      => 'nullable|numeric|min:0',
             'products_list.*.shipping_zone' => 'nullable|string|max:255',
         ]);
+
+        $validated['invoice_code'] = Customer::normalizeInvoiceCode($validated['invoice_code'] ?? null);
 
         DB::transaction(function () use ($validated, $customer, $request) {
 
@@ -335,13 +344,16 @@ class CustomerController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('company_name', 'like', "%{$search}%")
                   ->orWhere('pic_name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('customer_code', 'like', "%{$search}%")
+                  ->orWhere('invoice_code', 'like', "%{$search}%");
             });
         }
 
         $customers = $query->orderBy('company_name')->get();
-        $headers   = ['Company Name','PIC Name','Position','Phone','Email','Industry','Location','Status','Sales PIC','Customer Since'];
+        $headers   = ['Customer Code','Invoice Code','Company Name','PIC Name','Position','Phone','Email','Industry','Location','Status','Sales PIC','Customer Since'];
         $rows      = $customers->map(fn($c) => [
+            $c->customer_code, $c->invoice_code,
             $c->company_name, $c->pic_name, $c->pic_position,
             $c->phone, $c->email, $c->industry, $c->location,
             $c->status, $c->salesUser?->name,
@@ -360,8 +372,8 @@ class CustomerController extends Controller
         $callback = function () {
             $f = fopen('php://output', 'w');
             fputs($f, "\xEF\xBB\xBF");
-            fputcsv($f, ['Company Name', 'PIC Name', 'Position', 'Phone', 'Email', 'Industry', 'Location', 'Sales PIC Email']);
-            fputcsv($f, ['PT. Contoh Kimia', 'Budi Santoso', 'Purchasing Manager', '0812-1234-5678', 'budi@contoh.co.id', 'Manufacturing', 'Surabaya', 'sales@crm.com']);
+            fputcsv($f, ['Company Name', 'PIC Name', 'Position', 'Phone', 'Email', 'Industry', 'Location', 'Kode Invoice', 'Sales PIC Email/Name']);
+            fputcsv($f, ['PT. Contoh Kimia', 'Budi Santoso', 'Purchasing Manager', '0812-1234-5678', 'budi@contoh.co.id', 'Manufacturing', 'Surabaya', 'PCK', 'sales@crm.com']);
             fclose($f);
         };
         return response()->stream($callback, 200, $headers);
@@ -376,10 +388,19 @@ class CustomerController extends Controller
 
         while (($row = fgetcsv($handle)) !== false) {
             if (count($row) < 3 || empty(trim($row[0]))) continue;
-            $salesUser = User::where('name', trim($row[7] ?? ''))->first();
+            $salesKey = trim($row[8] ?? '');
+            $salesUser = $salesKey !== ''
+                ? User::where('email', $salesKey)->orWhere('name', $salesKey)->first()
+                : null;
+            $invoiceCode = Customer::normalizeInvoiceCode($row[7] ?? null);
+            if ($invoiceCode && Customer::withTrashed()->where('invoice_code', $invoiceCode)->exists()) {
+                $invoiceCode = null;
+            }
+
             // Revisi #1: import dari menu Customer = Existing
             Customer::create([
                 'customer_code'  => \App\Models\Customer::generateCustomerCode(),
+                'invoice_code'   => $invoiceCode,
                 'company_name'   => trim($row[0]),
                 'pic_name'       => trim($row[1]),
                 'pic_position'   => trim($row[2] ?? ''),
