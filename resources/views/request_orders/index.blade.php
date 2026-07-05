@@ -199,169 +199,238 @@
         </div>
     </div>
 
+
+    @push('styles')
+        <style>
+            .request-do-dialog { max-width: min(1420px, 96vw); }
+            .request-do-modal .modal-content { border:0; border-radius:18px; overflow:hidden; box-shadow:0 28px 70px rgba(15,23,42,.18); }
+            .request-do-modal .modal-header { border-bottom:1px solid #e5e7eb; padding:1rem 1.25rem; background:#fff; }
+            .request-do-modal .modal-footer { border-top:1px solid #e5e7eb; padding:.8rem 1.25rem; background:#fff; }
+            .request-do-modal .modal-body { background:#f8fafc; padding:1rem 1.25rem 1.25rem; }
+            .request-form-intro { border:1px solid #dbeafe; background:#eff6ff; color:#1e3a8a; border-radius:12px; padding:.75rem .9rem; font-size:.78rem; margin-bottom:.9rem; }
+            .request-section-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:1rem; margin-bottom:.9rem; box-shadow:0 8px 22px rgba(15,23,42,.04); }
+            .request-section-title, .request-summary { display:flex; align-items:center; gap:.6rem; color:#111827; font-weight:800; font-size:.82rem; letter-spacing:.02em; margin-bottom:.85rem; }
+            .request-section-title small, .request-summary small { color:#6b7280; font-weight:500; letter-spacing:0; }
+            .request-section-number { width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:#111827; color:#fff; font-size:.72rem; flex:0 0 26px; }
+            .request-do-modal .form-label { margin-bottom:.32rem; color:#374151; font-size:.75rem; font-weight:700; }
+            .request-do-modal .form-control, .request-do-modal .form-select { border-radius:10px; border-color:#e5e7eb; font-size:.82rem; }
+            .request-do-modal .form-control:focus, .request-do-modal .form-select:focus { border-color:#111827; box-shadow:0 0 0 .18rem rgba(17,24,39,.08); }
+            .request-readonly-field { background:#f9fafb !important; cursor:default; color:#374151; }
+            .request-optional-section { padding:0; }
+            .request-optional-section > summary { list-style:none; cursor:pointer; padding:1rem; margin:0; }
+            .request-optional-section > summary::-webkit-details-marker { display:none; }
+            .request-optional-section > summary::after { content:'\f078'; font-family:'Font Awesome 6 Free'; font-weight:900; font-size:.72rem; color:#6b7280; margin-left:auto; transition:transform .2s ease; }
+            .request-optional-section[open] > summary::after { transform:rotate(180deg); }
+            .request-optional-body { padding:0 1rem 1rem; }
+            .request-subsection-label { color:#6b7280; font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; border-bottom:1px dashed #e5e7eb; padding-bottom:.35rem; margin:.25rem 0 .65rem; }
+            .request-items-head { display:flex; justify-content:space-between; align-items:center; gap:.75rem; margin-bottom:.85rem; }
+            .request-items-table { min-width:1080px; font-size:.76rem; }
+            .request-items-table thead th { background:#f8fafc; color:#374151; font-size:.72rem; vertical-align:middle; white-space:nowrap; }
+            .request-items-table td { vertical-align:middle; }
+            .request-items-table tfoot td { background:#f8fafc; font-weight:800; }
+            .request-items-help { color:#6b7280; font-size:.72rem; }
+            @media (max-width:991.98px) {
+                .request-do-dialog { max-width:100vw; margin:.5rem; }
+                .request-do-modal .modal-body { padding:.85rem; }
+                .request-section-card { padding:.85rem; }
+            }
+        </style>
+    @endpush
     {{-- Modal Tambah Request DO --}}
-    <div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="addPoModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
+    <div class="modal fade request-do-modal" data-bs-backdrop="static" data-bs-keyboard="false" id="addPoModal" tabindex="-1">
+        <div class="modal-dialog modal-xl request-do-dialog modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h6 class="modal-title fw-bold">Tambah Delivery Order</h6>
+                    <div>
+                        <h6 class="modal-title fw-bold mb-1">Tambah Request DO</h6>
+                        <div class="text-muted" style="font-size:.75rem">Isi data secara berurutan: customer, rute, operasional, lalu item layanan.</div>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST" action="{{ route('request-orders.store') }}" id="addDoForm">
                     @csrf
                     <div class="modal-body">
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-4">
-                                <label class="form-label">Customer <span class="text-danger">*</span></label>
-                                <select name="customer_id" id="addCustomerSelect" class="form-select" onchange="onCustomerChange(this,'addLeadDisplay'); setDefaultSalesPic(this,'addSalesPicSelect')" required>
-                                    <option value="">-- Pilih Customer --</option>
-                                    @foreach($customers as $c)
-                                        <option value="{{ $c->id }}" data-name="{{ strtolower(trim($c->company_name)) }}" data-user-id="{{ $c->user_id }}">{{ $c->company_name }}</option>
-                                    @endforeach
-                                </select>
+                        <div class="request-form-intro">
+                            <i class="fas fa-circle-info me-1"></i>
+                            Field bertanda <span class="text-danger fw-bold">*</span> wajib diisi. Bagian operasional muatan boleh dibuka hanya jika detail armada/container sudah tersedia.
+                        </div>
+
+                        <div class="request-section-card">
+                            <div class="request-section-title">
+                                <span class="request-section-number">1</span>
+                                <div>Informasi Customer & Penugasan <small>data utama request</small></div>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Vendor</label>
-                                <select name="vendor_id" class="form-select" id="addVendorSelect" onchange="onVendorChange(this,'addItemsBody')">
-                                    <option value="">-- Pilih Vendor --</option>
-                                    @foreach($vendors as $s)
-                                        <option value="{{ $s->id }}">{{ $s->vendor_name }} ({{ $s->vendor_type }})</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Linked Lead</label>
-                                <input type="text" id="addLeadDisplay" class="form-control"
-                                    placeholder="Otomatis dari Customer" readonly
-                                    style="background:#f9fafb;cursor:default;color:#374151">
-                                <input type="hidden" name="lead_id" id="addLeadHidden" value="">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Sales PIC <span class="text-danger">*</span></label>
-                                <select name="user_id" id="addSalesPicSelect" class="form-select" required>
-                                    <option value="">-- Pilih Sales PIC --</option>
-                                    @foreach($salesUsers as $u)
-                                        <option value="{{ $u->id }}" @selected(auth()->id() === $u->id)>{{ $u->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Tgl Order <span class="text-danger">*</span></label>
-                                <input type="date" name="order_date" class="form-control" value="{{ date('Y-m-d') }}"
-                                    required>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Currency</label>
-                                <select name="currency" class="form-select">
-                                    <option value="IDR">IDR</option>
-                                    <option value="USD">USD</option>
-                                    <option value="SGD">SGD</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Notes</label>
-                                <input type="text" name="notes" class="form-control" placeholder="Keterangan tambahan">
+                            <div class="row g-3">
+                                <div class="col-lg-4 col-md-6">
+                                    <label class="form-label">Customer <span class="text-danger">*</span></label>
+                                    <select name="customer_id" id="addCustomerSelect" class="form-select" onchange="onCustomerChange(this,'addLeadDisplay'); setDefaultSalesPic(this,'addSalesPicSelect')" required>
+                                        <option value="">-- Pilih Customer --</option>
+                                        @foreach($customers as $c)
+                                            <option value="{{ $c->id }}" data-name="{{ strtolower(trim($c->company_name)) }}" data-user-id="{{ $c->user_id }}">{{ $c->company_name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-lg-4 col-md-6">
+                                    <label class="form-label">Sales PIC <span class="text-danger">*</span></label>
+                                    <select name="user_id" id="addSalesPicSelect" class="form-select" required>
+                                        <option value="">-- Pilih Sales PIC --</option>
+                                        @foreach($salesUsers as $u)
+                                            <option value="{{ $u->id }}" @selected(auth()->id() === $u->id)>{{ $u->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-lg-4 col-md-6">
+                                    <label class="form-label">Vendor</label>
+                                    <select name="vendor_id" class="form-select" id="addVendorSelect" onchange="onVendorChange(this,'addItemsBody')">
+                                        <option value="">-- Pilih Vendor --</option>
+                                        @foreach($vendors as $s)
+                                            <option value="{{ $s->id }}">{{ $s->vendor_name }} ({{ $s->vendor_type }})</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="form-label">Tgl Order <span class="text-danger">*</span></label>
+                                    <input type="date" name="order_date" class="form-control" value="{{ date('Y-m-d') }}" required>
+                                </div>
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="form-label">Currency</label>
+                                    <select name="currency" class="form-select">
+                                        <option value="IDR">IDR</option>
+                                        <option value="USD">USD</option>
+                                        <option value="SGD">SGD</option>
+                                    </select>
+                                </div>
+                                <div class="col-lg-6 col-md-12">
+                                    <label class="form-label">Linked Lead</label>
+                                    <input type="text" id="addLeadDisplay" class="form-control request-readonly-field" placeholder="Otomatis dari Customer" readonly>
+                                    <input type="hidden" name="lead_id" id="addLeadHidden" value="">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Catatan</label>
+                                    <input type="text" name="notes" class="form-control" placeholder="Contoh: permintaan khusus customer, instruksi operasional, atau catatan internal">
+                                </div>
                             </div>
                         </div>
 
-                        {{-- Logistic Fields --}}
-                        <hr class="my-2">
-                        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">DETAIL PENGIRIMAN</div>
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-3">
-                                <label class="form-label">Service Type</label>
-                                <select name="delivery_type" id="addDeliveryType" class="form-select form-select-sm">
-                                    <option value="">- Pilih -</option>
-                                    @foreach(\App\Models\Vendor::serviceTypeOptions() as $dt)
-                                        <option value="{{ ucwords($dt) }}">{{ ucwords($dt) }}</option>
-                                    @endforeach
-                                </select>
+                        <div class="request-section-card">
+                            <div class="request-section-title">
+                                <span class="request-section-number">2</span>
+                                <div>Rute & Jadwal Pengiriman <small>informasi perjalanan</small></div>
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Origin</label>
-                                <input type="text" name="origin" class="form-control form-control-sm" placeholder="Kota asal">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Destination</label>
-                                <input type="text" name="destination" class="form-control form-control-sm" placeholder="Kota tujuan">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Tracking Number</label>
-                                <input type="text" name="tracking_number" class="form-control form-control-sm" placeholder="Nomor resi / tracking">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Estimasi Tiba (ETA)</label>
-                                <input type="date" name="estimated_arrival" class="form-control form-control-sm">
+                            <div class="row g-3">
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="form-label">Service Type</label>
+                                    <select name="delivery_type" id="addDeliveryType" class="form-select">
+                                        <option value="">- Pilih -</option>
+                                        @foreach(\App\Models\Vendor::serviceTypeOptions() as $dt)
+                                            <option value="{{ ucwords($dt) }}">{{ ucwords($dt) }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="form-label">Origin</label>
+                                    <input type="text" name="origin" class="form-control" placeholder="Kota asal / titik pickup">
+                                </div>
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="form-label">Destination</label>
+                                    <input type="text" name="destination" class="form-control" placeholder="Kota tujuan / titik drop">
+                                </div>
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="form-label">Estimasi Tiba (ETA)</label>
+                                    <input type="date" name="estimated_arrival" class="form-control">
+                                </div>
+                                <div class="col-lg-4 col-md-6">
+                                    <label class="form-label">Tracking Number</label>
+                                    <input type="text" name="tracking_number" class="form-control" placeholder="Nomor resi / tracking jika ada">
+                                </div>
                             </div>
                         </div>
 
-                        {{-- Detail Operasional Muatan (opsional) --}}
-                        <details class="mb-2">
-                            <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#374151">DETAIL OPERASIONAL MUATAN (opsional)</summary>
-                            <div class="row g-2 mt-1">
-                                <div class="col-md-3"><label class="form-label">Checker</label><input type="text" name="checker" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Jenis Truck</label><input type="text" name="jenis_truck" class="form-control form-control-sm" placeholder="Trailer 20'/40'"></div>
-                                <div class="col-md-3"><label class="form-label">No. Polisi</label><input type="text" name="no_pol" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Komoditi</label><input type="text" name="komoditi" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Depo</label><input type="text" name="depo" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Muat</label><input type="text" name="muat" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Tgl Muat</label><input type="date" name="tgl_muat" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Bongkar</label><input type="text" name="bongkar" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Tgl Bongkar</label><input type="date" name="tgl_bongkar" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Tujuan</label><input type="text" name="tujuan" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">No. Container</label><input type="text" name="no_container" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">No. Seal</label><input type="text" name="no_seal" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Grade</label><input type="text" name="grade" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Sektor</label><input type="text" name="sektor" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Supir</label><input type="text" name="supir" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">HP Supir</label><input type="text" name="hp_supir" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Kota</label><input type="text" name="kota" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Empty/Full</label><input type="text" name="empty_full" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Bongkar Empty/Full</label><input type="text" name="bongkar_empty_full" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Kecamatan</label><input type="text" name="kecamatan" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Kelurahan</label><input type="text" name="kelurahan" class="form-control form-control-sm"></div>
+                        <details class="request-section-card request-optional-section mb-3">
+                            <summary class="request-summary">
+                                <span class="request-section-number">3</span>
+                                <div>Detail Operasional Muatan <small>opsional, untuk armada/container</small></div>
+                            </summary>
+                            <div class="request-optional-body">
+                                <div class="request-subsection-label">Armada & Muatan</div>
+                                <div class="row g-3 mb-2">
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Checker</label><input type="text" name="checker" class="form-control"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Jenis Truck</label><input type="text" name="jenis_truck" class="form-control" placeholder="Trailer 20'/40'"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">No. Polisi</label><input type="text" name="no_pol" class="form-control" placeholder="B 1234 XXX"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Komoditi</label><input type="text" name="komoditi" class="form-control"></div>
+                                </div>
+                                <div class="request-subsection-label">Lokasi Muat & Bongkar</div>
+                                <div class="row g-3 mb-2">
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Depo</label><input type="text" name="depo" class="form-control"></div>
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Muat</label><input type="text" name="muat" class="form-control" placeholder="Lokasi muat"></div>
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Tgl Muat</label><input type="date" name="tgl_muat" class="form-control"></div>
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Bongkar</label><input type="text" name="bongkar" class="form-control" placeholder="Lokasi bongkar"></div>
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Tgl Bongkar</label><input type="date" name="tgl_bongkar" class="form-control"></div>
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Tujuan</label><input type="text" name="tujuan" class="form-control"></div>
+                                </div>
+                                <div class="request-subsection-label">Container & Area</div>
+                                <div class="row g-3 mb-2">
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">No. Container</label><input type="text" name="no_container" class="form-control"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">No. Seal</label><input type="text" name="no_seal" class="form-control"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Grade</label><input type="text" name="grade" class="form-control"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Sektor</label><input type="text" name="sektor" class="form-control"></div>
+                                </div>
+                                <div class="request-subsection-label">Driver & Detail Alamat</div>
+                                <div class="row g-3">
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Supir</label><input type="text" name="supir" class="form-control"></div>
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">HP Supir</label><input type="text" name="hp_supir" class="form-control"></div>
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Kota</label><input type="text" name="kota" class="form-control"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Empty/Full</label><input type="text" name="empty_full" class="form-control" placeholder="Empty / Full"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Bongkar Empty/Full</label><input type="text" name="bongkar_empty_full" class="form-control" placeholder="Empty / Full"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Kecamatan</label><input type="text" name="kecamatan" class="form-control"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Kelurahan</label><input type="text" name="kelurahan" class="form-control"></div>
+                                </div>
                             </div>
                         </details>
 
-                        {{-- Line Items --}}
-                        <div class="d-flex align-items-center justify-content-between mb-2">
-                            <div style="font-size:12px;font-weight:700;color:#374151">ITEM LAYANAN</div>
-                            <button type="button" class="btn btn-outline-primary btn-sm"
-                                onclick="addItemRow('addItemsBody')">
-                                <i class="fas fa-plus me-1"></i> Tambah Item
-                            </button>
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-bordered mb-2" style="font-size:12px">
-                                <thead style="background:#f8f9fa">
-                                    <tr>
-                                        <th style="min-width:200px">Nama Layanan <span class="text-danger">*</span></th>
-                                        <th style="width:80px">Satuan</th>
-                                        <th style="width:90px">Tonase</th>
-                                        <th style="width:100px">Qty <span class="text-danger">*</span></th>
-                                        <th style="width:140px">Harga Beli (HPP) <span class="text-danger">*</span></th>
-                                        <th style="width:140px">Harga Jual <span class="text-danger">*</span></th>
-                                        <th style="width:110px">Gross Profit</th>
-                                        <th style="width:40px"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="addItemsBody">
-                                    {{-- Diisi via JS addItemRow() saat modal dibuka --}}
-                                </tbody>
-                                <tfoot>
-                                    <tr style="background:#f8f9fa;font-weight:700">
-                                        <td colspan="4" class="text-end">Total:</td>
-                                        <td id="addTotalRevenue" class="text-end" style="color:var(--primary)">Rp 0</td>
-                                        <td id="addTotalProfit" class="text-end" style="color:#10b981">Rp 0</td>
-                                        <td></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                        <div class="request-section-card mb-0">
+                            <div class="request-items-head">
+                                <div class="request-section-title mb-0">
+                                    <span class="request-section-number">4</span>
+                                    <div>Item Layanan & Harga <small>minimal 1 item</small></div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addItemRow('addItemsBody')">
+                                    <i class="fas fa-plus me-1"></i> Tambah Item
+                                </button>
+                            </div>
+                            <div class="request-items-help mb-2">Pilih layanan dari vendor atau gunakan opsi <b>+ Ketik manual</b>. Gross profit dihitung otomatis dari Harga Jual - HPP.</div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-sm request-items-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th style="min-width:260px">Nama Layanan <span class="text-danger">*</span></th>
+                                            <th style="width:100px">Satuan</th>
+                                            <th style="width:110px">Tonase</th>
+                                            <th style="width:110px">Qty <span class="text-danger">*</span></th>
+                                            <th style="width:150px">Harga Beli / HPP <span class="text-danger">*</span></th>
+                                            <th style="width:150px">Harga Jual <span class="text-danger">*</span></th>
+                                            <th style="width:130px">Gross Profit</th>
+                                            <th style="width:46px"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="addItemsBody">
+                                        {{-- Diisi via JS addItemRow() saat modal dibuka --}}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="5" class="text-end">Total Revenue / Gross Profit:</td>
+                                            <td id="addTotalRevenue" class="text-end" style="color:var(--primary)">Rp 0</td>
+                                            <td id="addTotalProfit" class="text-end" style="color:#10b981">Rp 0</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-primary btn-sm">Simpan DO</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Simpan Request DO</button>
                     </div>
                 </form>
             </div>
@@ -369,152 +438,193 @@
     </div>
 
     {{-- Modal Edit DO --}}
-    <div class="modal fade" data-bs-backdrop="static" data-bs-keyboard="false" id="editPoModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
+    <div class="modal fade request-do-modal" data-bs-backdrop="static" data-bs-keyboard="false" id="editPoModal" tabindex="-1">
+        <div class="modal-dialog modal-xl request-do-dialog modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h6 class="modal-title fw-bold">Edit Delivery Order — <span id="editPoNumber"></span></h6>
+                    <div>
+                        <h6 class="modal-title fw-bold mb-1">Edit Request DO — <span id="editPoNumber"></span></h6>
+                        <div class="text-muted" style="font-size:.75rem">Perbarui data request, rute, operasional, dan item layanan.</div>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST" id="editDoForm">
                     @csrf @method('PUT')
                     <div class="modal-body">
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-4">
-                                <label class="form-label">Customer <span class="text-danger">*</span></label>
-                                <select name="customer_id" id="epCustomer" class="form-select" onchange="onCustomerChange(this,'epLeadDisplay'); setDefaultSalesPic(this,'epSalesPicSelect')" required>
-                                    <option value="">-- Pilih Customer --</option>
-                                    @foreach($customers as $c)
-                                        <option value="{{ $c->id }}" data-name="{{ strtolower(trim($c->company_name)) }}" data-user-id="{{ $c->user_id }}">{{ $c->company_name }}</option>
-                                    @endforeach
-                                </select>
+                        <div class="request-form-intro">
+                            <i class="fas fa-circle-info me-1"></i>
+                            Perubahan item layanan akan memengaruhi revenue, HPP, dan gross profit request ini.
+                        </div>
+
+                        <div class="request-section-card">
+                            <div class="request-section-title">
+                                <span class="request-section-number">1</span>
+                                <div>Informasi Customer & Penugasan <small>data utama request</small></div>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Vendor</label>
-                                <select name="vendor_id" id="epVendor" class="form-select">
-                                    <option value="">-- Pilih Vendor --</option>
-                                    @foreach($vendors as $s)
-                                        <option value="{{ $s->id }}">{{ $s->vendor_name }} ({{ $s->vendor_type }})</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Linked Lead</label>
-                                <input type="text" id="epLeadDisplay" class="form-control"
-                                    placeholder="Otomatis dari Customer" readonly
-                                    style="background:#f9fafb;cursor:default;color:#374151">
-                                <input type="hidden" name="lead_id" id="epLeadHidden" value="">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Sales PIC <span class="text-danger">*</span></label>
-                                <select name="user_id" id="epSalesPicSelect" class="form-select" required>
-                                    <option value="">-- Pilih Sales PIC --</option>
-                                    @foreach($salesUsers as $u)
-                                        <option value="{{ $u->id }}">{{ $u->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Tgl Order <span class="text-danger">*</span></label>
-                                <input type="date" name="order_date" id="epDate" class="form-control" required>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Currency</label>
-                                <select name="currency" id="epCurrency" class="form-select">
-                                    <option value="IDR">IDR</option>
-                                    <option value="USD">USD</option>
-                                    <option value="SGD">SGD</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Notes</label>
-                                <input type="text" name="notes" id="epNotes" class="form-control">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Service Type</label>
-                                <select name="delivery_type" id="epDeliveryType" class="form-select">
-                                    <option value="">- Pilih -</option>
-                                    @foreach(\App\Models\Vendor::serviceTypeOptions() as $dt)
-                                        <option value="{{ ucwords($dt) }}">{{ ucwords($dt) }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Origin</label>
-                                <input type="text" name="origin" id="epOrigin" class="form-control" placeholder="Kota asal">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Destination</label>
-                                <input type="text" name="destination" id="epDestination" class="form-control" placeholder="Kota tujuan">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Tracking Number</label>
-                                <input type="text" name="tracking_number" id="epTracking" class="form-control">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Estimated Arrival</label>
-                                <input type="date" name="estimated_arrival" id="epEta" class="form-control">
+                            <div class="row g-3">
+                                <div class="col-lg-4 col-md-6">
+                                    <label class="form-label">Customer <span class="text-danger">*</span></label>
+                                    <select name="customer_id" id="epCustomer" class="form-select" onchange="onCustomerChange(this,'epLeadDisplay'); setDefaultSalesPic(this,'epSalesPicSelect')" required>
+                                        <option value="">-- Pilih Customer --</option>
+                                        @foreach($customers as $c)
+                                            <option value="{{ $c->id }}" data-name="{{ strtolower(trim($c->company_name)) }}" data-user-id="{{ $c->user_id }}">{{ $c->company_name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-lg-4 col-md-6">
+                                    <label class="form-label">Sales PIC <span class="text-danger">*</span></label>
+                                    <select name="user_id" id="epSalesPicSelect" class="form-select" required>
+                                        <option value="">-- Pilih Sales PIC --</option>
+                                        @foreach($salesUsers as $u)
+                                            <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-lg-4 col-md-6">
+                                    <label class="form-label">Vendor</label>
+                                    <select name="vendor_id" id="epVendor" class="form-select" onchange="onVendorChange(this,'editItemsBody')">
+                                        <option value="">-- Pilih Vendor --</option>
+                                        @foreach($vendors as $s)
+                                            <option value="{{ $s->id }}">{{ $s->vendor_name }} ({{ $s->vendor_type }})</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="form-label">Tgl Order <span class="text-danger">*</span></label>
+                                    <input type="date" name="order_date" id="epDate" class="form-control" required>
+                                </div>
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="form-label">Currency</label>
+                                    <select name="currency" id="epCurrency" class="form-select">
+                                        <option value="IDR">IDR</option>
+                                        <option value="USD">USD</option>
+                                        <option value="SGD">SGD</option>
+                                    </select>
+                                </div>
+                                <div class="col-lg-6 col-md-12">
+                                    <label class="form-label">Linked Lead</label>
+                                    <input type="text" id="epLeadDisplay" class="form-control request-readonly-field" placeholder="Otomatis dari Customer" readonly>
+                                    <input type="hidden" name="lead_id" id="epLeadHidden" value="">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Catatan</label>
+                                    <input type="text" name="notes" id="epNotes" class="form-control" placeholder="Catatan tambahan">
+                                </div>
                             </div>
                         </div>
 
-                        {{-- Detail Operasional Muatan (opsional) — disamakan dengan modal Tambah --}}
-                        <details class="mb-2">
-                            <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#374151">DETAIL OPERASIONAL MUATAN (opsional)</summary>
-                            <div class="row g-2 mt-1">
-                                <div class="col-md-3"><label class="form-label">Checker</label><input type="text" name="checker" id="epChecker" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Jenis Truck</label><input type="text" name="jenis_truck" id="epJenisTruck" class="form-control form-control-sm" placeholder="Trailer 20'/40'"></div>
-                                <div class="col-md-3"><label class="form-label">No. Polisi</label><input type="text" name="no_pol" id="epNoPol" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Komoditi</label><input type="text" name="komoditi" id="epKomoditi" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Depo</label><input type="text" name="depo" id="epDepo" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Muat</label><input type="text" name="muat" id="epMuat" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Tgl Muat</label><input type="date" name="tgl_muat" id="epTglMuat" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Bongkar</label><input type="text" name="bongkar" id="epBongkar" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Tgl Bongkar</label><input type="date" name="tgl_bongkar" id="epTglBongkar" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Tujuan</label><input type="text" name="tujuan" id="epTujuan" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">No. Container</label><input type="text" name="no_container" id="epNoContainer" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">No. Seal</label><input type="text" name="no_seal" id="epNoSeal" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Grade</label><input type="text" name="grade" id="epGrade" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Sektor</label><input type="text" name="sektor" id="epSektor" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Supir</label><input type="text" name="supir" id="epSupir" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">HP Supir</label><input type="text" name="hp_supir" id="epHpSupir" class="form-control form-control-sm"></div>
-                                <div class="col-md-4"><label class="form-label">Kota</label><input type="text" name="kota" id="epKota" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Empty/Full</label><input type="text" name="empty_full" id="epEmptyFull" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Bongkar Empty/Full</label><input type="text" name="bongkar_empty_full" id="epBongkarEmptyFull" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Kecamatan</label><input type="text" name="kecamatan" id="epKecamatan" class="form-control form-control-sm"></div>
-                                <div class="col-md-3"><label class="form-label">Kelurahan</label><input type="text" name="kelurahan" id="epKelurahan" class="form-control form-control-sm"></div>
+                        <div class="request-section-card">
+                            <div class="request-section-title">
+                                <span class="request-section-number">2</span>
+                                <div>Rute & Jadwal Pengiriman <small>informasi perjalanan</small></div>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="form-label">Service Type</label>
+                                    <select name="delivery_type" id="epDeliveryType" class="form-select">
+                                        <option value="">- Pilih -</option>
+                                        @foreach(\App\Models\Vendor::serviceTypeOptions() as $dt)
+                                            <option value="{{ ucwords($dt) }}">{{ ucwords($dt) }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="form-label">Origin</label>
+                                    <input type="text" name="origin" id="epOrigin" class="form-control" placeholder="Kota asal / titik pickup">
+                                </div>
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="form-label">Destination</label>
+                                    <input type="text" name="destination" id="epDestination" class="form-control" placeholder="Kota tujuan / titik drop">
+                                </div>
+                                <div class="col-lg-3 col-md-6">
+                                    <label class="form-label">Estimasi Tiba (ETA)</label>
+                                    <input type="date" name="estimated_arrival" id="epEta" class="form-control">
+                                </div>
+                                <div class="col-lg-4 col-md-6">
+                                    <label class="form-label">Tracking Number</label>
+                                    <input type="text" name="tracking_number" id="epTracking" class="form-control" placeholder="Nomor resi / tracking jika ada">
+                                </div>
+                            </div>
+                        </div>
+
+                        <details class="request-section-card request-optional-section mb-3">
+                            <summary class="request-summary">
+                                <span class="request-section-number">3</span>
+                                <div>Detail Operasional Muatan <small>opsional, untuk armada/container</small></div>
+                            </summary>
+                            <div class="request-optional-body">
+                                <div class="request-subsection-label">Armada & Muatan</div>
+                                <div class="row g-3 mb-2">
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Checker</label><input type="text" name="checker" id="epChecker" class="form-control"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Jenis Truck</label><input type="text" name="jenis_truck" id="epJenisTruck" class="form-control" placeholder="Trailer 20'/40'"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">No. Polisi</label><input type="text" name="no_pol" id="epNoPol" class="form-control" placeholder="B 1234 XXX"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Komoditi</label><input type="text" name="komoditi" id="epKomoditi" class="form-control"></div>
+                                </div>
+                                <div class="request-subsection-label">Lokasi Muat & Bongkar</div>
+                                <div class="row g-3 mb-2">
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Depo</label><input type="text" name="depo" id="epDepo" class="form-control"></div>
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Muat</label><input type="text" name="muat" id="epMuat" class="form-control" placeholder="Lokasi muat"></div>
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Tgl Muat</label><input type="date" name="tgl_muat" id="epTglMuat" class="form-control"></div>
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Bongkar</label><input type="text" name="bongkar" id="epBongkar" class="form-control" placeholder="Lokasi bongkar"></div>
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Tgl Bongkar</label><input type="date" name="tgl_bongkar" id="epTglBongkar" class="form-control"></div>
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Tujuan</label><input type="text" name="tujuan" id="epTujuan" class="form-control"></div>
+                                </div>
+                                <div class="request-subsection-label">Container & Area</div>
+                                <div class="row g-3 mb-2">
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">No. Container</label><input type="text" name="no_container" id="epNoContainer" class="form-control"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">No. Seal</label><input type="text" name="no_seal" id="epNoSeal" class="form-control"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Grade</label><input type="text" name="grade" id="epGrade" class="form-control"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Sektor</label><input type="text" name="sektor" id="epSektor" class="form-control"></div>
+                                </div>
+                                <div class="request-subsection-label">Driver & Detail Alamat</div>
+                                <div class="row g-3">
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Supir</label><input type="text" name="supir" id="epSupir" class="form-control"></div>
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">HP Supir</label><input type="text" name="hp_supir" id="epHpSupir" class="form-control"></div>
+                                    <div class="col-lg-4 col-md-6"><label class="form-label">Kota</label><input type="text" name="kota" id="epKota" class="form-control"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Empty/Full</label><input type="text" name="empty_full" id="epEmptyFull" class="form-control" placeholder="Empty / Full"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Bongkar Empty/Full</label><input type="text" name="bongkar_empty_full" id="epBongkarEmptyFull" class="form-control" placeholder="Empty / Full"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Kecamatan</label><input type="text" name="kecamatan" id="epKecamatan" class="form-control"></div>
+                                    <div class="col-lg-3 col-md-6"><label class="form-label">Kelurahan</label><input type="text" name="kelurahan" id="epKelurahan" class="form-control"></div>
+                                </div>
                             </div>
                         </details>
-                        <div class="d-flex align-items-center justify-content-between mb-2">
-                            <div style="font-size:12px;font-weight:700;color:#374151">ITEM LAYANAN</div>
-                            <button type="button" class="btn btn-outline-primary btn-sm"
-                                onclick="addItemRow('editItemsBody')">
-                                <i class="fas fa-plus me-1"></i> Tambah Item
-                            </button>
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-bordered mb-2" style="font-size:12px">
-                                <thead style="background:#f8f9fa">
-                                    <tr>
-                                        <th style="min-width:200px">Nama Layanan</th>
-                                        <th style="width:80px">Satuan</th>
-                                        <th style="width:90px">Tonase</th>
-                                        <th style="width:100px">Qty</th>
-                                        <th style="width:140px">Harga Beli (HPP)</th>
-                                        <th style="width:140px">Harga Jual</th>
-                                        <th style="width:110px">Gross Profit</th>
-                                        <th style="width:40px"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="editItemsBody"></tbody>
-                                <tfoot>
-                                    <tr style="background:#f8f9fa;font-weight:700">
-                                        <td colspan="4" class="text-end">Total:</td>
-                                        <td id="editTotalRevenue" class="text-end" style="color:var(--primary)">Rp 0</td>
-                                        <td id="editTotalProfit" class="text-end" style="color:#10b981">Rp 0</td>
-                                        <td></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+
+                        <div class="request-section-card mb-0">
+                            <div class="request-items-head">
+                                <div class="request-section-title mb-0">
+                                    <span class="request-section-number">4</span>
+                                    <div>Item Layanan & Harga <small>minimal 1 item</small></div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addItemRow('editItemsBody')">
+                                    <i class="fas fa-plus me-1"></i> Tambah Item
+                                </button>
+                            </div>
+                            <div class="request-items-help mb-2">Pilih layanan dari vendor atau gunakan opsi <b>+ Ketik manual</b>. Gross profit dihitung otomatis dari Harga Jual - HPP.</div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-sm request-items-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th style="min-width:260px">Nama Layanan</th>
+                                            <th style="width:100px">Satuan</th>
+                                            <th style="width:110px">Tonase</th>
+                                            <th style="width:110px">Qty</th>
+                                            <th style="width:150px">Harga Beli / HPP</th>
+                                            <th style="width:150px">Harga Jual</th>
+                                            <th style="width:130px">Gross Profit</th>
+                                            <th style="width:46px"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="editItemsBody"></tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="5" class="text-end">Total Revenue / Gross Profit:</td>
+                                            <td id="editTotalRevenue" class="text-end" style="color:var(--primary)">Rp 0</td>
+                                            <td id="editTotalProfit" class="text-end" style="color:#10b981">Rp 0</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
