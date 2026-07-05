@@ -202,11 +202,12 @@
 
     @push('styles')
         <style>
-            .request-do-dialog { max-width: min(1420px, 96vw); }
-            .request-do-modal .modal-content { border:0; border-radius:18px; overflow:hidden; box-shadow:0 28px 70px rgba(15,23,42,.18); }
-            .request-do-modal .modal-header { border-bottom:1px solid #e5e7eb; padding:1rem 1.25rem; background:#fff; }
-            .request-do-modal .modal-footer { border-top:1px solid #e5e7eb; padding:.8rem 1.25rem; background:#fff; }
-            .request-do-modal .modal-body { background:#f8fafc; padding:1rem 1.25rem 1.25rem; }
+            .request-do-dialog { max-width: min(1420px, 96vw); height: calc(100vh - 2rem); margin-top:1rem; margin-bottom:1rem; }
+            .request-do-modal .modal-content { border:0; border-radius:18px; overflow:hidden; box-shadow:0 28px 70px rgba(15,23,42,.18); max-height:100%; display:flex; flex-direction:column; }
+            .request-do-modal .modal-content > form { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+            .request-do-modal .modal-header { flex:0 0 auto; border-bottom:1px solid #e5e7eb; padding:1rem 1.25rem; background:#fff; }
+            .request-do-modal .modal-footer { flex:0 0 auto; border-top:1px solid #e5e7eb; padding:.8rem 1.25rem; background:#fff; }
+            .request-do-modal .modal-body { flex:1 1 auto; min-height:0; overflow-y:auto; background:#f8fafc; padding:1rem 1.25rem 1.25rem; }
             .request-form-intro { border:1px solid #dbeafe; background:#eff6ff; color:#1e3a8a; border-radius:12px; padding:.75rem .9rem; font-size:.78rem; margin-bottom:.9rem; }
             .request-section-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:1rem; margin-bottom:.9rem; box-shadow:0 8px 22px rgba(15,23,42,.04); }
             .request-section-title, .request-summary { display:flex; align-items:center; gap:.6rem; color:#111827; font-weight:800; font-size:.82rem; letter-spacing:.02em; margin-bottom:.85rem; }
@@ -230,7 +231,7 @@
             .request-items-table tfoot td { background:#f8fafc; font-weight:800; }
             .request-items-help { color:#6b7280; font-size:.72rem; }
             @media (max-width:991.98px) {
-                .request-do-dialog { max-width:100vw; margin:.5rem; }
+                .request-do-dialog { max-width:100vw; height:calc(100vh - 1rem); margin:.5rem; }
                 .request-do-modal .modal-body { padding:.85rem; }
                 .request-section-card { padding:.85rem; }
             }
