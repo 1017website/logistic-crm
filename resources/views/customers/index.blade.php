@@ -96,7 +96,19 @@
                                     <div>
                                         <a href="{{ route('customers.index', array_merge(request()->query(), ['selected_id'=>$cust->id])) }}"
                                             style="font-weight:600;color:#111;text-decoration:none;font-size:.82rem">{{ $cust->company_name }}</a>
-                                        <div style="font-size:.7rem;color:var(--text-muted)">@if($cust->customer_code)<span style="font-family:monospace">{{ $cust->customer_code }}</span> · @endif@if($cust->invoice_code)<span style="font-family:monospace;color:#2563eb">INV: {{ $cust->invoice_code }}</span> · @endif{{ $cust->pic_name }}</div>
+                                        @php
+                                            $customerInfoParts = [];
+                                            if (!empty($cust->customer_code)) {
+                                                $customerInfoParts[] = '<span style="font-family:monospace">'.e($cust->customer_code).'</span>';
+                                            }
+                                            if (!empty($cust->invoice_code)) {
+                                                $customerInfoParts[] = '<span style="font-family:monospace;color:#2563eb">INV: '.e($cust->invoice_code).'</span>';
+                                            }
+                                            if (!empty($cust->pic_name)) {
+                                                $customerInfoParts[] = e($cust->pic_name);
+                                            }
+                                        @endphp
+                                        <div style="font-size:.7rem;color:var(--text-muted)">{!! implode(' · ', $customerInfoParts) !!}</div>
                                     </div>
                                 </div>
                             </td>
