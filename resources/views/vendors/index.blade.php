@@ -18,7 +18,7 @@
             </a>
         </div>
         <div class="d-flex gap-3 flex-wrap">
-            @foreach([[$totalVendor,'Total','#111'],[$externalVendor,'Local','#111111'],[$internalVendor,'Import','#7c3aed'],[$existingVendor,'Existing','#059669'],[$potentialVendor,'Potential','#f97316']] as $s)
+            @foreach([[$totalVendor,'Total','#111'],[$externalVendor,'External','#111111'],[$internalVendor,'Internal','#7c3aed'],[$existingVendor,'Existing','#059669'],[$potentialVendor,'Potential','#f97316']] as $s)
             <div class="text-center {{ !$loop->first ? 'ps-3' : '' }}" style="{{ !$loop->first ? 'border-left:1px solid var(--border-color)' : '' }}">
                 <div style="font-size:1.2rem;font-weight:800;color:{{ $s[2] }}">{{ $s[0] }}</div>
                 <div style="font-size:.68rem;color:var(--text-muted)">{{ $s[1] }}</div>
@@ -34,8 +34,8 @@
                 <div class="col-md-3">
                     <select name="vendor_type" class="form-select form-select-sm">
                         <option value="all">All Type</option>
-                        <option value="External"  @selected($vendorType=='External')>Local</option>
-                        <option value="Internal" @selected($vendorType=='Internal')>Import</option>
+                        <option value="External" @selected($vendorType=='External')>External</option>
+                        <option value="Internal" @selected($vendorType=='Internal')>Internal</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -179,7 +179,7 @@
                         <div style="font-weight:700;font-size:.9rem">{{ $selectedVendor->vendor_name }}</div>
                         <div style="display:flex;gap:5px;align-items:center;margin-top:3px;flex-wrap:wrap">
                             <span style="background:{{ $selectedVendor->relationship_status === 'Existing' ? '#d1fae5' : '#fef3c7' }};color:{{ $selectedVendor->relationship_status === 'Existing' ? '#059669' : '#b45309' }};font-size:.65rem;padding:2px 7px;border-radius:20px;font-weight:600">{{ $selectedVendor->relationship_status }}</span>
-                            <span style="background:#f2f2f2;color:#111;font-size:.65rem;padding:2px 7px;border-radius:20px;font-weight:600">{{ $selectedVendor->vendor_type === 'External' ? 'Local' : 'Import' }}</span>
+                            <span style="background:#f2f2f2;color:#111;font-size:.65rem;padding:2px 7px;border-radius:20px;font-weight:600">{{ $selectedVendor->vendor_type }}</span>
                             @if($selectedVendor->is_preferred)<span style="font-size:.65rem;color:#d97706">⭐ Preferred</span>@endif
                         </div>
                         @if($selectedVendor->vendor_code)<div style="font-size:10px;color:var(--text-muted);font-family:monospace;margin-top:3px">{{ $selectedVendor->vendor_code }}</div>@endif
