@@ -10,6 +10,7 @@ use App\Models\OrderAssignment;
 use App\Models\Vendor;
 use App\Models\VendorService;
 use App\Models\User;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -99,7 +100,7 @@ class RequestOrderController extends Controller
             return back()->withInput()->withErrors(['customer_id' => 'Customer harus berstatus Existing/Won sebelum dibuatkan Request DO.']);
         }
 
-        DB::transaction(function () use ($request) {
+        $ro = DB::transaction(function () use ($request) {
             $userId = $request->lead_id ? (Lead::find($request->lead_id)?->user_id) : null;
             $userId = $request->user_id ?: ($userId ?? auth()->id());
 
@@ -122,20 +123,24 @@ class RequestOrderController extends Controller
                 'notes'          => $request->notes,
             ] + $this->operationalFields($request));
 
-            foreach ($request->items as $item) {
-                $ro->items()->create([
-                    'service_name' => $item['service_name'],
-                    'unit'         => $item['unit'] ?? null,
-                    'tonnage'      => $item['tonnage'] ?? null,
-                    'qty'          => $item['qty'],
-                    'buy_price'    => $item['buy_price'],
-                    'sell_price'   => $item['sell_price'],
-                    'description'  => $item['description'] ?? null,
-                ]);
-            }
+            \App\Models\OrderStatusLog::record($ro, null, 'verifikasi', auth()->id(), 'Request DO dibuat dan masuk antrian verifikasi.');
 
-            \App\Models\OrderStatusLog::record($ro, null, 'verifikasi', auth()->id(), 'Request DO dibuat oleh sales.');
+            return $ro;
         });
+
+        // Sales Admin hanya mengisi data request. Accounting/Finance melengkapi
+        // item layanan dan harga dari halaman detail Request DO.
+        if (auth()->user()?->isSalesAdmin()) {
+            User::where('role', 'Finance')->where('status', 'Active')->each(function (User $accounting) use ($ro) {
+                Notification::send(
+                    $accounting->id,
+                    'request_do_pricing',
+                    'Request DO perlu dilengkapi',
+                    $ro->do_number . ' telah dibuat. Silakan lengkapi item layanan dan harga.',
+                    route('request-orders.show', $ro)
+                );
+            });
+        }
 
         return redirect()->route('request-orders.index')->with('success', 'Request DO berhasil dibuat & masuk antrian verifikasi.');
     }
@@ -177,18 +182,6 @@ class RequestOrderController extends Controller
                 'notes'          => $request->notes,
             ] + $this->operationalFields($request));
 
-            $requestOrder->items()->delete();
-            foreach ($request->items as $item) {
-                $requestOrder->items()->create([
-                    'service_name' => $item['service_name'],
-                    'unit'         => $item['unit'] ?? null,
-                    'tonnage'      => $item['tonnage'] ?? null,
-                    'qty'          => $item['qty'],
-                    'buy_price'    => $item['buy_price'],
-                    'sell_price'   => $item['sell_price'],
-                    'description'  => $item['description'] ?? null,
-                ]);
-            }
         });
 
         return redirect()->route('request-orders.index')->with('success', 'Request DO berhasil diperbarui.');
@@ -427,14 +420,6 @@ class RequestOrderController extends Controller
             'estimated_arrival' => 'nullable|date',
             'pickup_date'       => 'nullable|date',
             'notes'             => 'nullable|string',
-            'items'                 => 'required|array|min:1',
-            'items.*.service_name'  => 'required|string|max:255',
-            'items.*.unit'          => 'nullable|string|max:50',
-            'items.*.tonnage'       => 'nullable|numeric|min:0',
-            'items.*.qty'           => 'required|numeric|min:0.001',
-            'items.*.buy_price'     => 'required|numeric|min:0',
-            'items.*.sell_price'    => 'required|numeric|min:0',
-            'items.*.description'   => 'nullable|string',
         ];
     }
 

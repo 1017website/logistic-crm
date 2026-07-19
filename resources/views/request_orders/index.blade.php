@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Request DO')
 @section('page-title', 'Request DO')
-@section('page-subtitle', 'Order masuk dari sales, verifikasi, dispatch, dan approval penugasan')
+@section('page-subtitle', 'Sales Admin membuat request; Accounting melengkapi layanan dan harga di halaman detail')
 
 @section('content')
     <div class="row g-3">
@@ -389,44 +389,9 @@
                             </div>
                         </details>
 
-                        <div class="request-section-card mb-0">
-                            <div class="request-items-head">
-                                <div class="request-section-title mb-0">
-                                    <span class="request-section-number">4</span>
-                                    <div>Item Layanan & Harga <small>minimal 1 item</small></div>
-                                </div>
-                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addItemRow('addItemsBody')">
-                                    <i class="fas fa-plus me-1"></i> Tambah Item
-                                </button>
-                            </div>
-                            <div class="request-items-help mb-2">Pilih layanan dari vendor atau gunakan opsi <b>+ Ketik manual</b>. Gross profit dihitung otomatis dari Harga Jual - HPP.</div>
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-sm request-items-table mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th style="min-width:260px">Nama Layanan <span class="text-danger">*</span></th>
-                                            <th style="width:100px">Satuan</th>
-                                            <th style="width:110px">Tonase</th>
-                                            <th style="width:110px">Qty <span class="text-danger">*</span></th>
-                                            <th style="width:150px">Harga Beli / HPP <span class="text-danger">*</span></th>
-                                            <th style="width:150px">Harga Jual <span class="text-danger">*</span></th>
-                                            <th style="width:130px">Gross Profit</th>
-                                            <th style="width:46px"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="addItemsBody">
-                                        {{-- Diisi via JS addItemRow() saat modal dibuka --}}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <td colspan="5" class="text-end">Total Revenue / Gross Profit:</td>
-                                            <td id="addTotalRevenue" class="text-end" style="color:var(--primary)">Rp 0</td>
-                                            <td id="addTotalProfit" class="text-end" style="color:#10b981">Rp 0</td>
-                                            <td></td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
+                        <div class="alert alert-info mb-0" style="font-size:.78rem">
+                            <i class="fas fa-circle-info me-1"></i>
+                            Item layanan dan harga akan dilengkapi oleh Accounting dari halaman detail setelah request disimpan.
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -454,7 +419,7 @@
                     <div class="modal-body">
                         <div class="request-form-intro">
                             <i class="fas fa-circle-info me-1"></i>
-                            Perubahan item layanan akan memengaruhi revenue, HPP, dan gross profit request ini.
+                            Form ini hanya mengubah data request. Layanan dan harga dikelola Accounting pada halaman detail.
                         </div>
 
                         <div class="request-section-card">
@@ -590,42 +555,8 @@
                             </div>
                         </details>
 
-                        <div class="request-section-card mb-0">
-                            <div class="request-items-head">
-                                <div class="request-section-title mb-0">
-                                    <span class="request-section-number">4</span>
-                                    <div>Item Layanan & Harga <small>minimal 1 item</small></div>
-                                </div>
-                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addItemRow('editItemsBody')">
-                                    <i class="fas fa-plus me-1"></i> Tambah Item
-                                </button>
-                            </div>
-                            <div class="request-items-help mb-2">Pilih layanan dari vendor atau gunakan opsi <b>+ Ketik manual</b>. Gross profit dihitung otomatis dari Harga Jual - HPP.</div>
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-sm request-items-table mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th style="min-width:260px">Nama Layanan</th>
-                                            <th style="width:100px">Satuan</th>
-                                            <th style="width:110px">Tonase</th>
-                                            <th style="width:110px">Qty</th>
-                                            <th style="width:150px">Harga Beli / HPP</th>
-                                            <th style="width:150px">Harga Jual</th>
-                                            <th style="width:130px">Gross Profit</th>
-                                            <th style="width:46px"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="editItemsBody"></tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <td colspan="5" class="text-end">Total Revenue / Gross Profit:</td>
-                                            <td id="editTotalRevenue" class="text-end" style="color:var(--primary)">Rp 0</td>
-                                            <td id="editTotalProfit" class="text-end" style="color:#10b981">Rp 0</td>
-                                            <td></td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
+                        <div class="alert alert-info mb-0" style="font-size:.78rem">
+                            Item layanan dan harga dikelola Accounting dari halaman detail Request DO.
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -1045,12 +976,6 @@
                     }
                     if (epLeadDisp && label) epLeadDisp.value = label;
                 }
-
-                const body = document.getElementById('editItemsBody');
-                body.innerHTML = '';
-                itemIndex = 1000;
-                po.items.forEach(item => addItemRow('editItemsBody', item));
-                recalcTotal('editItemsBody');
 
                 // Tgl Order harus di-set langsung sebelum modal tampil dan setelah modal tampil.
                 // Ini menghindari case input date kosong karena re-render modal / plugin select2.

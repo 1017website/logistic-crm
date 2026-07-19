@@ -126,6 +126,7 @@
             <div class="r"><span class="k">No. Invoice</span><span class="v">{{ $invoice->invoice_number }}</span></div>
             <div class="r"><span class="k">Tanggal</span><span class="v">{{ $invoice->tgl_buat?->format('d M Y') ?? '-' }}</span></div>
             <div class="r"><span class="k">Jatuh Tempo</span><span class="v">{{ $invoice->tgl_tempo?->format('d M Y') ?? '-' }}</span></div>
+            <div class="r"><span class="k">Tipe</span><span class="v">{{ $invoice->jenis_label }}</span></div>
             @if($invoice->status === 'paid' && $invoice->tgl_pencairan)
             <div class="r"><span class="k">Tgl Cair</span><span class="v">{{ $invoice->tgl_pencairan?->format('d M Y') }}</span></div>
             @endif

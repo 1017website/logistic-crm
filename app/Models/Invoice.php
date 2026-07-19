@@ -42,6 +42,11 @@ class Invoice extends Model
         'paid'    => 'Lunas',
     ];
 
+    public const TYPES = [
+        'TR'  => 'Trucking',
+        'NTR' => 'Non-Trucking',
+    ];
+
     public function customer(): BelongsTo { return $this->belongsTo(Customer::class); }
     public function operator(): BelongsTo { return $this->belongsTo(User::class, 'operator_id'); }
     public function items(): HasMany      { return $this->hasMany(InvoiceItem::class); }
@@ -54,6 +59,11 @@ class Invoice extends Model
     public function getStatusLabelAttribute(): string
     {
         return self::STATUS[$this->status] ?? ucfirst((string) $this->status);
+    }
+
+    public function getJenisLabelAttribute(): string
+    {
+        return self::TYPES[$this->jenis] ?? ($this->jenis === 'MIX' ? 'Trucking & Non-Trucking' : '-');
     }
 
     public function getStatusColorAttribute(): string

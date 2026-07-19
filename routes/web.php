@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DeliveryOrderController;
 use App\Http\Controllers\RequestOrderController;
+use App\Http\Controllers\RequestOrderItemController;
 use App\Http\Controllers\OrderJobDetailController;
 use App\Http\Controllers\PekerjaanController;
 use App\Http\Controllers\InvoiceController;
@@ -119,6 +120,12 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:Admin,Sales Admin')->group(function () {
         Route::post('/request-orders/{requestOrder}/verify', [RequestOrderController::class, 'verify'])->name('request-orders.verify');
     });
+    // Accounting/Finance melengkapi layanan dan harga setelah request dibuat.
+    Route::middleware('role:Admin,Finance')->group(function () {
+        Route::post('/request-orders/{requestOrder}/items', [RequestOrderItemController::class, 'store'])->name('request-order-items.store');
+        Route::put('/request-order-items/{requestOrderItem}', [RequestOrderItemController::class, 'update'])->name('request-order-items.update');
+        Route::delete('/request-order-items/{requestOrderItem}', [RequestOrderItemController::class, 'destroy'])->name('request-order-items.destroy');
+    });
     // Dispatch / penugasan armada (Transport Planner / Admin)
     Route::middleware('role:Admin,Transport Planner')->group(function () {
         Route::post('/request-orders/{requestOrder}/dispatch', [RequestOrderController::class, 'dispatchAssign'])->name('request-orders.dispatch');
@@ -148,10 +155,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/delivery-orders/{deliveryOrder}/pay', [DeliveryOrderController::class, 'pay'])->name('delivery-orders.pay');
     });
 
-    // ── RINCIAN BIAYA PER PEKERJAAN (Sales Admin / Admin) ──
-    Route::middleware('role:Admin,Sales Admin')->group(function () {
+    // ── RINCIAN BIAYA PER PEKERJAAN (Accounting/Finance / Admin) ──
+    Route::middleware('role:Admin,Finance')->group(function () {
         Route::post('/request-orders/{requestOrder}/job-details', [OrderJobDetailController::class, 'store'])->name('job-details.store');
         Route::put('/job-details/{jobDetail}', [OrderJobDetailController::class, 'update'])->name('job-details.update');
+    });
+    Route::middleware('role:Admin,Sales Admin')->group(function () {
         // Approval DO (bandingkan jual vs hpp) — siapkan DO untuk ditagih
         Route::post('/request-orders/{requestOrder}/approve-do', [RequestOrderController::class, 'approveDo'])->name('request-orders.approve-do');
     });

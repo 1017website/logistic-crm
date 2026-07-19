@@ -93,6 +93,7 @@ class Notification extends Model
             'weekly'        => 'notif_weekly',
             'target_warning'=> 'notif_target',
             'delete_request'=> null,
+            'request_do_pricing'=> null,
             default         => null,
         };
     }
@@ -108,6 +109,7 @@ class Notification extends Model
             'target_warning' => 'chart-line',
             'weekly'         => 'file-alt',
             'delete_request' => 'trash-alt',
+            'request_do_pricing' => 'file-invoice-dollar',
             default          => 'bell',
         };
     }
@@ -123,6 +125,7 @@ class Notification extends Model
             'target_warning' => '#f97316',
             'weekly'         => '#6b7280',
             'delete_request' => '#ef4444',
+            'request_do_pricing' => '#f59e0b',
             default          => '#3b82f6',
         };
     }

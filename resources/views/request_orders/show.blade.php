@@ -4,6 +4,9 @@
 @section('page-subtitle', 'Detail Request DO & alur verifikasi/penugasan')
 
 @section('content')
+@php $u = auth()->user(); @endphp
+@if(session('success'))<div class="alert alert-success py-2" style="font-size:13px">{{ session('success') }}</div>@endif
+@foreach($errors->all() as $e)<div class="alert alert-danger py-2" style="font-size:13px">{{ $e }}</div>@endforeach
 <div class="row g-3">
     {{-- ─────────── Kolom kiri: info & item ─────────── --}}
     <div class="col-lg-7">
@@ -37,37 +40,62 @@
         {{-- Item layanan --}}
         <div class="card mb-3">
             <div class="card-body p-3">
-                <h6 style="font-weight:700;font-size:13px;text-transform:uppercase;color:#6b7280">Item Layanan</h6>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <h6 class="mb-0" style="font-weight:700;font-size:13px;text-transform:uppercase;color:#6b7280">Item Layanan & Harga</h6>
+                        <small class="text-muted">Dilengkapi oleh Accounting setelah request dibuat.</small>
+                    </div>
+                    @if($u->canAccess('request_item_pricing') && $requestOrder->invoice_status === 'uninvoiced')
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#itemModal" onclick="openAddItem()">
+                        <i class="fas fa-plus me-1"></i> Tambah Item
+                    </button>
+                    @endif
+                </div>
                 <table class="table table-sm mb-0" style="font-size:12px">
                     <thead><tr>
                         <th>Layanan</th><th class="text-end">Qty</th><th class="text-end">Beli</th>
                         <th class="text-end">Jual</th><th class="text-end">Subtotal</th>
+                        @if($u->canAccess('request_item_pricing') && $requestOrder->invoice_status === 'uninvoiced')<th></th>@endif
                     </tr></thead>
                     <tbody>
-                        @foreach($requestOrder->items as $it)
+                        @forelse($requestOrder->items as $it)
                         <tr>
                             <td>{{ $it->service_name }} <span class="text-muted">{{ $it->unit }}</span></td>
                             <td class="text-end">{{ rtrim(rtrim(number_format($it->qty,3),'0'),'.') }}</td>
                             <td class="text-end">{{ idr($it->buy_price) }}</td>
                             <td class="text-end">{{ idr($it->sell_price) }}</td>
                             <td class="text-end">{{ idr($it->subtotal_revenue) }}</td>
+                            @if($u->canAccess('request_item_pricing') && $requestOrder->invoice_status === 'uninvoiced')
+                            <td class="text-nowrap text-end">
+                                <button class="btn btn-sm btn-outline-secondary" style="padding:2px 6px" data-bs-toggle="modal" data-bs-target="#itemModal" onclick='openEditItem(@json($it))'><i class="fas fa-pencil-alt"></i></button>
+                                <form method="POST" action="{{ route('request-order-items.destroy', $it) }}" class="d-inline" onsubmit="return confirm('Hapus item layanan ini?')">
+                                    @csrf @method('DELETE')
+                                    <button class="btn btn-sm btn-outline-danger" style="padding:2px 6px"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </td>
+                            @endif
                         </tr>
-                        @endforeach
+                        @empty
+                        <tr><td colspan="{{ $u->canAccess('request_item_pricing') && $requestOrder->invoice_status === 'uninvoiced' ? 6 : 5 }}" class="text-muted py-3 text-center">Belum ada item layanan. Menunggu Accounting melengkapi layanan dan harga.</td></tr>
+                        @endforelse
                     </tbody>
                     <tfoot><tr style="font-weight:700">
                         <td colspan="4" class="text-end">Total Revenue</td>
                         <td class="text-end" style="color:var(--primary)">{{ idr($requestOrder->total_revenue) }}</td>
+                        @if($u->canAccess('request_item_pricing') && $requestOrder->invoice_status === 'uninvoiced')<td></td>@endif
                     </tr></tfoot>
                 </table>
+                @if($requestOrder->invoice_status !== 'uninvoiced')
+                <div class="alert alert-light border mt-2 mb-0 py-2" style="font-size:11px">Item dikunci karena Request DO sudah masuk invoice.</div>
+                @endif
             </div>
         </div>
 
         {{-- Rincian biaya per pekerjaan --}}
         @php
             $jobs = $requestOrder->jobDetails()->with('vendor','pekerjaan')->get();
-            $sumBiaya = $jobs->sum(fn($j)=>(float)$j->riil_biaya);
-            $sumJual  = $jobs->sum(fn($j)=>(float)$j->riil_jual);
-            $u = auth()->user();
+            $sumBiaya = $requestOrder->total_cost;
+            $sumJual  = $requestOrder->total_revenue;
         @endphp
         <div class="card mb-3">
             <div class="card-body p-3">
@@ -122,6 +150,10 @@
                 </table>
                 </div>
 
+                <div class="alert alert-light border mt-2 mb-0 py-2" style="font-size:11px">
+                    Status pembayaran vendor <b>Tempo</b> tidak menghambat penerbitan invoice customer. Invoice dapat dibuat sebelum pembayaran lunas.
+                </div>
+
                 {{-- Approval DO --}}
                 @if($u->canAccess('approve_do'))
                 <div class="mt-3 pt-2 border-top">
@@ -134,10 +166,10 @@
                     @else
                         <form method="POST" action="{{ route('request-orders.approve-do', $requestOrder->id) }}">
                             @csrf <input type="hidden" name="action" value="approve">
-                            <button class="btn btn-sm btn-success" {{ $jobs->isEmpty() ? 'disabled' : '' }}>
+                            <button class="btn btn-sm btn-success" {{ $jobs->isEmpty() && $requestOrder->items->isEmpty() ? 'disabled' : '' }}>
                                 <i class="fas fa-check-double me-1"></i> Approve DO (Jual {{ idr($sumJual) }} / HPP {{ idr($sumBiaya) }})
                             </button>
-                            @if($jobs->isEmpty())<small class="text-muted ms-2">Isi rincian dulu</small>@endif
+                            @if($jobs->isEmpty() && $requestOrder->items->isEmpty())<small class="text-muted ms-2">Accounting perlu mengisi layanan & harga dulu</small>@endif
                         </form>
                     @endif
                 </div>
@@ -285,8 +317,59 @@
     </div>
 </div>
 
+{{-- Modal Item Layanan & Harga (Accounting) --}}
+@if($u->canAccess('request_item_pricing') && $requestOrder->invoice_status === 'uninvoiced')
+<div class="modal fade" id="itemModal" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content">
+        <form method="POST" id="itemForm" action="{{ route('request-order-items.store', $requestOrder) }}">
+            @csrf
+            <input type="hidden" name="_method" id="itemMethod" value="POST">
+            <div class="modal-header"><h6 class="modal-title" id="itemModalTitle">Tambah Item Layanan & Harga</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size:13px">
+                <div class="mb-2"><label class="form-label">Nama Layanan <span class="text-danger">*</span></label><input type="text" name="service_name" id="itemService" class="form-control form-control-sm" required></div>
+                <div class="row g-2 mb-2">
+                    <div class="col-4"><label class="form-label">Satuan</label><input type="text" name="unit" id="itemUnit" class="form-control form-control-sm" placeholder="trip/unit"></div>
+                    <div class="col-4"><label class="form-label">Tonase</label><input type="number" step="0.001" min="0" name="tonnage" id="itemTonnage" class="form-control form-control-sm"></div>
+                    <div class="col-4"><label class="form-label">Qty <span class="text-danger">*</span></label><input type="number" step="0.001" min="0.001" name="qty" id="itemQty" class="form-control form-control-sm" value="1" required></div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-6"><label class="form-label">Harga Beli / HPP <span class="text-danger">*</span></label><input type="number" min="0" name="buy_price" id="itemBuy" class="form-control form-control-sm" value="0" required></div>
+                    <div class="col-6"><label class="form-label">Harga Jual <span class="text-danger">*</span></label><input type="number" min="0" name="sell_price" id="itemSell" class="form-control form-control-sm" value="0" required></div>
+                </div>
+                <div><label class="form-label">Keterangan</label><textarea name="description" id="itemDescription" class="form-control form-control-sm" rows="2"></textarea></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button><button class="btn btn-sm btn-primary">Simpan</button></div>
+        </form>
+    </div></div>
+</div>
+<script>
+const itemStoreUrl = @json(route('request-order-items.store', $requestOrder));
+function openAddItem() {
+    const form = document.getElementById('itemForm');
+    form.reset(); form.action = itemStoreUrl;
+    document.getElementById('itemMethod').value = 'POST';
+    document.getElementById('itemModalTitle').textContent = 'Tambah Item Layanan & Harga';
+    document.getElementById('itemQty').value = 1;
+    document.getElementById('itemBuy').value = 0;
+    document.getElementById('itemSell').value = 0;
+}
+function openEditItem(item) {
+    const form = document.getElementById('itemForm');
+    form.action = `/request-order-items/${item.id}`;
+    document.getElementById('itemMethod').value = 'PUT';
+    document.getElementById('itemModalTitle').textContent = 'Edit Item Layanan & Harga';
+    document.getElementById('itemService').value = item.service_name || '';
+    document.getElementById('itemUnit').value = item.unit || '';
+    document.getElementById('itemTonnage').value = item.tonnage || '';
+    document.getElementById('itemQty').value = item.qty || 1;
+    document.getElementById('itemBuy').value = item.buy_price || 0;
+    document.getElementById('itemSell').value = item.sell_price || 0;
+    document.getElementById('itemDescription').value = item.description || '';
+}
+</script>
+@endif
+
 {{-- Modal Tambah/Edit Rincian Pekerjaan --}}
-@php $u = auth()->user(); @endphp
 @if($u->canAccess('job_details'))
 @php
     $pekerjaanList = \App\Models\Pekerjaan::where('is_active',true)->orderBy('name')->get();

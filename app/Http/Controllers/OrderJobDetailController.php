@@ -15,27 +15,34 @@ class OrderJobDetailController extends Controller
 {
     public function store(Request $request, RequestOrder $requestOrder)
     {
+        $this->ensureEditable($requestOrder);
         $data = $this->validateData($request);
         $this->fillJobName($data);
         $data['request_order_id'] = $requestOrder->id;
 
         OrderJobDetail::create($data);
+        $requestOrder->update(['do_approved' => false]);
 
         return back()->with('success', 'Rincian pekerjaan ditambahkan.');
     }
 
     public function update(Request $request, OrderJobDetail $jobDetail)
     {
+        $this->ensureEditable($jobDetail->requestOrder);
         $data = $this->validateData($request);
         $this->fillJobName($data);
         $jobDetail->update($data);
+        $jobDetail->requestOrder->update(['do_approved' => false]);
 
         return back()->with('success', 'Rincian pekerjaan diperbarui.');
     }
 
     public function destroy(OrderJobDetail $jobDetail)
     {
+        $requestOrder = $jobDetail->requestOrder;
+        $this->ensureEditable($requestOrder);
         $jobDetail->delete();
+        $requestOrder->update(['do_approved' => false]);
         return back()->with('success', 'Rincian pekerjaan dihapus.');
     }
 
@@ -72,5 +79,14 @@ class OrderJobDetailController extends Controller
             $data[$k] = $data[$k] ?? 0;
         }
         $data['status_pembayaran'] = $data['status_pembayaran'] ?? 'Tempo';
+    }
+
+    private function ensureEditable(RequestOrder $requestOrder): void
+    {
+        abort_if(
+            $requestOrder->invoice_status !== 'uninvoiced',
+            422,
+            'Rincian harga tidak dapat diubah karena Request DO sudah masuk invoice.'
+        );
     }
 }

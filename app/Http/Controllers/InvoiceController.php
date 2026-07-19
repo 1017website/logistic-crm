@@ -23,6 +23,7 @@ class InvoiceController extends Controller
         $tab    = $request->get('tab', 'draft');     // draft|invoice|paid
         $search = $request->get('search');
         $customerId = $request->get('customer_id');
+        $jenis = $request->get('jenis', 'all');
 
         $statusMap = ['draft' => 'draft', 'invoice' => 'invoice', 'paid' => 'paid'];
         $status = $statusMap[$tab] ?? 'draft';
@@ -31,6 +32,7 @@ class InvoiceController extends Controller
             ->where('status', $status);
 
         if ($customerId) $query->where('customer_id', $customerId);
+        if (array_key_exists($jenis, Invoice::TYPES)) $query->where('jenis', $jenis);
         if ($search) {
             $query->where(fn($q) => $q
                 ->where('invoice_id', 'like', "%$search%")
@@ -45,7 +47,7 @@ class InvoiceController extends Controller
         $pendingDeletionIds = \App\Models\DeletionRequest::pendingIdsFor(Invoice::class);
 
         return view('invoices.index', compact(
-            'invoices', 'tab', 'status', 'search', 'customers', 'customerId', 'pendingDeletionIds'
+            'invoices', 'tab', 'status', 'search', 'customers', 'customerId', 'jenis', 'pendingDeletionIds'
         ));
     }
 
@@ -84,6 +86,10 @@ class InvoiceController extends Controller
             'tgl_tempo'   => 'nullable|date',
             'do_ids'      => 'required|array|min:1',
             'do_ids.*'    => 'exists:request_orders,id',
+            'jenis'       => 'required|in:TR,NTR',
+            'ppn_mode'    => 'required|in:ppn,non_ppn',
+            'ppn_persen'  => 'required_if:ppn_mode,ppn|nullable|numeric|min:0.01|max:100',
+            'notes'       => 'nullable|string|max:2000',
         ]);
 
         DB::transaction(function () use ($request) {
@@ -92,11 +98,13 @@ class InvoiceController extends Controller
             $dos = RequestOrder::with('jobDetails')
                 ->whereIn('id', $request->do_ids)
                 ->where('customer_id', $customer->id)
+                ->where('do_approved', true)
                 ->where('invoice_status', 'uninvoiced')
                 ->get();
 
-            if ($dos->isEmpty()) {
-                abort(422, 'Tidak ada DO valid untuk ditagih.');
+            $requestedDoCount = collect($request->do_ids)->unique()->count();
+            if ($dos->count() !== $requestedDoCount) {
+                abort(422, 'Ada DO yang belum di-approve, sudah masuk invoice lain, atau bukan milik customer terpilih.');
             }
 
             $seq = Invoice::nextCustomerSeq($customer->id);
@@ -109,6 +117,7 @@ class InvoiceController extends Controller
                 'status'         => 'draft',
                 'tgl_buat'       => $request->tgl_buat,
                 'tgl_tempo'      => $request->tgl_tempo,
+                'jenis'          => $request->jenis,
                 'operator_id'    => auth()->id(),
                 'notes'          => $request->notes,
             ]);
@@ -126,7 +135,8 @@ class InvoiceController extends Controller
                 $totalHpp += $hpp; $totalJual += $jual;
             }
 
-            $this->recalcTotals($invoice, $totalHpp, $totalJual, (float) $request->input('ppn_persen', 0));
+            $ppnPersen = $request->ppn_mode === 'ppn' ? (float) $request->ppn_persen : 0;
+            $this->recalcTotals($invoice, $totalHpp, $totalJual, $ppnPersen);
         });
 
         return redirect()->route('invoices.index', ['tab' => 'draft'])
@@ -223,19 +233,22 @@ class InvoiceController extends Controller
     {
         $status = $request->get('status');
         $customerId = $request->get('customer_id');
+        $jenis = $request->get('jenis');
 
         $query = Invoice::with(['customer']);
         if ($status && $status !== 'all') $query->where('status', $status);
         if ($customerId) $query->where('customer_id', $customerId);
+        if (array_key_exists((string) $jenis, Invoice::TYPES)) $query->where('jenis', $jenis);
 
         $invoices = $query->orderByDesc('tgl_buat')->get();
 
-        $headers = ['Invoice ID', 'No Invoice', 'Customer', 'Status', 'Tgl Buat', 'Tgl Tempo', 'HPP', 'Jual', 'Laba', 'PPN', 'Grand Total', 'Tgl Cair', 'Umur (hari)'];
+        $headers = ['Invoice ID', 'No Invoice', 'Customer', 'Tipe', 'Status', 'Tgl Buat', 'Tgl Tempo', 'HPP', 'Jual', 'Laba', 'PPN', 'Grand Total', 'Tgl Cair', 'Umur (hari)'];
         $rows = [];
         foreach ($invoices as $inv) {
             $rows[] = [
                 $inv->invoice_id, $inv->invoice_number,
                 $inv->customer?->company_name ?? '-',
+                $inv->jenis_label,
                 $inv->status_label,
                 $inv->tgl_buat?->format('Y-m-d'), $inv->tgl_tempo?->format('Y-m-d'),
                 (float) $inv->total_hpp, (float) $inv->total_jual, (float) $inv->laba,

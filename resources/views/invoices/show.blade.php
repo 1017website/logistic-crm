@@ -23,6 +23,8 @@
             </div>
             <div class="row g-2" style="font-size:13px">
                 <div class="col-md-6"><span class="text-muted">Customer</span><br><b>{{ $invoice->customer?->company_name ?? '-' }}</b></div>
+                <div class="col-md-3"><span class="text-muted">Tipe Invoice</span><br><b>{{ $invoice->jenis_label }}</b></div>
+                <div class="col-md-3"><span class="text-muted">Pajak</span><br><b>{{ (float)$invoice->ppn_persen > 0 ? 'PPN '.rtrim(rtrim(number_format($invoice->ppn_persen,2),'0'),'.').'%' : 'Non-PPN' }}</b></div>
                 <div class="col-md-3"><span class="text-muted">Tgl Buat</span><br>{{ $invoice->tgl_buat?->format('d M Y') ?? '-' }}</div>
                 <div class="col-md-3"><span class="text-muted">Tgl Tempo</span><br>{{ $invoice->tgl_tempo?->format('d M Y') ?? '-' }}</div>
                 <div class="col-md-3"><span class="text-muted">Operator</span><br>{{ $invoice->operator?->name ?? '-' }}</div>
@@ -81,6 +83,7 @@
             @if($invoice->status==='draft')
             <form method="POST" action="{{ route('invoices.submit',$invoice->id) }}">@csrf<button class="btn btn-success btn-sm w-100"><i class="fas fa-paper-plane me-1"></i> Terbitkan Invoice</button></form>
             @elseif($invoice->status==='invoice')
+            <div class="alert alert-info py-2" style="font-size:11px">Invoice sudah terbit dan tetap dapat menunggu pembayaran sampai pengiriman selesai.</div>
             <form method="POST" action="{{ route('invoices.pay',$invoice->id) }}" class="mb-2">@csrf
                 <label class="form-label" style="font-size:12px">Tgl Pencairan</label>
                 <input type="date" name="tgl_pencairan" class="form-control form-control-sm mb-2" value="{{ now()->toDateString() }}" required>
