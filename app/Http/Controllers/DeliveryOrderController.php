@@ -67,6 +67,7 @@ class DeliveryOrderController extends Controller
         $deliveryOrder->load([
             'customer', 'vendor', 'salesUser', 'podVerifier', 'closer',
             'requestOrder.items', 'requestOrder.salesUser',
+            'invoiceItems.invoice',
             'statusLogs.user',
         ]);
         return view('delivery_orders.show', compact('deliveryOrder'));
@@ -121,15 +122,22 @@ class DeliveryOrderController extends Controller
             'note'     => 'nullable|string|max:1000',
         ]);
 
-        if ($deliveryOrder->status !== 'pod') {
-            return back()->withErrors(['general' => 'DO tidak berada di tahap POD.']);
-        }
+        DB::transaction(function () use ($request, $deliveryOrder) {
+            $locked = DeliveryOrder::query()->lockForUpdate()->findOrFail($deliveryOrder->id);
+            if ($locked->status !== 'pod') {
+                abort(422, 'DO tidak berada di tahap POD atau POD sudah pernah diunggah.');
+            }
 
-        $path = $request->file('pod_file')->store('delivery-orders/pod', 'public');
-        $deliveryOrder->update(['pod_file' => $path, 'pod_at' => now()]);
-        $deliveryOrder->transition('verifikasi_pod', $request->note ?: 'POD diunggah.', auth()->id());
+            $path = $request->file('pod_file')->store('delivery-orders/pod', 'public');
+            $locked->update(['pod_file' => $path, 'pod_at' => now()]);
+            $locked->transition(
+                'verifikasi_pod',
+                $request->note ?: 'POD diunggah. DO siap dipilih untuk invoice.',
+                auth()->id()
+            );
+        });
 
-        return back()->with('success', 'POD diunggah. Menunggu verifikasi Sales Admin.');
+        return back()->with('success', 'POD diunggah. DO sudah tersedia di menu Invoice sambil menunggu verifikasi.');
     }
 
     // ─────────────────── VERIFIKASI POD + INPUT BIAYA + TUTUP DO (Sales Admin) ───────────────────
@@ -141,12 +149,13 @@ class DeliveryOrderController extends Controller
             'note'        => 'nullable|string|max:1000',
         ]);
 
-        if ($deliveryOrder->status !== 'verifikasi_pod') {
-            return back()->withErrors(['general' => 'DO belum siap ditutup (POD belum diverifikasi).']);
-        }
-
         DB::transaction(function () use ($request, $deliveryOrder) {
-            $deliveryOrder->update([
+            $locked = DeliveryOrder::query()->lockForUpdate()->findOrFail($deliveryOrder->id);
+            if ($locked->status !== 'verifikasi_pod') {
+                abort(422, 'DO belum siap ditutup atau sudah pernah ditutup.');
+            }
+
+            $locked->update([
                 'pod_verified_by' => auth()->id(),
                 'pod_verified_at' => now(),
                 'actual_cost'     => $request->actual_cost,
@@ -154,10 +163,19 @@ class DeliveryOrderController extends Controller
                 'closed_by'       => auth()->id(),
                 'closed_at'       => now(),
             ]);
-            $deliveryOrder->transition('closed', $request->note ?: 'POD terverifikasi, biaya diinput, DO ditutup.', auth()->id());
+            $targetStatus = match ($locked->invoice_status) {
+                'paid' => 'paid',
+                'invoiced' => 'invoiced',
+                default => 'closed',
+            };
+            $locked->transition(
+                $targetStatus,
+                $request->note ?: 'POD terverifikasi, biaya diinput, DO ditutup.',
+                auth()->id()
+            );
 
             // Tandai request order terkait sebagai Done.
-            $deliveryOrder->requestOrder?->update(['status' => 'Done']);
+            $locked->requestOrder?->update(['status' => 'Done']);
         });
 
         return back()->with('success', 'DO ditutup. Siap diteruskan ke Finance.');
@@ -166,25 +184,15 @@ class DeliveryOrderController extends Controller
     // ─────────────────── FINANCE: INVOICE ───────────────────
     public function invoice(Request $request, DeliveryOrder $deliveryOrder)
     {
-        $request->validate(['note' => 'nullable|string|max:1000']);
-
-        if ($deliveryOrder->status !== 'closed') {
-            return back()->withErrors(['general' => 'DO belum ditutup, belum bisa di-invoice.']);
-        }
-        $deliveryOrder->transition('invoiced', $request->note ?: 'Invoice customer & tagihan vendor diterbitkan.', auth()->id());
-        return back()->with('success', 'Status diperbarui: invoice terbit.');
+        return redirect()->route('invoices.index')
+            ->with('warning', 'Pembuatan invoice dipusatkan di menu Invoice agar multi-DO dan tipe layanan tidak tercatat ganda.');
     }
 
     // ─────────────────── FINANCE: PAYMENT ───────────────────
     public function pay(Request $request, DeliveryOrder $deliveryOrder)
     {
-        $request->validate(['note' => 'nullable|string|max:1000']);
-
-        if ($deliveryOrder->status !== 'invoiced') {
-            return back()->withErrors(['general' => 'DO belum di-invoice.']);
-        }
-        $deliveryOrder->transition('paid', $request->note ?: 'Pembayaran lunas.', auth()->id());
-        return back()->with('success', 'DO ditandai lunas. Alur selesai.');
+        return redirect()->route('invoices.index', ['tab' => 'invoice'])
+            ->with('warning', 'Pelunasan DO mengikuti pembayaran invoice terkait dan tidak dapat dilakukan terpisah.');
     }
 
     // ─────────────────── CETAK SURAT JALAN INTERNAL (HTML + barcode) ───────────────────

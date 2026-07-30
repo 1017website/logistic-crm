@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
@@ -19,7 +20,7 @@ class DeliveryOrder extends Model
 
     protected $fillable = [
         'do_number', 'request_order_id', 'customer_id', 'vendor_id', 'user_id',
-        'status', 'assignment_type', 'fleet_info', 'driver_name', 'driver_phone',
+        'status', 'invoice_status', 'assignment_type', 'fleet_info', 'driver_name', 'driver_phone',
         'origin', 'destination', 'do_date', 'pickup_date', 'delivery_date',
         'surat_jalan_file', 'pod_file', 'pod_at', 'pod_verified_by', 'pod_verified_at',
         'actual_cost', 'other_cost', 'closed_by', 'closed_at', 'notes',
@@ -64,6 +65,7 @@ class DeliveryOrder extends Model
     public function salesUser(): BelongsTo    { return $this->belongsTo(User::class, 'user_id'); }
     public function podVerifier(): BelongsTo  { return $this->belongsTo(User::class, 'pod_verified_by'); }
     public function closer(): BelongsTo       { return $this->belongsTo(User::class, 'closed_by'); }
+    public function invoiceItems(): HasMany   { return $this->hasMany(InvoiceItem::class); }
 
     public function statusLogs(): MorphMany
     {
@@ -109,6 +111,93 @@ class DeliveryOrder extends Model
             'cancelled'             => 'danger',
             default                 => 'secondary',
         };
+    }
+
+    public function getInvoiceStatusLabelAttribute(): string
+    {
+        return match($this->invoice_status) {
+            'partial'  => 'Ditagih Sebagian',
+            'invoiced' => 'Sudah Diinvoice',
+            'paid'     => 'Lunas',
+            default    => 'Belum Diinvoice',
+        };
+    }
+
+    /**
+     * Nilai yang dapat ditagih per tipe layanan pada DO final.
+     *
+     * Detail pekerjaan berkode TR masuk Trucking; kode lainnya masuk
+     * Non-Trucking. Data lama tanpa rincian pekerjaan tetap dianggap Trucking.
+     *
+     * @return array<string, array{type:string,hpp:float,jual:float,description:string}>
+     */
+    public function invoiceBreakdown(): array
+    {
+        if (!$this->relationLoaded('requestOrder')) {
+            $this->load('requestOrder.jobDetails', 'requestOrder.items');
+        } elseif ($this->requestOrder) {
+            $missing = [];
+            if (!$this->requestOrder->relationLoaded('jobDetails')) {
+                $missing[] = 'requestOrder.jobDetails';
+            }
+            if (!$this->requestOrder->relationLoaded('items')) {
+                $missing[] = 'requestOrder.items';
+            }
+            if ($missing !== []) {
+                $this->load($missing);
+            }
+        }
+        $requestOrder = $this->requestOrder;
+
+        if (!$requestOrder) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($requestOrder->jobDetails as $detail) {
+            $type = strtoupper(trim((string) $detail->job_code)) === 'TR' ? 'TR' : 'NTR';
+            $result[$type] ??= [
+                'type' => $type,
+                'hpp' => 0.0,
+                'jual' => 0.0,
+                'names' => [],
+            ];
+            $result[$type]['hpp'] += (float) $detail->riil_biaya;
+            $result[$type]['jual'] += (float) $detail->riil_jual;
+            if ($detail->job_name) {
+                $result[$type]['names'][] = $detail->job_name;
+            }
+        }
+
+        $hasValue = collect($result)->contains(
+            fn(array $row) => $row['hpp'] > 0 || $row['jual'] > 0
+        );
+
+        if (!$hasValue) {
+            $result = [
+                'TR' => [
+                    'type' => 'TR',
+                    'hpp' => (float) $this->total_cost,
+                    'jual' => (float) $this->total_revenue,
+                    'names' => ['Trucking'],
+                ],
+            ];
+        }
+
+        return collect($result)
+            ->filter(fn(array $row) => $row['hpp'] > 0 || $row['jual'] > 0)
+            ->map(function (array $row) {
+                $names = array_values(array_unique(array_filter($row['names'])));
+                return [
+                    'type' => $row['type'],
+                    'hpp' => $row['hpp'],
+                    'jual' => $row['jual'],
+                    'description' => $names !== []
+                        ? implode(', ', $names)
+                        : ($row['type'] === 'TR' ? 'Trucking' : 'Non-Trucking'),
+                ];
+            })
+            ->all();
     }
 
     public static function generateDoNumber(): string

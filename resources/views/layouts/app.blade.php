@@ -1669,6 +1669,12 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
             @endif
+            @if(session('warning'))
+            <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>{{ session('warning') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            @endif
 
             @yield('content')
         </main>
@@ -2053,17 +2059,60 @@
             });
         }
 
+        // Satu form mutasi hanya boleh dikirim sekali. Token yang sama juga
+        // diverifikasi secara atomic di server untuk menangkal request kembar.
+        function initActionTokens(scope) {
+            const ctx = scope || document;
+            const forms = ctx instanceof HTMLFormElement ? [ctx] : ctx.querySelectorAll('form');
+            forms.forEach((form) => {
+                const method = (form.getAttribute('method') || 'GET').toUpperCase();
+                if (method === 'GET' || form.querySelector('input[name="_action_token"]')) return;
+
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = '_action_token';
+                input.value = (window.crypto && crypto.randomUUID)
+                    ? crypto.randomUUID().replaceAll('-', '')
+                    : `${Date.now()}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
+                form.appendChild(input);
+            });
+        }
+
+        document.addEventListener('submit', function(event) {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            const method = (form.getAttribute('method') || 'GET').toUpperCase();
+            if (method === 'GET' || event.defaultPrevented) return;
+
+            if (form.dataset.submitting === '1') {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                return;
+            }
+
+            initActionTokens(form);
+            form.dataset.submitting = '1';
+            form.setAttribute('aria-busy', 'true');
+            form.querySelectorAll('button[type="submit"], input[type="submit"], button:not([type])').forEach((button) => {
+                button.classList.add('disabled');
+                button.setAttribute('aria-disabled', 'true');
+                button.style.pointerEvents = 'none';
+            });
+        });
+
         // Init saat DOM ready
         $(document).ready(function() {
             initSelect2();
             initAirDatepicker();
             initStaticModals();
+            initActionTokens();
 
             // Re-init setiap kali modal Bootstrap dibuka
             $(document).on('shown.bs.modal', '.modal', function() {
                 initSelect2(this);
                 initAirDatepicker(this);
                 initStaticModals(this);
+                initActionTokens(this);
             });
 
             // ════════════════════════════════════════════════════════════════

@@ -13,6 +13,9 @@
                 <div>
                     <h5 class="mb-1" style="font-weight:800">{{ $do->do_number }}</h5>
                     <span class="badge bg-{{ $do->flow_color }}">{{ $do->flow_label }}</span>
+                    <span class="badge {{ $do->invoice_status === 'paid' ? 'bg-success' : ($do->invoice_status === 'uninvoiced' ? 'bg-light text-dark border' : 'bg-warning text-dark') }}">
+                        {{ $do->invoice_status_label }}
+                    </span>
                     @if($do->requestOrder)
                     <a href="{{ route('request-orders.show', $do->requestOrder->id) }}" class="badge bg-light text-dark border text-decoration-none">
                         <i class="fas fa-link me-1"></i>{{ $do->requestOrder->do_number }}
@@ -177,28 +180,28 @@
         </div></div>
         @endif
 
-        {{-- FINANCE: INVOICE --}}
-        @if($do->status === 'closed' && $u->canAccess('finance'))
+        {{-- FINANCE terpusat di menu Invoice --}}
+        @if($do->pod_at && $u->canAccess('finance'))
         <div class="card mb-3" style="border-color:#d97706"><div class="card-body p-3">
-            <h6 style="font-weight:700"><i class="fas fa-file-invoice-dollar me-1" style="color:#d97706"></i> Finance — Terbitkan Invoice</h6>
-            <p class="text-muted" style="font-size:12px">Invoice ke customer & tagihan ke vendor.</p>
-            <form method="POST" action="{{ route('delivery-orders.invoice', $do->id) }}">
-                @csrf
-                <textarea name="note" class="form-control form-control-sm mb-2" rows="2" placeholder="No. invoice / catatan (opsional)"></textarea>
-                <button class="btn btn-warning btn-sm w-100"><i class="fas fa-receipt me-1"></i> Invoice Terbit</button>
-            </form>
-        </div></div>
-        @endif
-
-        {{-- FINANCE: PAYMENT --}}
-        @if($do->status === 'invoiced' && $u->canAccess('finance'))
-        <div class="card mb-3 border-success"><div class="card-body p-3">
-            <h6 style="font-weight:700"><i class="fas fa-money-bill-wave me-1 text-success"></i> Finance — Pembayaran</h6>
-            <form method="POST" action="{{ route('delivery-orders.pay', $do->id) }}">
-                @csrf
-                <textarea name="note" class="form-control form-control-sm mb-2" rows="2" placeholder="Catatan pembayaran (opsional)"></textarea>
-                <button class="btn btn-success btn-sm w-100" onclick="return confirm('Tandai DO ini lunas?')"><i class="fas fa-check-double me-1"></i> Tandai Lunas</button>
-            </form>
+            <h6 style="font-weight:700"><i class="fas fa-file-invoice-dollar me-1" style="color:#d97706"></i> Penagihan</h6>
+            <p class="mb-2" style="font-size:12px">
+                Status: <b>{{ $do->invoice_status_label }}</b>.
+                Invoice tersedia sejak POD diterima dan pembayaran dikelola dari satu tempat.
+            </p>
+            @if($do->invoiceItems->isNotEmpty())
+                <div class="mb-2" style="font-size:12px">
+                    @foreach($do->invoiceItems->unique('invoice_id') as $invoiceItem)
+                        @if($invoiceItem->invoice)
+                        <a href="{{ route('invoices.show', $invoiceItem->invoice->id) }}" class="badge bg-light text-dark border text-decoration-none me-1">
+                            {{ $invoiceItem->invoice->invoice_number }}
+                        </a>
+                        @endif
+                    @endforeach
+                </div>
+            @endif
+            <a href="{{ route('invoices.index', ['customer_id' => $do->customer_id]) }}" class="btn btn-warning btn-sm w-100">
+                <i class="fas fa-receipt me-1"></i> Buka Menu Invoice
+            </a>
         </div></div>
         @endif
 
@@ -213,9 +216,7 @@
             ($do->status === 'pickup' && !$u->canAccess('pod_field')) ||
             ($do->status === 'in_delivery' && !$u->canAccess('pod_field')) ||
             ($do->status === 'pod' && !$u->canAccess('pod_field')) ||
-            ($do->status === 'verifikasi_pod' && !$u->canAccess('pod_field')) ||
-            ($do->status === 'closed' && !$u->canAccess('finance')) ||
-            ($do->status === 'invoiced' && !$u->canAccess('finance'))
+            ($do->status === 'verifikasi_pod' && !$u->canAccess('pod_field'))
         ))
         <div class="alert alert-info" style="font-size:13px">DO sedang di tahap <b>{{ $do->flow_label }}</b>. Menunggu tindakan dari role terkait.</div>
         @endif

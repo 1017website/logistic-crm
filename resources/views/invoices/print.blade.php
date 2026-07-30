@@ -86,8 +86,11 @@
 @endphp
 
 <div class="toolbar">
-    <button class="primary" onclick="window.print()">🖨️ Cetak</button>
-    <a href="{{ route('invoices.show', $invoice->id) }}">← Kembali</a>
+    <button class="primary" onclick="window.print()">Cetak</button>
+    <a href="{{ route('invoices.print', [$invoice->id, 'type' => 'all']) }}">Semua</a>
+    @if($invoice->items->contains('item_type', 'TR'))<a href="{{ route('invoices.print', [$invoice->id, 'type' => 'TR']) }}">Trucking</a>@endif
+    @if($invoice->items->contains('item_type', 'NTR'))<a href="{{ route('invoices.print', [$invoice->id, 'type' => 'NTR']) }}">Non-Trucking</a>@endif
+    <a href="{{ route('invoices.show', $invoice->id) }}">Kembali</a>
 </div>
 
 <div class="sheet">
@@ -126,7 +129,7 @@
             <div class="r"><span class="k">No. Invoice</span><span class="v">{{ $invoice->invoice_number }}</span></div>
             <div class="r"><span class="k">Tanggal</span><span class="v">{{ $invoice->tgl_buat?->format('d M Y') ?? '-' }}</span></div>
             <div class="r"><span class="k">Jatuh Tempo</span><span class="v">{{ $invoice->tgl_tempo?->format('d M Y') ?? '-' }}</span></div>
-            <div class="r"><span class="k">Tipe</span><span class="v">{{ $invoice->jenis_label }}</span></div>
+            <div class="r"><span class="k">Tipe Cetak</span><span class="v">{{ $printType === 'all' ? $invoice->jenis_label : \App\Models\Invoice::TYPES[$printType] }}</span></div>
             @if($invoice->status === 'paid' && $invoice->tgl_pencairan)
             <div class="r"><span class="k">Tgl Cair</span><span class="v">{{ $invoice->tgl_pencairan?->format('d M Y') }}</span></div>
             @endif
@@ -144,13 +147,15 @@
         </thead>
         <tbody>
             @php $no = 1; @endphp
-            @foreach($invoice->items as $it)
-                @php $do = $it->requestOrder; @endphp
+            @foreach($printItems as $it)
+                @php $finalDo = $it->deliveryOrder; $do = $it->requestOrder ?? $finalDo?->requestOrder; @endphp
                 <tr>
                     <td class="c">{{ $no++ }}</td>
-                    <td>{{ $do?->tgl_muat?->format('d-m-y') ?? $do?->order_date?->format('d-m-y') ?? '-' }}</td>
+                    <td>{{ $finalDo?->do_date?->format('d-m-y') ?? $do?->tgl_muat?->format('d-m-y') ?? $do?->order_date?->format('d-m-y') ?? '-' }}</td>
                     <td>
-                        <b>{{ $do?->do_number ?? 'DO' }}</b> — {{ $do?->muat ?? $do?->origin ?? '-' }} &rarr; {{ $do?->bongkar ?? $do?->destination ?? $do?->tujuan ?? '-' }}
+                        <b>{{ $finalDo?->do_number ?? $do?->do_number ?? 'DO' }}</b>
+                        — <b>{{ $it->item_type === 'TR' ? 'Trucking' : 'Non-Trucking' }}</b>: {{ $it->description }}
+                        <br>{{ $do?->muat ?? $finalDo?->origin ?? $do?->origin ?? '-' }} &rarr; {{ $do?->bongkar ?? $finalDo?->destination ?? $do?->destination ?? $do?->tujuan ?? '-' }}
                         <div class="det">
                             @if($do?->komoditi)Komoditas: {{ $do->komoditi }} · @endif
                             @if($do?->no_container)Container: {{ $do->no_container }} · @endif
@@ -167,14 +172,14 @@
 
     <div class="totwrap">
         <div class="terbilang">
-            <b>Terbilang:</b> {{ ucwords(trim(\App\Models\Invoice::terbilang($invoice->grand_total ?: $invoice->total_jual))) }} rupiah
+            <b>Terbilang:</b> {{ ucwords(trim(\App\Models\Invoice::terbilang($printGrand))) }} rupiah
         </div>
         <div class="totals">
-            <div class="r"><span class="k">Subtotal</span><span>Rp {{ number_format($invoice->total_jual, 0, ',', '.') }}</span></div>
-            @if(($ppnPersen ?? 0) > 0 || $invoice->ppn_nominal > 0)
-            <div class="r"><span class="k">PPN {{ rtrim(rtrim(number_format($invoice->ppn_persen,2),'0'),'.') }}%</span><span>Rp {{ number_format($invoice->ppn_nominal, 0, ',', '.') }}</span></div>
+            <div class="r"><span class="k">Subtotal</span><span>Rp {{ number_format($printSubtotal, 0, ',', '.') }}</span></div>
+            @if($printPpn > 0)
+            <div class="r"><span class="k">PPN {{ rtrim(rtrim(number_format($invoice->ppn_persen,2),'0'),'.') }}%</span><span>Rp {{ number_format($printPpn, 0, ',', '.') }}</span></div>
             @endif
-            <div class="r grand"><span>Grand Total</span><span>Rp {{ number_format($invoice->grand_total ?: $invoice->total_jual, 0, ',', '.') }}</span></div>
+            <div class="r grand"><span>Grand Total</span><span>Rp {{ number_format($printGrand, 0, ',', '.') }}</span></div>
         </div>
     </div>
 

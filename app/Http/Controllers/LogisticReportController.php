@@ -32,7 +32,8 @@ class LogisticReportController extends Controller
             ->where('request_status', 'assigned'); // hanya DO yang sudah terbit
 
         if ($customerId) $query->where('customer_id', $customerId);
-        if ($jenis === 'invoiced')   $query->where('invoice_status', 'invoiced');
+        if ($jenis === 'invoiced')   $query->whereIn('invoice_status', ['partial', 'invoiced']);
+        if ($jenis === 'partial')    $query->where('invoice_status', 'partial');
         if ($jenis === 'uninvoiced') $query->where('invoice_status', 'uninvoiced');
         if ($jenis === 'paid')       $query->where('invoice_status', 'paid');
         if ($month) {
@@ -61,7 +62,8 @@ class LogisticReportController extends Controller
         $query = RequestOrder::with(['customer', 'vendor', 'jobDetails'])
             ->where('request_status', 'assigned');
         if ($customerId) $query->where('customer_id', $customerId);
-        if ($jenis === 'invoiced')   $query->where('invoice_status', 'invoiced');
+        if ($jenis === 'invoiced')   $query->whereIn('invoice_status', ['partial', 'invoiced']);
+        if ($jenis === 'partial')    $query->where('invoice_status', 'partial');
         if ($jenis === 'uninvoiced') $query->where('invoice_status', 'uninvoiced');
         if ($jenis === 'paid')       $query->where('invoice_status', 'paid');
         if ($month) {

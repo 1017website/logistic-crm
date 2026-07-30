@@ -6,6 +6,10 @@ use App\Models\DeletionRequest;
 use App\Models\Notification;
 use App\Models\Lead;
 use App\Models\Customer;
+use App\Models\Invoice;
+use App\Models\RequestOrder;
+use App\Services\InvoiceBillingService;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -46,6 +50,23 @@ class DeletionRequestController extends Controller
                 Lead::whereRaw('LOWER(TRIM(company_name)) = ?', [strtolower(trim((string) $model->company_name))])
                     ->get()->each(fn($l) => $l->delete());
                 $model->delete();
+            } elseif ($model instanceof Invoice) {
+                if ($model->status === 'paid') {
+                    throw ValidationException::withMessages([
+                        'delete' => 'Invoice yang sudah lunas tidak dapat dihapus.',
+                    ]);
+                }
+                $doIds = $model->items()->pluck('delivery_order_id')->filter()->unique();
+                $legacyRequestOrderIds = $model->items()
+                    ->whereNull('delivery_order_id')
+                    ->pluck('request_order_id')
+                    ->filter()
+                    ->unique();
+                $model->items()->delete();
+                $model->delete();
+                RequestOrder::whereIn('id', $legacyRequestOrderIds)
+                    ->update(['invoice_status' => 'uninvoiced']);
+                app(InvoiceBillingService::class)->sync($doIds);
             } else {
                 // Modul lain (vendor, delivery order): hapus apa adanya.
                 $model->delete();

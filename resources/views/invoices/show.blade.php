@@ -17,7 +17,14 @@
                     <span class="badge bg-{{ $invoice->status_color }}">{{ $invoice->status_label }}</span>
                 </div>
                 <div class="d-flex gap-2">
-                    <a href="{{ route('invoices.print', $invoice->id) }}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="fas fa-print me-1"></i> Cetak</a>
+                    <form method="GET" action="{{ route('invoices.print', $invoice->id) }}" target="_blank" class="d-flex gap-1">
+                        <select name="type" class="form-select form-select-sm no-select2" aria-label="Pilih tipe cetak">
+                            <option value="all">Semua layanan</option>
+                            @if($invoice->items->contains('item_type', 'TR'))<option value="TR">Trucking saja</option>@endif
+                            @if($invoice->items->contains('item_type', 'NTR'))<option value="NTR">Non-Trucking saja</option>@endif
+                        </select>
+                        <button class="btn btn-sm btn-outline-secondary text-nowrap"><i class="fas fa-print me-1"></i> Cetak</button>
+                    </form>
                     <a href="{{ route('invoices.index', ['tab'=>$invoice->status]) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Kembali</a>
                 </div>
             </div>
@@ -35,11 +42,12 @@
         <div class="card"><div class="card-body p-3">
             <h6 style="font-weight:700;font-size:13px;text-transform:uppercase;color:#6b7280">DO dalam Invoice</h6>
             <table class="table table-sm mb-0" style="font-size:12px">
-                <thead><tr><th>No DO</th><th>Tujuan</th><th class="text-end">HPP</th><th class="text-end">Jual</th></tr></thead>
+                <thead><tr><th>No DO</th><th>Tipe / Keterangan</th><th>Tujuan</th><th class="text-end">HPP</th><th class="text-end">Jual</th></tr></thead>
                 <tbody>
                     @foreach($invoice->items as $it)
                     <tr>
-                        <td>{{ $it->requestOrder?->do_number ?? '-' }}</td>
+                        <td>{{ $it->deliveryOrder?->do_number ?? $it->requestOrder?->do_number ?? '-' }}</td>
+                        <td><span class="badge {{ $it->item_type === 'TR' ? 'bg-primary' : 'bg-secondary' }}">{{ $it->item_type }}</span> {{ $it->description }}</td>
                         <td>{{ $it->requestOrder?->tujuan ?? $it->requestOrder?->destination ?? '-' }}</td>
                         <td class="text-end">{{ idr($it->hpp) }}</td>
                         <td class="text-end">{{ idr($it->jual) }}</td>
@@ -47,11 +55,11 @@
                     @endforeach
                 </tbody>
                 <tfoot>
-                    <tr style="font-weight:700"><td colspan="2" class="text-end">Subtotal</td><td class="text-end">{{ idr($invoice->total_hpp) }}</td><td class="text-end">{{ idr($invoice->total_jual) }}</td></tr>
+                    <tr style="font-weight:700"><td colspan="3" class="text-end">Subtotal</td><td class="text-end">{{ idr($invoice->total_hpp) }}</td><td class="text-end">{{ idr($invoice->total_jual) }}</td></tr>
                     @if($invoice->ppn_nominal > 0)
-                    <tr><td colspan="3" class="text-end text-muted">PPN {{ rtrim(rtrim(number_format($invoice->ppn_persen,2),'0'),'.') }}%</td><td class="text-end">{{ idr($invoice->ppn_nominal) }}</td></tr>
+                    <tr><td colspan="4" class="text-end text-muted">PPN {{ rtrim(rtrim(number_format($invoice->ppn_persen,2),'0'),'.') }}%</td><td class="text-end">{{ idr($invoice->ppn_nominal) }}</td></tr>
                     @endif
-                    <tr style="font-weight:800"><td colspan="3" class="text-end">Grand Total</td><td class="text-end" style="color:var(--primary)">{{ idr($invoice->grand_total ?: $invoice->total_jual) }}</td></tr>
+                    <tr style="font-weight:800"><td colspan="4" class="text-end">Grand Total</td><td class="text-end" style="color:var(--primary)">{{ idr($invoice->grand_total ?: $invoice->total_jual) }}</td></tr>
                 </tfoot>
             </table>
         </div></div>

@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleCheck::class,
+            'prevent.duplicate' => \App\Http\Middleware\PreventDuplicateSubmission::class,
         ]);
         $middleware->redirectGuestsTo('/login');
     })

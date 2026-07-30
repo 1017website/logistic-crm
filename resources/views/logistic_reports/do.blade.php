@@ -23,6 +23,7 @@
                 <select name="jenis" class="form-select form-select-sm">
                     <option value="all" @selected($jenis=='all')>Semua</option>
                     <option value="uninvoiced" @selected($jenis=='uninvoiced')>Belum Ditagih</option>
+                    <option value="partial" @selected($jenis=='partial')>Ditagih Sebagian</option>
                     <option value="invoiced" @selected($jenis=='invoiced')>Sudah Ditagih</option>
                     <option value="paid" @selected($jenis=='paid')>Sudah Dibayar</option>
                 </select>
@@ -74,7 +75,7 @@
                     <td class="py-2 text-end">{{ idr($do->total_cost) }}</td>
                     <td class="py-2 text-end">{{ idr($do->total_revenue) }}</td>
                     <td class="py-2">
-                        @php $cmap=['uninvoiced'=>['secondary','Belum'],'invoiced'=>['warning','Ditagih'],'paid'=>['success','Lunas']]; $cm=$cmap[$do->invoice_status]??['secondary','-']; @endphp
+                        @php $cmap=['uninvoiced'=>['secondary','Belum'],'partial'=>['info','Sebagian'],'invoiced'=>['warning','Ditagih'],'paid'=>['success','Lunas']]; $cm=$cmap[$do->invoice_status]??['secondary','-']; @endphp
                         <span class="badge bg-{{ $cm[0] }}">{{ $cm[1] }}</span>
                     </td>
                 </tr>

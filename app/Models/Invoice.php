@@ -22,7 +22,7 @@ class Invoice extends Model
         'invoice_id', 'invoice_number', 'customer_seq', 'customer_id', 'status',
         'tgl_buat', 'tgl_tempo', 'tgl_pencairan',
         'total_hpp', 'total_jual', 'ppn_persen', 'ppn_nominal', 'grand_total',
-        'jenis', 'operator_id', 'notes',
+        'jenis', 'billing_mode', 'operator_id', 'notes',
     ];
 
     protected $casts = [
@@ -45,6 +45,7 @@ class Invoice extends Model
     public const TYPES = [
         'TR'  => 'Trucking',
         'NTR' => 'Non-Trucking',
+        'MIX' => 'Trucking & Non-Trucking',
     ];
 
     public function customer(): BelongsTo { return $this->belongsTo(Customer::class); }
@@ -63,7 +64,7 @@ class Invoice extends Model
 
     public function getJenisLabelAttribute(): string
     {
-        return self::TYPES[$this->jenis] ?? ($this->jenis === 'MIX' ? 'Trucking & Non-Trucking' : '-');
+        return self::TYPES[$this->jenis] ?? '-';
     }
 
     public function getStatusColorAttribute(): string

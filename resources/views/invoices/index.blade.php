@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Invoice')
 @section('page-title', 'Invoice')
-@section('page-subtitle', 'Invoice multi-DO, tipe Trucking/Non-Trucking, PPN/Non-PPN, dan pembayaran terpisah')
+@section('page-subtitle', 'Invoice multi-DO sejak POD, Trucking/Non-Trucking dapat digabung atau dipisah')
 
 @section('content')
 @php $u = auth()->user(); @endphp
@@ -119,24 +119,30 @@
         <div class="modal-header"><h6 class="modal-title">Buat Invoice</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body" style="font-size:13px">
             <div class="row g-2 mb-2">
-                <div class="col-md-4"><label class="form-label">Customer</label>
+                <div class="col-md-5"><label class="form-label">Customer</label>
                     <select name="customer_id" id="invCustomer" class="form-select form-select-sm no-select2" required>
                         <option value="">— Pilih Customer —</option>
                         @foreach($customers as $c)<option value="{{ $c->id }}">{{ $c->company_name }} @if($c->invoice_code)({{ $c->invoice_code }})@elseif($c->customer_code)({{ $c->customer_code }})@endif</option>@endforeach
                     </select>
                 </div>
-                <div class="col-md-2"><label class="form-label">Tgl Buat</label><input type="date" name="tgl_buat" class="form-control form-control-sm" value="{{ now()->toDateString() }}" required></div>
-                <div class="col-md-2"><label class="form-label">Tgl Tempo</label><input type="date" name="tgl_tempo" class="form-control form-control-sm" value="{{ now()->addDays(30)->toDateString() }}"></div>
-                <div class="col-md-4"><label class="form-label">Tipe Invoice</label><select name="jenis" class="form-select form-select-sm" required><option value="TR">Trucking</option><option value="NTR">Non-Trucking</option></select></div>
+                <div class="col-md-3"><label class="form-label">Tgl Buat</label><input type="date" name="tgl_buat" class="form-control form-control-sm" value="{{ now()->toDateString() }}" required></div>
+                <div class="col-md-4"><label class="form-label">Tgl Tempo</label><input type="date" name="tgl_tempo" class="form-control form-control-sm" value="{{ now()->addDays(30)->toDateString() }}"></div>
             </div>
             <div class="row g-2 mb-3">
-                <div class="col-md-4"><label class="form-label">Pajak</label><select name="ppn_mode" id="ppnMode" class="form-select form-select-sm" required><option value="non_ppn">Non-PPN</option><option value="ppn">PPN</option></select></div>
-                <div class="col-md-4" id="ppnPercentWrap" style="display:none"><label class="form-label">Persentase PPN</label><div class="input-group input-group-sm"><input type="number" step="0.01" min="0.01" max="100" name="ppn_persen" id="ppnPercent" class="form-control" value="11"><span class="input-group-text">%</span></div></div>
-                <div class="col-md-4"><label class="form-label">Catatan</label><input type="text" name="notes" class="form-control form-control-sm" placeholder="Opsional"></div>
+                <div class="col-md-4">
+                    <label class="form-label">TR & Non-TR</label>
+                    <select name="billing_mode" class="form-select form-select-sm" required>
+                        <option value="combined">Gabung dalam 1 invoice</option>
+                        <option value="separate">Pisah menjadi invoice TR dan Non-TR</option>
+                    </select>
+                </div>
+                <div class="col-md-3"><label class="form-label">Pajak</label><select name="ppn_mode" id="ppnMode" class="form-select form-select-sm" required><option value="non_ppn">Non-PPN</option><option value="ppn">PPN</option></select></div>
+                <div class="col-md-2" id="ppnPercentWrap" style="display:none"><label class="form-label">PPN</label><div class="input-group input-group-sm"><input type="number" step="0.01" min="0.01" max="100" name="ppn_persen" id="ppnPercent" class="form-control" value="11"><span class="input-group-text">%</span></div></div>
+                <div class="col-md-3"><label class="form-label">Catatan</label><input type="text" name="notes" class="form-control form-control-sm" placeholder="Opsional"></div>
             </div>
             <div class="mb-2">
-                <label class="form-label">DO siap tagih <small class="text-muted">(approved, belum diinvoice; tidak harus lunas)</small></label>
-                <div id="doListWrap" class="border rounded p-2" style="max-height:260px;overflow:auto">
+                <label class="form-label">Komponen DO siap tagih <small class="text-muted">(muncul setelah POD diterima)</small></label>
+                <div id="doListWrap" class="border rounded p-2" style="max-height:320px;overflow:auto">
                     <div class="text-muted">Pilih customer dulu.</div>
                 </div>
             </div>
@@ -152,7 +158,10 @@
 
 <script>
 const availUrl = "{{ route('invoices.available-dos') }}";
-const fmtRp = n => 'Rp ' + (n||0).toLocaleString('id-ID');
+const fmtRp = n => 'Rp ' + Number(n||0).toLocaleString('id-ID');
+const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;'
+}[char]));
 
 async function loadAvailableDos(customerId){
     const wrap = document.getElementById('doListWrap');
@@ -166,15 +175,29 @@ async function loadAvailableDos(customerId){
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const dos = await res.json();
         if (!dos.length) {
-            wrap.innerHTML = '<div class="text-muted small">Tidak ada DO siap tagih untuk customer ini.<br>DO baru muncul setelah Accounting melengkapi <b>layanan & harga</b>, Sales Admin melakukan <b>Approve DO</b>, dan DO belum pernah masuk invoice.</div>';
+            wrap.innerHTML = '<div class="text-muted small">Tidak ada komponen DO siap tagih.<br>DO baru muncul setelah harga disetujui dan <b>POD diterima</b>. Komponen yang sudah masuk invoice tidak dapat dipilih ulang.</div>';
             recalcInv(); return;
         }
-        wrap.innerHTML = dos.map(d => `
-            <label class="d-flex align-items-center gap-2 py-1 border-bottom" style="cursor:pointer">
-                <input type="checkbox" name="do_ids[]" value="${d.id}" class="doChk" data-hpp="${d.hpp}" data-jual="${d.jual}">
-                <span class="flex-fill"><b>${d.do_number}</b> <span class="text-muted">${d.order_date||''} ${d.tujuan||d.destination||''}</span></span>
-                <span class="text-muted">HPP ${fmtRp(d.hpp)}</span><span style="color:var(--primary)">Jual ${fmtRp(d.jual)}</span>
-            </label>`).join('');
+        wrap.innerHTML = dos.map(d => {
+            const components = d.types.map(t => `
+                <label class="d-flex align-items-center gap-2 py-1 ps-3 border-top ${t.available ? '' : 'text-muted'}" style="${t.available ? 'cursor:pointer' : 'opacity:.65'}">
+                    <input type="checkbox" name="selections[]" value="${d.id}:${t.type}" class="doChk"
+                           data-hpp="${t.hpp}" data-jual="${t.jual}" ${t.available ? '' : 'disabled'}>
+                    <span class="badge ${t.type === 'TR' ? 'bg-primary' : 'bg-secondary'}">${t.type}</span>
+                    <span class="flex-fill">${esc(t.description)}</span>
+                    <span class="text-muted">HPP ${fmtRp(t.hpp)}</span>
+                    <span style="color:var(--primary)">Jual ${fmtRp(t.jual)}</span>
+                    ${t.available ? '' : '<small>Sudah diinvoice</small>'}
+                </label>`).join('');
+
+            return `<div class="mb-2">
+                <div class="d-flex justify-content-between gap-2 pb-1">
+                    <span><b>${esc(d.do_number)}</b> <span class="text-muted">${esc(d.do_date)} · ${esc(d.origin)} → ${esc(d.destination)}</span></span>
+                    <small class="text-muted">POD ${esc(d.pod_at)}</small>
+                </div>
+                ${components}
+            </div>`;
+        }).join('');
         wrap.querySelectorAll('.doChk').forEach(c => c.addEventListener('change', recalcInv));
         recalcInv();
     } catch(e) {
