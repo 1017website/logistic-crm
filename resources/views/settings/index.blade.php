@@ -182,6 +182,21 @@
                             <textarea name="company_address" class="form-control"
                                 rows="2">{{ $settings['company_address'] ?? '' }}</textarea>
                         </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Kota Dokumen</label>
+                            <input type="text" name="company_document_city" class="form-control"
+                                value="{{ $settings['company_document_city'] ?? 'Surabaya' }}" placeholder="Surabaya">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Nama Penanda Tangan</label>
+                            <input type="text" name="company_signatory_name" class="form-control"
+                                value="{{ $settings['company_signatory_name'] ?? '' }}" placeholder="Nama direktur / pejabat">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Jabatan Penanda Tangan</label>
+                            <input type="text" name="company_signatory_title" class="form-control"
+                                value="{{ $settings['company_signatory_title'] ?? 'Direktur' }}" placeholder="Direktur">
+                        </div>
                     </div>
 
                     {{-- Branding --}}
@@ -292,10 +307,10 @@
                                 style="display:none;margin-top:8px;width:32px;height:32px;object-fit:contain;border:1px solid #e5e7eb">
                         </div>
 
-                        {{-- Logo Dokumen (Invoice & Surat Jalan) --}}
+                        {{-- Logo Dokumen (Invoice, Surat Jalan, & Penawaran) --}}
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Logo Dokumen (Invoice &amp; Surat Jalan)</label>
-                            <div style="font-size:11px;color:#6b7280;margin-bottom:8px">Ditampilkan di <strong>cetak Invoice</strong> dan <strong>cetak Surat Jalan</strong>. Bisa berbeda dari logo sidebar (mis. versi berwarna/horizontal untuk kop dokumen). Jika kosong, otomatis memakai logo sidebar. Format: PNG, WebP, SVG. Maks 2MB.</div>
+                            <label class="form-label fw-semibold">Logo Dokumen (Invoice, Surat Jalan &amp; Penawaran)</label>
+                            <div style="font-size:11px;color:#6b7280;margin-bottom:8px">Ditampilkan pada kop dokumen operasional dan surat penawaran. Bisa berbeda dari logo sidebar (mis. versi berwarna/horizontal). Jika kosong, otomatis memakai logo sidebar. Format: PNG, WebP, SVG. Maks 2MB.</div>
                             @if(!empty($settings['company_doc_logo']))
                                 <div class="d-flex align-items-center gap-3 mb-3 p-3 rounded"
                                     style="background:#f8f9fa;border:1px solid #e5e7eb">
@@ -323,6 +338,38 @@
                             <img id="docLogoPreview" src="" alt=""
                                 style="display:none;margin-top:8px;max-height:48px;border-radius:6px;border:1px solid #e5e7eb">
                         </div>
+
+                        {{-- Cap dan tanda tangan surat penawaran --}}
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Cap &amp; Tanda Tangan Penawaran</label>
+                            <div style="font-size:11px;color:#6b7280;margin-bottom:8px">Gambar transparan yang ditempatkan di blok tanda tangan PDF penawaran. Format: PNG, JPG, WebP. Maks 2MB.</div>
+                            @if(!empty($settings['company_signature']))
+                                <div class="d-flex align-items-center gap-3 mb-3 p-3 rounded"
+                                    style="background:#f8f9fa;border:1px solid #e5e7eb">
+                                    <img src="{{ Storage::url($settings['company_signature']) }}" alt="Cap dan Tanda Tangan"
+                                        style="max-height:64px;max-width:150px;object-fit:contain">
+                                    <div>
+                                        <div style="font-size:12px;font-weight:600;color:#374151">Tanda tangan aktif</div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger mt-1"
+                                            style="font-size:11px;padding:2px 8px" onclick="deleteImage('signature')">
+                                            <i class="fas fa-trash me-1"></i> Hapus
+                                        </button>
+                                    </div>
+                                </div>
+                            @endif
+                            <div class="upload-area" onclick="document.getElementById('signatureInput').click()"
+                                style="border:2px dashed #cbd5e1;border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:all .2s"
+                                onmouseover="this.style.borderColor='#111111'"
+                                onmouseout="this.style.borderColor='#cbd5e1'">
+                                <i class="fas fa-signature" style="font-size:1.5rem;color:#9ca3af"></i>
+                                <div style="font-size:12px;color:#6b7280;margin-top:8px">Klik untuk upload cap &amp; tanda tangan</div>
+                                <div id="signatureFileName" style="font-size:11px;color:#111111;margin-top:4px"></div>
+                            </div>
+                            <input type="file" id="signatureInput" name="company_signature" accept="image/png,image/jpeg,image/webp"
+                                style="display:none" onchange="previewFile(this,'signatureFileName','signaturePreview')">
+                            <img id="signaturePreview" src="" alt=""
+                                style="display:none;margin-top:8px;max-height:64px;border:1px solid #e5e7eb">
+                        </div>
                     </div>
 
                     <div class="s-divider"></div>
@@ -349,7 +396,7 @@
                 }
 
                 function deleteImage(type) {
-                    const labels = { logo: 'logo sidebar', login_logo: 'logo login', favicon: 'favicon', doc_logo: 'logo dokumen' };
+                    const labels = { logo: 'logo sidebar', login_logo: 'logo login', favicon: 'favicon', doc_logo: 'logo dokumen', signature: 'cap dan tanda tangan' };
                     if (!confirm('Hapus ' + (labels[type] || type) + '?')) return;
                     document.getElementById('deleteImageType').value = type;
                     document.getElementById('deleteImageForm').submit();

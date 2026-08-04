@@ -23,7 +23,11 @@ class SettingsController extends Controller
             'company_logo' => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:2048',
             'company_login_logo' => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:2048',
             'company_doc_logo' => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:2048',
+            'company_signature' => 'nullable|image|mimes:png,jpg,jpeg,webp|max:2048',
             'company_favicon' => 'nullable|mimes:png,jpg,jpeg,ico|max:512',
+            'company_document_city' => 'nullable|string|max:100',
+            'company_signatory_name' => 'nullable|string|max:150',
+            'company_signatory_title' => 'nullable|string|max:150',
         ]);
 
         $fields = [
@@ -32,6 +36,9 @@ class SettingsController extends Controller
             'company_phone',
             'company_address',
             'company_website',
+            'company_document_city',
+            'company_signatory_name',
+            'company_signatory_title',
             'currency',
             'timezone',
             'date_format',
@@ -74,6 +81,16 @@ class SettingsController extends Controller
             Setting::set('company_doc_logo', $path);
         }
 
+        // Cap dan tanda tangan untuk surat penawaran.
+        if ($request->hasFile('company_signature') && $request->file('company_signature')->isValid()) {
+            $oldSignature = Setting::get('company_signature');
+            if ($oldSignature && Storage::disk('public')->exists($oldSignature)) {
+                Storage::disk('public')->delete($oldSignature);
+            }
+            $path = $request->file('company_signature')->store('branding', 'public');
+            Setting::set('company_signature', $path);
+        }
+
         // Upload Favicon
         if ($request->hasFile('company_favicon') && $request->file('company_favicon')->isValid()) {
             $oldFavicon = Setting::get('company_favicon');
@@ -100,6 +117,7 @@ class SettingsController extends Controller
             'favicon' => 'company_favicon',
             'login_logo' => 'company_login_logo',
             'doc_logo' => 'company_doc_logo',
+            'signature' => 'company_signature',
             default => 'company_logo',
         };
         $path = Setting::get($key);

@@ -26,6 +26,7 @@ use App\Http\Controllers\SearchController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ServiceTypeController;
 use App\Http\Controllers\DeletionRequestController;
+use App\Http\Controllers\QuotationController;
 
 // ── Artisan runner (shared hosting) ──
 Route::get('/run/{command}', [ArtisanController::class, 'run'])
@@ -81,6 +82,16 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
     Route::post('/leads/{lead}/pics',     [LeadsController::class, 'storePic'])->name('leads.pics.store');
     Route::resource('leads', LeadsController::class)->except(['destroy']);
     Route::get('/pipeline', [PipelineController::class, 'index'])->name('pipeline.index');
+
+    // Penawaran harga (Sales)
+    Route::middleware('role:Admin,Sales Manager,Sales Executive,Sales Admin')->group(function () {
+        Route::get('/quotations', [QuotationController::class, 'index'])->name('quotations.index');
+        Route::get('/quotations/create', [QuotationController::class, 'create'])->name('quotations.create');
+        Route::post('/quotations', [QuotationController::class, 'store'])->name('quotations.store');
+        Route::get('/quotations/{quotation}/edit', [QuotationController::class, 'edit'])->name('quotations.edit');
+        Route::put('/quotations/{quotation}', [QuotationController::class, 'update'])->name('quotations.update');
+        Route::get('/quotations/{quotation}/pdf', [QuotationController::class, 'pdf'])->name('quotations.pdf');
+    });
 
     // Calendar & Tasks
     Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');

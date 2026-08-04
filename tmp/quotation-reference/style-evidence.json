@@ -1,0 +1,120 @@
+{
+  "input": "D:\\Project\\Assets 2026\\Firman Tangguh (Logistic)\\Surat Penawaran Harga FTL-PT Garam Gresik - Sidoarjo 03 Agustus 2026.docx",
+  "fonts_by_char_count": {
+    "Verdana": 9
+  },
+  "direct_run_formatting_runs": 197,
+  "direct_paragraph_formatting_paragraphs": 41,
+  "heading_like_paragraphs_not_heading_style": [
+    {
+      "para_index": 29,
+      "text": "NO",
+      "style": "Normal"
+    },
+    {
+      "para_index": 30,
+      "text": "ORIGIN",
+      "style": "Normal"
+    },
+    {
+      "para_index": 31,
+      "text": "DESTINATION",
+      "style": "Normal"
+    },
+    {
+      "para_index": 32,
+      "text": "COMDTY",
+      "style": "Normal"
+    },
+    {
+      "para_index": 33,
+      "text": "TONASE",
+      "style": "Normal"
+    },
+    {
+      "para_index": 34,
+      "text": "UNIT",
+      "style": "Normal"
+    },
+    {
+      "para_index": 35,
+      "text": "RATE",
+      "style": "Normal"
+    },
+    {
+      "para_index": 40,
+      "text": "10 Ton",
+      "style": "Normal"
+    },
+    {
+      "para_index": 41,
+      "text": "Fuso Three Way",
+      "style": "Normal"
+    },
+    {
+      "para_index": 42,
+      "text": "Rp 2.500.000",
+      "style": "Normal"
+    }
+  ],
+  "examples": {
+    "direct_paragraph_formatting": [
+      {
+        "para_index": 1,
+        "text": "",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "text": "Lampiran \t: -",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "text": "Yth.",
+        "style": "Normal"
+      },
+      {
+        "para_index": 6,
+        "text": "Bpk/Ibu Pimpinan ",
+        "style": "Normal"
+      },
+      {
+        "para_index": 7,
+        "text": "PT. GARAM",
+        "style": "Normal"
+      }
+    ],
+    "direct_run_formatting": [
+      {
+        "para_index": 2,
+        "run_text": "Lampiran ",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "run_text": "\t",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "run_text": ": ",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "run_text": "-",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": "Perihal",
+        "style": "Normal"
+      }
+    ]
+  },
+  "notes": [
+    "Direct formatting is not always wrong, but it often causes inconsistent output when templates change.",
+    "Heading-like paragraphs not using Heading styles can break TOC and accessibility."
+  ]
+}

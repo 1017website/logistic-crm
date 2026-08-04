@@ -1395,6 +1395,11 @@
             <a href="{{ route('pipeline.index') }}" class="sidebar-item {{ request()->routeIs('pipeline.*') ? 'active' : '' }}">
                 <i class="fas fa-filter si-icon"></i><span>Pipeline</span>
             </a>
+            @if(auth()->user()->canAccess('quotations'))
+            <a href="{{ route('quotations.index') }}" class="sidebar-item {{ request()->routeIs('quotations.*') ? 'active' : '' }}">
+                <i class="fas fa-file-signature si-icon"></i><span>Penawaran</span>
+            </a>
+            @endif
             <a href="{{ route('calendar.index') }}" class="sidebar-item {{ request()->routeIs('calendar.*') ? 'active' : '' }}">
                 <i class="fas fa-calendar si-icon"></i><span>Calendar</span>
             </a>
