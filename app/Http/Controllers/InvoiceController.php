@@ -394,7 +394,7 @@ class InvoiceController extends Controller
         return back()->with('success', 'Invoice dihapus dan komponen DO dilepas untuk ditagih ulang.');
     }
 
-    public function print(Request $request, Invoice $invoice)
+    public function print(Request $request, Invoice $invoice, \App\Services\DocumentSignatureService $documentSignature)
     {
         $data = $request->validate([
             'type' => 'nullable|in:all,TR,NTR',
@@ -421,15 +421,19 @@ class InvoiceController extends Controller
         $printPpn = round($printSubtotal * (float) $invoice->ppn_persen / 100);
         $printGrand = $printSubtotal + $printPpn;
 
+        $companyName = \App\Models\Setting::get('company_name', 'Perusahaan');
         $company = [
-            'name' => \App\Models\Setting::get('company_name', 'Perusahaan'),
+            'name' => $companyName,
             'address' => \App\Models\Setting::get('company_address', ''),
             'phone' => \App\Models\Setting::get('company_phone', ''),
             'email' => \App\Models\Setting::get('company_email', ''),
             'website' => \App\Models\Setting::get('company_website', ''),
             'logo' => \App\Models\Setting::get('company_doc_logo')
                 ?: \App\Models\Setting::get('company_logo', ''),
+            'signatory_name' => \App\Models\Setting::get('company_signatory_name') ?: $companyName,
+            'signatory_title' => \App\Models\Setting::get('company_signatory_title') ?: 'Direktur',
         ];
+        $signature = $documentSignature->make('invoice', $invoice->getKey());
 
         return view('invoices.print', compact(
             'invoice',
@@ -438,7 +442,8 @@ class InvoiceController extends Controller
             'printSubtotal',
             'printPpn',
             'printGrand',
-            'company'
+            'company',
+            'signature'
         ));
     }
 

@@ -17,6 +17,7 @@
 /* ── PRINT STYLES ── */
 .print-header { display: none; }
 .print-kpi-grid { display: none; }
+.print-signature { display: none; }
 
 @media print {
     /* Sembunyikan semua elemen UI */
@@ -34,6 +35,7 @@
     /* Tampilkan print-only elements */
     .print-header   { display: block !important; }
     .print-kpi-grid { display: grid !important; }
+    .print-signature { display: flex !important; }
 
     /* Reset body & layout */
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -89,6 +91,10 @@
 
     /* Disclaimer */
     .p-3.pt-0 { padding: 4px 0 0 0 !important; }
+
+    .print-signature { justify-content:flex-end; margin-top:14px; page-break-inside:avoid; }
+    .print-signature-box { width:92mm; }
+    .report-print-meta { display:flex; justify-content:space-between; align-items:center; padding-bottom:8px; border-bottom:1px solid #d1d5db; }
 
     @page { size: A4 landscape; margin: 1.2cm 1cm; }
 }
@@ -197,17 +203,10 @@
 </form>
 
 {{-- Print Header (hanya muncul saat print) --}}
-<div class="print-header" style="margin-bottom:10px;padding-bottom:10px;border-bottom:2px solid #1e3a5f">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-        <div style="display:flex;align-items:center;gap:12px">
-            <div style="width:42px;height:42px;background:#1e3a5f;border-radius:8px;display:flex;align-items:center;justify-content:center">
-                <span style="color:#fff;font-weight:800;font-size:14pt">C</span>
-            </div>
-            <div>
-                <div style="font-size:14pt;font-weight:700;color:#1e3a5f">{{ \App\Models\Setting::get('company_name', 'Logistic CRM') }}</div>
-                <div style="font-size:9pt;color:#6b7280">Laporan: <strong>{{ ['sales'=>'Sales Report','customer'=>'Customer Report','pipeline'=>'Pipeline Report','performance'=>'Performance Report','po'=>'PO Report'][$reportType] ?? $reportType }}</strong></div>
-            </div>
-        </div>
+<x-print-letterhead :company="$company" :print-only="true" />
+<div class="print-header" style="margin-bottom:10px">
+    <div class="report-print-meta">
+        <div style="font-size:14pt;font-weight:700;color:#1e3a5f">{{ ['sales'=>'Sales Report','customer'=>'Customer Report','pipeline'=>'Pipeline Report','performance'=>'Performance Report','po'=>'PO Report'][$reportType] ?? $reportType }}</div>
         <div style="text-align:right;font-size:9pt;color:#6b7280;line-height:1.6">
             <div>Periode: <strong>{{ \Carbon\Carbon::parse($startDate)->format('d M Y') }}</strong> s/d <strong>{{ \Carbon\Carbon::parse($endDate)->format('d M Y') }}</strong></div>
             <div>Dicetak: {{ now()->format('d M Y, H:i') }}</div>
@@ -457,6 +456,15 @@
             Data berdasarkan filter periode <strong>{{ \Carbon\Carbon::parse($startDate)->format('d M Y') }}</strong>
             s/d <strong>{{ \Carbon\Carbon::parse($endDate)->format('d M Y') }}</strong>.
         </p>
+    </div>
+</div>
+
+{{-- Tanda tangan digital khusus hasil print report --}}
+<div class="print-signature">
+    <div class="print-signature-box">
+        <x-verified-signature :signature-qr="$signature['signatureQr']" :verification-url="$signature['verificationUrl']"
+            :signer-name="$company['signatory_name']" :signer-title="$company['signatory_title']"
+            :company-name="$company['name']" />
     </div>
 </div>
 

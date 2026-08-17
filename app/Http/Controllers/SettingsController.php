@@ -23,7 +23,6 @@ class SettingsController extends Controller
             'company_logo' => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:2048',
             'company_login_logo' => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:2048',
             'company_doc_logo' => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:2048',
-            'company_signature' => 'nullable|image|mimes:png,jpg,jpeg,webp|max:2048',
             'company_favicon' => 'nullable|mimes:png,jpg,jpeg,ico|max:512',
             'company_document_city' => 'nullable|string|max:100',
             'company_signatory_name' => 'nullable|string|max:150',
@@ -71,7 +70,7 @@ class SettingsController extends Controller
             Setting::set('company_login_logo', $path);
         }
 
-        // Upload Logo Dokumen (Invoice & Surat Jalan)
+        // Logo khusus untuk seluruh dokumen cetak/PDF.
         if ($request->hasFile('company_doc_logo') && $request->file('company_doc_logo')->isValid()) {
             $oldLogo = Setting::get('company_doc_logo');
             if ($oldLogo && Storage::disk('public')->exists($oldLogo)) {
@@ -79,16 +78,6 @@ class SettingsController extends Controller
             }
             $path = $request->file('company_doc_logo')->store('branding', 'public');
             Setting::set('company_doc_logo', $path);
-        }
-
-        // Cap dan tanda tangan untuk surat penawaran.
-        if ($request->hasFile('company_signature') && $request->file('company_signature')->isValid()) {
-            $oldSignature = Setting::get('company_signature');
-            if ($oldSignature && Storage::disk('public')->exists($oldSignature)) {
-                Storage::disk('public')->delete($oldSignature);
-            }
-            $path = $request->file('company_signature')->store('branding', 'public');
-            Setting::set('company_signature', $path);
         }
 
         // Upload Favicon
@@ -117,7 +106,6 @@ class SettingsController extends Controller
             'favicon' => 'company_favicon',
             'login_logo' => 'company_login_logo',
             'doc_logo' => 'company_doc_logo',
-            'signature' => 'company_signature',
             default => 'company_logo',
         };
         $path = Setting::get($key);

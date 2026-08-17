@@ -7,8 +7,11 @@ use App\Models\DeliveryOrder;
 use App\Models\Invoice;
 use App\Models\OrderJobDetail;
 use App\Models\RequestOrder;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class InvoiceWorkflowTest extends TestCase
@@ -70,6 +73,92 @@ class InvoiceWorkflowTest extends TestCase
         $this->assertSame('paid', $deliveryOrder->fresh()->status);
         $this->assertSame('paid', $deliveryOrder->fresh()->invoice_status);
         $this->assertSame('paid', $deliveryOrder->requestOrder->fresh()->invoice_status);
+    }
+
+    public function test_printable_documents_use_the_dedicated_logo_and_digital_signature(): void
+    {
+        [$user, $customer, $deliveryOrder] = $this->makePodReadyOrder();
+
+        $this->actingAs($user)
+            ->post(route('invoices.store'), $this->invoicePayload($customer, $deliveryOrder, 'combined'));
+
+        $invoice = Invoice::sole();
+
+        Setting::set('company_name', 'PT Print Test');
+        Setting::set('company_doc_logo', 'branding/print-logo.png');
+        Setting::set('company_signatory_name', 'Anggi Sanjaya');
+        Setting::set('company_signatory_title', 'Direktur');
+
+        $admin = User::create([
+            'name' => 'Admin Print Test',
+            'email' => 'admin-print-' . uniqid() . '@example.test',
+            'password' => 'password',
+            'role' => 'Admin',
+            'status' => 'Active',
+        ]);
+
+        try {
+            $this->actingAs($user)
+                ->get(route('invoices.print', $invoice))
+                ->assertOk()
+                ->assertSee('/storage/branding/print-logo.png', false)
+                ->assertSee('data:image/png;base64,', false)
+                ->assertSee('ditandatangani secara elektronik', false)
+                ->assertSee('Anggi Sanjaya')
+                ->assertSee('Direktur');
+
+            $this->actingAs($user)
+                ->get(route('delivery-orders.surat-jalan.print', $deliveryOrder))
+                ->assertOk()
+                ->assertSee('/storage/branding/print-logo.png', false)
+                ->assertSee('data:image/png;base64,', false)
+                ->assertSee('ditandatangani secara elektronik', false)
+                ->assertSee('Anggi Sanjaya')
+                ->assertSee('Direktur');
+
+            $this->actingAs($admin)
+                ->get(route('reports.index'))
+                ->assertOk()
+                ->assertSee('/storage/branding/print-logo.png', false)
+                ->assertSee('data:image/png;base64,', false)
+                ->assertSee('ditandatangani secara elektronik', false)
+                ->assertSee('Anggi Sanjaya')
+                ->assertSee('Direktur');
+
+            $documents = [
+                ['kind' => 'invoice', 'id' => $invoice->id, 'number' => $invoice->invoice_number],
+                ['kind' => 'delivery_order', 'id' => $deliveryOrder->id, 'number' => $deliveryOrder->do_number],
+            ];
+            foreach ($documents as $document) {
+                $verificationUrl = URL::signedRoute('documents.verify', [
+                    'kind' => $document['kind'],
+                    'id' => $document['id'],
+                ], absolute: false);
+                $this->get($verificationUrl)
+                    ->assertOk()
+                    ->assertSee('Dokumen Terverifikasi')
+                    ->assertSee($document['number'])
+                    ->assertSee('Anggi Sanjaya');
+            }
+
+            $reportVerificationUrl = URL::signedRoute('documents.verify', [
+                'kind' => 'report',
+                'id' => 1723968000,
+                'report_type' => 'sales',
+                'start_date' => '2026-08-01',
+                'end_date' => '2026-08-31',
+            ], absolute: false);
+            $this->get($reportVerificationUrl)
+                ->assertOk()
+                ->assertSee('Dokumen Terverifikasi')
+                ->assertSee('Sales Report')
+                ->assertSee('2026-08-01 s/d 2026-08-31');
+
+            $this->get(route('documents.verify', ['kind' => 'invoice', 'id' => $invoice->id]))
+                ->assertForbidden();
+        } finally {
+            Cache::flush();
+        }
     }
 
     private function makePodReadyOrder(): array

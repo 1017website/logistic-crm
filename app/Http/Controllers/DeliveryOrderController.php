@@ -196,19 +196,24 @@ class DeliveryOrderController extends Controller
     }
 
     // ─────────────────── CETAK SURAT JALAN INTERNAL (HTML + barcode) ───────────────────
-    public function printSuratJalan(DeliveryOrder $deliveryOrder)
+    public function printSuratJalan(DeliveryOrder $deliveryOrder, \App\Services\DocumentSignatureService $documentSignature)
     {
         $deliveryOrder->load(['customer', 'vendor', 'salesUser', 'requestOrder.items']);
 
+        $companyName = \App\Models\Setting::get('company_name', 'Perusahaan');
         $company = [
-            'name'    => \App\Models\Setting::get('company_name', 'Perusahaan'),
+            'name'    => $companyName,
             'address' => \App\Models\Setting::get('company_address', ''),
             'phone'   => \App\Models\Setting::get('company_phone', ''),
             'email'   => \App\Models\Setting::get('company_email', ''),
+            'website' => \App\Models\Setting::get('company_website', ''),
             'logo'    => \App\Models\Setting::get('company_doc_logo') ?: \App\Models\Setting::get('company_logo', ''),
+            'signatory_name' => \App\Models\Setting::get('company_signatory_name') ?: $companyName,
+            'signatory_title' => \App\Models\Setting::get('company_signatory_title') ?: 'Direktur',
         ];
+        $signature = $documentSignature->make('delivery_order', $deliveryOrder->getKey());
 
-        return view('delivery_orders.surat_jalan_print', compact('deliveryOrder', 'company'));
+        return view('delivery_orders.surat_jalan_print', compact('deliveryOrder', 'company', 'signature'));
     }
 
     public function destroy(DeliveryOrder $deliveryOrder)

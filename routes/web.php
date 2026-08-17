@@ -27,6 +27,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ServiceTypeController;
 use App\Http\Controllers\DeletionRequestController;
 use App\Http\Controllers\QuotationController;
+use App\Http\Controllers\DocumentVerificationController;
 
 // ── Artisan runner (shared hosting) ──
 Route::get('/run/{command}', [ArtisanController::class, 'run'])
@@ -43,6 +44,13 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
 });
+
+// Tujuan publik QR tanda tangan elektronik. Signature URL mencegah parameter diubah.
+Route::get('/documents/verify/{kind}/{id}', [DocumentVerificationController::class, 'show'])
+    ->whereIn('kind', ['quotation', 'invoice', 'delivery_order', 'report'])
+    ->whereNumber('id')
+    ->middleware('signed:relative')
+    ->name('documents.verify');
 
 // ── Auth required ──────────────────────────────────
 Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
@@ -88,6 +96,7 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
         Route::get('/quotations', [QuotationController::class, 'index'])->name('quotations.index');
         Route::get('/quotations/create', [QuotationController::class, 'create'])->name('quotations.create');
         Route::post('/quotations', [QuotationController::class, 'store'])->name('quotations.store');
+        Route::get('/quotations/{quotation}', [QuotationController::class, 'show'])->name('quotations.show');
         Route::get('/quotations/{quotation}/edit', [QuotationController::class, 'edit'])->name('quotations.edit');
         Route::put('/quotations/{quotation}', [QuotationController::class, 'update'])->name('quotations.update');
         Route::get('/quotations/{quotation}/pdf', [QuotationController::class, 'pdf'])->name('quotations.pdf');

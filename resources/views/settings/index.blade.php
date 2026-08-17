@@ -307,17 +307,17 @@
                                 style="display:none;margin-top:8px;width:32px;height:32px;object-fit:contain;border:1px solid #e5e7eb">
                         </div>
 
-                        {{-- Logo Dokumen (Invoice, Surat Jalan, & Penawaran) --}}
+                        {{-- Logo khusus seluruh dokumen cetak/PDF --}}
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Logo Dokumen (Invoice, Surat Jalan &amp; Penawaran)</label>
-                            <div style="font-size:11px;color:#6b7280;margin-bottom:8px">Ditampilkan pada kop dokumen operasional dan surat penawaran. Bisa berbeda dari logo sidebar (mis. versi berwarna/horizontal). Jika kosong, otomatis memakai logo sidebar. Format: PNG, WebP, SVG. Maks 2MB.</div>
+                            <label class="form-label fw-semibold">Logo Khusus Print / PDF</label>
+                            <div style="font-size:11px;color:#6b7280;margin-bottom:8px">Dipakai pada semua dokumen cetak dan PDF, termasuk penawaran, invoice, dan surat jalan. Bisa berbeda dari logo sidebar (mis. versi berwarna/horizontal). Jika kosong, otomatis memakai logo sidebar. Format: PNG, WebP, SVG. Maks 2MB.</div>
                             @if(!empty($settings['company_doc_logo']))
                                 <div class="d-flex align-items-center gap-3 mb-3 p-3 rounded"
                                     style="background:#f8f9fa;border:1px solid #e5e7eb">
                                     <img src="{{ Storage::url($settings['company_doc_logo']) }}" alt="Logo Dokumen"
                                         style="max-height:48px;max-width:120px;object-fit:contain;border-radius:6px">
                                     <div>
-                                        <div style="font-size:12px;font-weight:600;color:#374151">Logo dokumen aktif</div>
+                                        <div style="font-size:12px;font-weight:600;color:#374151">Logo print/PDF aktif</div>
                                         <button type="button" class="btn btn-sm btn-outline-danger mt-1"
                                             style="font-size:11px;padding:2px 8px" onclick="deleteImage('doc_logo')">
                                             <i class="fas fa-trash me-1"></i> Hapus
@@ -330,7 +330,7 @@
                                 onmouseover="this.style.borderColor='#111111'"
                                 onmouseout="this.style.borderColor='#cbd5e1'">
                                 <i class="fas fa-file-invoice" style="font-size:1.5rem;color:#9ca3af"></i>
-                                <div style="font-size:12px;color:#6b7280;margin-top:8px">Klik untuk upload logo dokumen</div>
+                                <div style="font-size:12px;color:#6b7280;margin-top:8px">Klik untuk upload logo print/PDF</div>
                                 <div id="docLogoFileName" style="font-size:11px;color:#111111;margin-top:4px"></div>
                             </div>
                             <input type="file" id="docLogoInput" name="company_doc_logo" accept="image/*"
@@ -339,36 +339,20 @@
                                 style="display:none;margin-top:8px;max-height:48px;border-radius:6px;border:1px solid #e5e7eb">
                         </div>
 
-                        {{-- Cap dan tanda tangan surat penawaran --}}
+                        {{-- Tanda tangan elektronik berbasis QR --}}
                         <div class="col-md-6">
-                            <label class="form-label fw-semibold">Cap &amp; Tanda Tangan Penawaran</label>
-                            <div style="font-size:11px;color:#6b7280;margin-bottom:8px">Gambar transparan yang ditempatkan di blok tanda tangan PDF penawaran. Format: PNG, JPG, WebP. Maks 2MB.</div>
-                            @if(!empty($settings['company_signature']))
-                                <div class="d-flex align-items-center gap-3 mb-3 p-3 rounded"
-                                    style="background:#f8f9fa;border:1px solid #e5e7eb">
-                                    <img src="{{ Storage::url($settings['company_signature']) }}" alt="Cap dan Tanda Tangan"
-                                        style="max-height:64px;max-width:150px;object-fit:contain">
-                                    <div>
-                                        <div style="font-size:12px;font-weight:600;color:#374151">Tanda tangan aktif</div>
-                                        <button type="button" class="btn btn-sm btn-outline-danger mt-1"
-                                            style="font-size:11px;padding:2px 8px" onclick="deleteImage('signature')">
-                                            <i class="fas fa-trash me-1"></i> Hapus
-                                        </button>
-                                    </div>
+                            <label class="form-label fw-semibold">Tanda Tangan Elektronik QR</label>
+                            <div style="font-size:11px;color:#6b7280;margin-bottom:8px">Dibuat otomatis pada semua dokumen cetak dan PDF menggunakan nama serta jabatan penanda tangan di atas.</div>
+                            <div class="d-flex align-items-center gap-3 p-3 rounded"
+                                style="background:#f0fdf4;border:1px solid #bbf7d0;min-height:112px">
+                                <div style="width:56px;height:56px;border:2px solid #166534;display:flex;align-items:center;justify-content:center;color:#166534;font-size:24px;background:#fff">
+                                    <i class="fas fa-qrcode"></i>
                                 </div>
-                            @endif
-                            <div class="upload-area" onclick="document.getElementById('signatureInput').click()"
-                                style="border:2px dashed #cbd5e1;border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:all .2s"
-                                onmouseover="this.style.borderColor='#111111'"
-                                onmouseout="this.style.borderColor='#cbd5e1'">
-                                <i class="fas fa-signature" style="font-size:1.5rem;color:#9ca3af"></i>
-                                <div style="font-size:12px;color:#6b7280;margin-top:8px">Klik untuk upload cap &amp; tanda tangan</div>
-                                <div id="signatureFileName" style="font-size:11px;color:#111111;margin-top:4px"></div>
+                                <div>
+                                    <div style="font-size:12px;font-weight:700;color:#166534">Verifikasi QR aktif</div>
+                                    <div style="font-size:11px;color:#4b5563;margin-top:4px;line-height:1.5">Setiap QR memakai signed URL anti-manipulasi dan membuka halaman verifikasi publik.</div>
+                                </div>
                             </div>
-                            <input type="file" id="signatureInput" name="company_signature" accept="image/png,image/jpeg,image/webp"
-                                style="display:none" onchange="previewFile(this,'signatureFileName','signaturePreview')">
-                            <img id="signaturePreview" src="" alt=""
-                                style="display:none;margin-top:8px;max-height:64px;border:1px solid #e5e7eb">
                         </div>
                     </div>
 
@@ -396,7 +380,7 @@
                 }
 
                 function deleteImage(type) {
-                    const labels = { logo: 'logo sidebar', login_logo: 'logo login', favicon: 'favicon', doc_logo: 'logo dokumen', signature: 'cap dan tanda tangan' };
+                    const labels = { logo: 'logo sidebar', login_logo: 'logo login', favicon: 'favicon', doc_logo: 'logo print/PDF' };
                     if (!confirm('Hapus ' + (labels[type] || type) + '?')) return;
                     document.getElementById('deleteImageType').value = type;
                     document.getElementById('deleteImageForm').submit();

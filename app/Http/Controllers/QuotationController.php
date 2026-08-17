@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Models\Quotation;
 use App\Models\Setting;
+use App\Services\DocumentSignatureService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -62,6 +63,20 @@ class QuotationController extends Controller
         ]);
     }
 
+    public function show(Quotation $quotation)
+    {
+        $quotation->load(['items', 'customer', 'user']);
+        $opening = $quotation->opening
+            ?: 'Berikut kami memberikan pengajuan penawaran harga kepada Bapak/Ibu Pimpinan '
+                . $quotation->company_name . ' untuk pekerjaan berdasarkan detail di bawah ini :';
+        $contact = trim(collect([$quotation->contact_name, $quotation->contact_phone])->filter()->join(' di '));
+        $closing = $quotation->closing
+            ?: 'Demikian Surat Penawaran Harga ini kami buat, selanjutnya kami tunggu kabar baik dari Bapak/Ibu'
+                . ($contact ? ', atau Bapak/Ibu bisa menghubungi ' . $contact : '') . '. Terima kasih.';
+
+        return view('quotations.show', compact('quotation', 'opening', 'closing'));
+    }
+
     public function store(Request $request)
     {
         $data = $this->validated($request);
@@ -116,7 +131,7 @@ class QuotationController extends Controller
             ->with('success', "Penawaran {$quotation->quotation_number} berhasil diperbarui.");
     }
 
-    public function pdf(Quotation $quotation)
+    public function pdf(Quotation $quotation, DocumentSignatureService $documentSignature)
     {
         $quotation->load(['items', 'customer', 'user']);
         $company = [
@@ -128,10 +143,14 @@ class QuotationController extends Controller
             'logo' => $this->imageDataUrl(
                 Setting::get('company_doc_logo') ?: Setting::get('company_logo')
             ),
-            'signature' => $this->imageDataUrl(Setting::get('company_signature')),
         ];
+        $signature = $documentSignature->make('quotation', $quotation->getKey());
 
-        $pdf = Pdf::loadView('quotations.pdf', compact('quotation', 'company'))
+        $pdf = Pdf::loadView('quotations.pdf', [
+            'quotation' => $quotation,
+            'company' => $company,
+            ...$signature,
+        ])
             ->setPaper('a4', 'portrait')
             ->setOptions([
                 'defaultFont' => 'DejaVu Sans',

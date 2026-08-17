@@ -14,21 +14,10 @@
         padding: 18mm 16mm; box-shadow: 0 1px 8px rgba(0,0,0,.12);
     }
 
-    /* Header */
-    .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; }
-    .hdr .brand { display:flex; gap:12px; align-items:flex-start; }
-    .hdr .brand img { max-height:56px; max-width:120px; object-fit:contain; }
-    .hdr .brand .co h1 { margin:0; font-size:19px; font-weight:800; letter-spacing:.3px; color:var(--accent); }
-    .hdr .brand .co .info { font-size:10.5px; color:var(--muted); line-height:1.55; margin-top:3px; }
-    .hdr .doc { text-align:right; min-width:150px; }
-    .hdr .doc .ttl { font-size:17px; font-weight:800; letter-spacing:1.5px; color:var(--accent); }
-    .hdr .doc .pill { display:inline-block; background:var(--accent); color:#fff; font-size:9.5px; letter-spacing:.5px; padding:2px 9px; border-radius:99px; margin-top:5px; }
-    .hdr .doc .qr { margin-top:8px; }
-    .hdr .doc .qr img, .hdr .doc .qr canvas { border:1px solid var(--line); border-radius:6px; padding:4px; background:#fff; }
-    .hdr .doc .nodo { font-size:12px; font-weight:700; margin-top:5px; color:var(--accent); }
-    .hdr .doc .scan { font-size:8.5px; color:var(--muted); margin-top:2px; }
-
-    .rule { height:3px; background:var(--accent); border-radius:2px; margin:14px 0 16px; }
+    .document-title { display:flex; justify-content:space-between; align-items:center; margin:0 0 16px; }
+    .document-title .ttl { font-size:18px; font-weight:800; letter-spacing:1.5px; color:var(--accent); }
+    .document-title .pill { display:inline-block; background:var(--accent); color:#fff; font-size:9.5px; letter-spacing:.5px; padding:3px 10px; border-radius:99px; }
+    .document-title .nodo { font-size:12px; font-weight:700; color:var(--accent); text-align:right; }
 
     /* Info grid */
     .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
@@ -50,10 +39,13 @@
     table.items .empty { text-align:center; color:#9ca3af; padding:18px; }
 
     /* Signatures */
-    .sign { display:flex; justify-content:space-between; gap:20px; margin-top:34px; }
+    .sign { display:flex; justify-content:space-between; gap:24px; margin-top:34px; align-items:flex-end; }
+    .sign .manual { flex:1; display:flex; gap:18px; }
     .sign .col { flex:1; text-align:center; font-size:11px; }
     .sign .col .role { color:var(--muted); }
-    .sign .col .line { margin-top:54px; border-top:1px solid var(--ink); padding-top:5px; font-weight:600; }
+    .sign .col .signature-space { height:54px; display:flex; align-items:flex-end; justify-content:center; }
+    .sign .col .line { border-top:1px solid var(--ink); padding-top:5px; font-weight:600; }
+    .sign .digital { width:92mm; flex-shrink:0; }
 
     .foot { margin-top:18px; padding-top:10px; border-top:1px dashed var(--line); font-size:9px; color:var(--muted); display:flex; justify-content:space-between; }
 
@@ -85,30 +77,15 @@
 
 <div class="sheet">
 
-    <div class="hdr">
-        <div class="brand">
-            @if(!empty($company['logo']))
-                <img src="{{ \Illuminate\Support\Facades\Storage::url($company['logo']) }}" alt="Logo">
-            @endif
-            <div class="co">
-                <h1>{{ $company['name'] }}</h1>
-                <div class="info">
-                    {!! nl2br(e($company['address'])) !!}
-                    @if($company['phone'])<br>Telp: {{ $company['phone'] }}@endif
-                    @if($company['email'])<br>{{ $company['email'] }}@endif
-                </div>
-            </div>
-        </div>
-        <div class="doc">
+    <x-print-letterhead :company="$company" />
+
+    <div class="document-title">
+        <div>
             <div class="ttl">SURAT JALAN</div>
             <div class="pill">ARMADA INTERNAL</div>
-            <div class="qr"><div id="sjQrcode" style="display:inline-block"></div></div>
-            <div class="nodo">{{ $do->do_number }}</div>
-            <div class="scan">Scan untuk buka detail DO</div>
         </div>
+        <div class="nodo">{{ $do->do_number }}</div>
     </div>
-
-    <div class="rule"></div>
 
     <div class="grid">
         <div class="panel">
@@ -157,17 +134,22 @@
     </table>
 
     <div class="sign">
-        <div class="col">
-            <div class="role">Diserahkan oleh,</div>
-            <div class="line">( Petugas Gudang )</div>
+        <div class="manual">
+            <div class="col">
+                <div class="role">Pengirim / Driver,</div>
+                <div class="signature-space"></div>
+                <div class="line">( {{ $do->driver_name ?: '..................' }} )</div>
+            </div>
+            <div class="col">
+                <div class="role">Diterima oleh,</div>
+                <div class="signature-space"></div>
+                <div class="line">( Penerima )</div>
+            </div>
         </div>
-        <div class="col">
-            <div class="role">Pengirim / Driver,</div>
-            <div class="line">( {{ $do->driver_name ?: '..................' }} )</div>
-        </div>
-        <div class="col">
-            <div class="role">Diterima oleh,</div>
-            <div class="line">( Penerima )</div>
+        <div class="digital">
+            <x-verified-signature :signature-qr="$signature['signatureQr']" :verification-url="$signature['verificationUrl']"
+                :signer-name="$company['signatory_name']" :signer-title="$company['signatory_title']"
+                :company-name="$company['name']" />
         </div>
     </div>
 
@@ -178,18 +160,5 @@
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<script>
-    // QR berisi URL absolut halaman DO/SJ — saat discan langsung membuka detail.
-    var sjUrl = "{{ route('delivery-orders.surat-jalan.print', $do->id) }}";
-    try {
-        new QRCode(document.getElementById("sjQrcode"), {
-            text: sjUrl, width: 92, height: 92, correctLevel: QRCode.CorrectLevel.M
-        });
-    } catch (e) {
-        document.getElementById("sjQrcode").innerHTML =
-            '<div style="font-size:9px;color:#999">QR gagal dimuat</div>';
-    }
-</script>
 </body>
 </html>

@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Quotation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class QuotationWorkflowTest extends TestCase
@@ -64,15 +65,33 @@ class QuotationWorkflowTest extends TestCase
             ->post(route('quotations.store'), $payload)
             ->assertRedirect(route('quotations.index'));
 
-        $quotation = Quotation::with('items')->sole();
+        $quotation = Quotation::with('items')->where('user_id', $user->id)->sole();
         $this->assertSame('SPH-2608-' . str_pad((string) $quotation->id, 4, '0', STR_PAD_LEFT), $quotation->quotation_number);
         $this->assertCount(1, $quotation->items);
         $this->assertSame('Gresik Segoromadu', $quotation->items->first()->origin);
+
+        $this->actingAs($user)
+            ->get(route('quotations.show', $quotation))
+            ->assertOk()
+            ->assertSee($quotation->quotation_number)
+            ->assertSee('PT Garam Test')
+            ->assertSee('Gresik Segoromadu')
+            ->assertSee('Rp 2.500.000');
 
         $response = $this->actingAs($user)->get(route('quotations.pdf', $quotation));
         $response->assertOk()->assertHeader('content-type', 'application/pdf');
         $this->assertStringStartsWith('%PDF-', $response->getContent());
         $response->assertDownload('Surat-Penawaran-' . $quotation->quotation_number . '.pdf');
+
+        $verificationUrl = URL::signedRoute('documents.verify', [
+            'kind' => 'quotation',
+            'id' => $quotation->id,
+        ], absolute: false);
+        $this->get($verificationUrl)
+            ->assertOk()
+            ->assertSee('Dokumen Terverifikasi')
+            ->assertSee($quotation->quotation_number)
+            ->assertSee('Anggi Sanjaya');
     }
 
     public function test_finance_user_cannot_access_quotation_menu(): void

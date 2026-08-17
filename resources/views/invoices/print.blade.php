@@ -11,21 +11,13 @@
 
     .sheet { width:210mm; min-height:297mm; margin:16px auto; background:#fff; padding:16mm 15mm; box-shadow:0 1px 8px rgba(0,0,0,.12); }
 
-    /* Header */
-    .hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; }
-    .hdr .brand { display:flex; gap:13px; align-items:flex-start; }
-    .hdr .brand img { max-height:60px; max-width:140px; object-fit:contain; }
-    .hdr .brand .co h1 { margin:0; font-size:20px; font-weight:800; letter-spacing:.3px; color:var(--accent); }
-    .hdr .brand .co .info { font-size:10.5px; color:var(--muted); line-height:1.6; margin-top:4px; }
-    .hdr .doc { text-align:right; }
-    .hdr .doc .ttl { font-size:24px; font-weight:800; letter-spacing:2px; color:var(--accent); }
-    .hdr .doc .pf { font-size:9.5px; letter-spacing:1px; color:var(--muted); }
-    .hdr .doc .badge { display:inline-block; margin-top:6px; font-size:10px; font-weight:700; padding:3px 12px; border-radius:99px; }
+    .document-title { display:flex; justify-content:space-between; align-items:center; margin:0 0 16px; }
+    .document-title .ttl { font-size:22px; font-weight:800; letter-spacing:2px; color:var(--accent); }
+    .document-title .sub { font-size:9.5px; letter-spacing:1px; color:var(--muted); }
+    .document-title .badge { display:inline-block; font-size:10px; font-weight:700; padding:3px 12px; border-radius:99px; }
     .badge.s-draft { background:#f3f4f6; color:#6b7280; }
     .badge.s-invoice { background:#dbeafe; color:#1d4ed8; }
     .badge.s-paid { background:#d1fae5; color:#047857; }
-
-    .rule { height:3px; background:var(--accent); border-radius:2px; margin:14px 0 16px; }
 
     /* Bill-to & meta */
     .topgrid { display:flex; justify-content:space-between; gap:22px; margin-bottom:16px; }
@@ -59,10 +51,7 @@
     .totals .grand { border-top:2px solid var(--accent); margin-top:4px; padding-top:8px; font-size:15px; font-weight:800; }
 
     /* Signature + footer */
-    .sign { margin-top:38px; display:flex; justify-content:flex-end; }
-    .sign .col { width:200px; text-align:center; font-size:11px; }
-    .sign .col .role { color:var(--muted); }
-    .sign .col .line { margin-top:56px; border-top:1px solid var(--ink); padding-top:5px; font-weight:600; }
+    .sign { margin:32px 0 0 auto; width:92mm; }
 
     .foot { margin-top:22px; padding-top:10px; border-top:1px dashed var(--line); font-size:9.5px; color:var(--muted); text-align:center; line-height:1.6; }
 
@@ -95,29 +84,15 @@
 
 <div class="sheet">
 
-    <div class="hdr">
-        <div class="brand">
-            @if(!empty($company['logo']))
-                <img src="{{ \Illuminate\Support\Facades\Storage::url($company['logo']) }}" alt="Logo">
-            @endif
-            <div class="co">
-                <h1>{{ $company['name'] }}</h1>
-                <div class="info">
-                    {!! nl2br(e($company['address'])) !!}
-                    @if($company['phone'])<br>Telp: {{ $company['phone'] }}@endif
-                    @if($company['email'])<br>{{ $company['email'] }}@endif
-                    @if($company['website'])<br>{{ $company['website'] }}@endif
-                </div>
-            </div>
-        </div>
-        <div class="doc">
-            <div class="ttl">INVOICE</div>
-            <div class="pf">PRO FORMA</div>
-            <div><span class="badge {{ $statusClass }}">{{ $statusText }}</span></div>
-        </div>
-    </div>
+    <x-print-letterhead :company="$company" />
 
-    <div class="rule"></div>
+    <div class="document-title">
+        <div>
+            <div class="ttl">INVOICE</div>
+            <div class="sub">PRO FORMA</div>
+        </div>
+        <span class="badge {{ $statusClass }}">{{ $statusText }}</span>
+    </div>
 
     <div class="topgrid">
         <div class="billto">
@@ -184,10 +159,9 @@
     </div>
 
     <div class="sign">
-        <div class="col">
-            <div class="role">Hormat kami,</div>
-            <div class="line">{{ $company['name'] }}</div>
-        </div>
+        <x-verified-signature :signature-qr="$signature['signatureQr']" :verification-url="$signature['verificationUrl']"
+            :signer-name="$company['signatory_name']" :signer-title="$company['signatory_title']"
+            :company-name="$company['name']" />
     </div>
 
     <div class="foot">

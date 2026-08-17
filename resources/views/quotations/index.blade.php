@@ -87,6 +87,10 @@
                                     <td>{{ $quotation->user?->name ?? '-' }}</td>
                                     <td><span class="badge bg-{{ $quotation->status_color }}">{{ $quotation->status_label }}</span></td>
                                     <td class="text-end pe-3 text-nowrap">
+                                        <a href="{{ route('quotations.show', $quotation) }}" class="btn btn-sm btn-outline-dark"
+                                            style="padding:4px 8px" title="Detail">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
                                         <a href="{{ route('quotations.pdf', $quotation) }}" class="btn btn-sm btn-primary"
                                             style="padding:4px 9px" title="Unduh PDF">
                                             <i class="fas fa-file-pdf me-1"></i> PDF

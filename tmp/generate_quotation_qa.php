@@ -3,6 +3,7 @@
 use App\Http\Controllers\QuotationController;
 use App\Models\Quotation;
 use App\Models\User;
+use App\Services\DocumentSignatureService;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -61,7 +62,10 @@ try {
         'sort_order' => 0,
     ]);
 
-    $response = app(QuotationController::class)->pdf($quotation);
+    $response = app(QuotationController::class)->pdf(
+        $quotation,
+        app(DocumentSignatureService::class),
+    );
     file_put_contents(__DIR__ . '/quotation-qa.pdf', $response->getContent());
 } finally {
     DB::rollBack();

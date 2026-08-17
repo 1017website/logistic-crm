@@ -7,11 +7,13 @@ use App\Models\Customer;
 use App\Models\User;
 use App\Models\RequestOrder;
 use App\Models\Activity;
+use App\Models\Setting;
+use App\Services\DocumentSignatureService;
 use Illuminate\Http\Request;
 
 class ReportsController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, DocumentSignatureService $documentSignature)
     {
         $startDate  = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate    = $request->get('end_date', now()->endOfMonth()->toDateString());
@@ -84,10 +86,27 @@ class ReportsController extends Controller
 
         $salesUsers = User::orderBy('name')->get();
 
+        $companyName = Setting::get('company_name', 'Logistic CRM');
+        $company = [
+            'name' => $companyName,
+            'address' => Setting::get('company_address', ''),
+            'phone' => Setting::get('company_phone', ''),
+            'email' => Setting::get('company_email', ''),
+            'website' => Setting::get('company_website', ''),
+            'logo' => Setting::get('company_doc_logo') ?: Setting::get('company_logo', ''),
+            'signatory_name' => Setting::get('company_signatory_name') ?: $companyName,
+            'signatory_title' => Setting::get('company_signatory_title') ?: 'Direktur',
+        ];
+        $signature = $documentSignature->make('report', now()->timestamp, [
+            'report_type' => $reportType,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ]);
+
         return view('reports.index', compact(
             'reportData', 'revenue', 'grossProfit', 'nettProfit', 'totalDeals',
             'avgDealValue', 'conversionRate', 'winRate',
-            'salesUsers', 'startDate', 'endDate', 'reportType', 'salesId', 'status', 'search'
+            'salesUsers', 'startDate', 'endDate', 'reportType', 'salesId', 'status', 'search', 'company', 'signature'
         ));
     }
 
