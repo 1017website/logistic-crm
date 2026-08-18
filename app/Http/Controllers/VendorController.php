@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Vendor;
 use App\Models\VendorService;
 use App\Models\VendorPic;
+use App\Services\SpreadsheetRowReader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class VendorController extends Controller
 {
@@ -380,5 +383,206 @@ class VendorController extends Controller
         ])->toArray();
 
         return \App\Helpers\ExcelExport::download('vendors-' . date('Ymd'), $headers, $rows, 'Vendors');
+    }
+
+    public function template()
+    {
+        $headers = [
+            'Vendor Name', 'Vendor Type', 'Service Type', 'Service Mode', 'PIC Name',
+            'Position', 'Phone', 'Email', 'Address', 'Payment Term', 'Status',
+            'Relationship', 'Preferred', 'Rating', 'Vendor Since', 'Service Name',
+            'Unit', 'Tonnage', 'Tariff', 'Tariff Unit', 'Route Origin',
+            'Route Destination', 'Service Description',
+        ];
+        $rows = [[
+            'PT Contoh Transport', 'External', 'Trucking trailer', 'Kontainer',
+            'Siti Aminah', 'Marketing', '0812-9876-5432', 'siti@vendor.co.id',
+            'Jl. Vendor No. 5', '30 hari', 'Active', 'Existing', 'Yes', 4.5,
+            now()->format('Y-m-d'), 'Trucking FCL', 'trip', 20, 3500000,
+            'per shipment', 'Surabaya', 'Jakarta', 'Tarif contoh per pengiriman',
+        ]];
+
+        return \App\Helpers\ExcelExport::download('template_import_vendors', $headers, $rows, 'Vendors');
+    }
+
+    public function import(Request $request, SpreadsheetRowReader $reader)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+        ]);
+
+        $rows = $reader->read($request->file('file'), [
+            'vendor_name' => ['Vendor Name', 'Nama Vendor'],
+            'vendor_type' => ['Vendor Type', 'Tipe Vendor'],
+            'service_type' => ['Service Type', 'Tipe Layanan'],
+            'service_mode' => ['Service Mode', 'Mode Layanan'],
+            'pic_name' => ['PIC Name', 'PIC', 'Nama PIC'],
+            'pic_position' => ['Position', 'PIC Position', 'Jabatan'],
+            'phone' => ['Phone', 'Telephone', 'No Telepon', 'Nomor Telepon'],
+            'email' => ['Email', 'PIC Email'],
+            'address' => ['Address', 'Alamat'],
+            'payment_term' => ['Payment Term', 'Termin Pembayaran'],
+            'status' => ['Status'],
+            'relationship_status' => ['Relationship', 'Relationship Status', 'Relasi'],
+            'is_preferred' => ['Preferred', 'Is Preferred'],
+            'rating' => ['Rating'],
+            'vendor_since' => ['Vendor Since', 'Tanggal Vendor'],
+            'service_name' => ['Service Name', 'Layanan', 'Nama Layanan'],
+            'unit' => ['Unit', 'Satuan'],
+            'tonnage' => ['Tonnage', 'Tonase'],
+            'tariff' => ['Tariff', 'Tarif'],
+            'tariff_unit' => ['Tariff Unit', 'Satuan Tarif'],
+            'route_origin' => ['Route Origin', 'Origin', 'Asal'],
+            'route_destination' => ['Route Destination', 'Destination', 'Tujuan'],
+            'description' => ['Service Description', 'Description', 'Keterangan Layanan'],
+        ], ['vendor_name', 'pic_name', 'phone']);
+
+        $imported = 0;
+        $errors = [];
+
+        foreach ($rows as $spreadsheetRow) {
+            $rowNumber = $spreadsheetRow['row'];
+            $data = array_map(fn ($value) => is_string($value) ? trim($value) : $value, $spreadsheetRow['data']);
+            $data['vendor_name'] = trim((string) $data['vendor_name']);
+            $data['pic_name'] = trim((string) $data['pic_name']);
+            $data['phone'] = trim((string) $data['phone']);
+            $data['email'] = trim((string) $data['email']) ?: null;
+            $data['vendor_type'] = $this->normalizeImportChoice($data['vendor_type'], Vendor::VENDOR_TYPES, 'External');
+            $data['status'] = $this->normalizeImportChoice($data['status'], ['Active', 'Non-Active'], 'Active');
+            $data['relationship_status'] = $this->normalizeImportChoice($data['relationship_status'], ['Potential', 'Existing'], 'Potential');
+            $data['is_preferred'] = $this->normalizeImportBoolean($data['is_preferred']);
+            $data['vendor_since'] = $this->normalizeImportDate($data['vendor_since']);
+
+            $validator = Validator::make($data, [
+                'vendor_name' => 'required|string|max:255',
+                'vendor_type' => 'required|in:External,Internal',
+                'service_type' => 'nullable|string|max:100',
+                'service_mode' => 'nullable|string|max:255',
+                'pic_name' => 'required|string|max:255',
+                'pic_position' => 'nullable|string|max:100',
+                'phone' => 'required|string|max:20',
+                'email' => 'nullable|email|max:255',
+                'address' => 'nullable|string',
+                'payment_term' => 'nullable|string|max:100',
+                'status' => 'required|in:Active,Non-Active',
+                'relationship_status' => 'required|in:Potential,Existing',
+                'is_preferred' => 'boolean',
+                'rating' => 'nullable|numeric|min:0|max:5',
+                'vendor_since' => 'nullable|date_format:Y-m-d',
+                'service_name' => 'nullable|string|max:255',
+                'unit' => 'nullable|string|max:50',
+                'tonnage' => 'nullable|numeric|min:0',
+                'tariff' => 'nullable|numeric|min:0',
+                'tariff_unit' => 'nullable|string|max:50',
+                'route_origin' => 'nullable|string|max:255',
+                'route_destination' => 'nullable|string|max:255',
+                'description' => 'nullable|string',
+            ]);
+
+            if ($validator->fails()) {
+                $errors[] = "Baris {$rowNumber}: ".implode(' ', $validator->errors()->all());
+                continue;
+            }
+
+            try {
+                DB::transaction(function () use ($data) {
+                    $vendor = Vendor::create([
+                        'vendor_code' => Vendor::generateVendorCode(),
+                        'vendor_name' => $data['vendor_name'],
+                        'vendor_type' => $data['vendor_type'],
+                        'service_type' => trim((string) $data['service_type']) ?: null,
+                        'service_mode' => trim((string) $data['service_mode']) ?: null,
+                        'pic_name' => $data['pic_name'],
+                        'pic_position' => trim((string) $data['pic_position']) ?: null,
+                        'phone' => $data['phone'],
+                        'email' => $data['email'],
+                        'address' => trim((string) $data['address']) ?: null,
+                        'payment_term' => trim((string) $data['payment_term']) ?: null,
+                        'status' => $data['status'],
+                        'relationship_status' => $data['relationship_status'],
+                        'is_preferred' => $data['is_preferred'],
+                        'rating' => $data['rating'] !== null && $data['rating'] !== '' ? $data['rating'] : 0,
+                        'vendor_since' => $data['vendor_since'],
+                    ]);
+
+                    if (trim((string) $data['service_name']) !== '') {
+                        $vendor->services()->create([
+                            'service_name' => trim((string) $data['service_name']),
+                            'unit' => trim((string) $data['unit']),
+                            'tonnage' => $data['tonnage'] !== null && $data['tonnage'] !== '' ? $data['tonnage'] : null,
+                            'tariff' => $data['tariff'] !== null && $data['tariff'] !== '' ? $data['tariff'] : 0,
+                            'tariff_unit' => trim((string) $data['tariff_unit']) ?: 'per shipment',
+                            'route_origin' => trim((string) $data['route_origin']) ?: null,
+                            'route_destination' => trim((string) $data['route_destination']) ?: null,
+                            'description' => trim((string) $data['description']) ?: null,
+                        ]);
+                    }
+                });
+                $imported++;
+            } catch (\Throwable $exception) {
+                report($exception);
+                $errors[] = "Baris {$rowNumber}: data gagal disimpan.";
+            }
+        }
+
+        $message = $imported > 0
+            ? "Berhasil import {$imported} vendor."
+            : 'Tidak ada vendor yang berhasil diimport.';
+        $response = redirect()->route('vendors.index')
+            ->with($imported > 0 ? 'success' : 'error', $message);
+
+        return $errors !== []
+            ? $response->with('warning', $this->summarizeImportErrors($errors))
+            : $response;
+    }
+
+    private function normalizeImportChoice(mixed $value, array $choices, string $default): string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return $default;
+        }
+
+        foreach ($choices as $choice) {
+            if (strcasecmp($value, $choice) === 0) {
+                return $choice;
+            }
+        }
+
+        return $value;
+    }
+
+    private function normalizeImportBoolean(mixed $value): bool
+    {
+        return in_array(mb_strtolower(trim((string) $value)), ['1', 'yes', 'y', 'true', 'ya'], true);
+    }
+
+    private function normalizeImportDate(mixed $value): ?string
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return null;
+        }
+
+        if (is_numeric($value)) {
+            try {
+                return ExcelDate::excelToDateTimeObject((float) $value)->format('Y-m-d');
+            } catch (\Throwable $exception) {
+                return (string) $value;
+            }
+        }
+
+        $timestamp = strtotime((string) $value);
+
+        return $timestamp === false ? (string) $value : date('Y-m-d', $timestamp);
+    }
+
+    /** @param array<int, string> $errors */
+    private function summarizeImportErrors(array $errors): string
+    {
+        $summary = implode(' ', array_slice($errors, 0, 5));
+
+        return count($errors) > 5
+            ? $summary.' Dan '.(count($errors) - 5).' error lainnya.'
+            : $summary;
     }
 }

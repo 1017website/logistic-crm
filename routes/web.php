@@ -120,6 +120,8 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
     // Vendors (Admin, Sales Manager, Transport Planner)
     Route::middleware('role:Admin,Sales Manager,Transport Planner')->group(function () {
         Route::get('/vendors/export', [VendorController::class, 'export'])->name('vendors.export');
+        Route::get('/vendors/template', [VendorController::class, 'template'])->name('vendors.template');
+        Route::post('/vendors/import', [VendorController::class, 'import'])->name('vendors.import');
         Route::post('/vendors/{vendor}/services', [VendorController::class, 'storeService'])->name('vendors.services.store');
         Route::post('/vendors/{vendor}/pics', [VendorController::class, 'storePic'])->name('vendors.pics.store');
         Route::resource('vendors', VendorController::class)->only(['index', 'store', 'update']);

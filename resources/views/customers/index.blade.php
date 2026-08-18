@@ -11,9 +11,12 @@
 
         {{-- Header --}}
         <div class="d-flex align-items-center justify-content-between mb-3">
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 flex-wrap">
                 <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
                     <i class="fas fa-plus me-1"></i> Add Customer
+                </button>
+                <button class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#importCustomerModal">
+                    <i class="fas fa-file-import me-1"></i> Import Excel
                 </button>
                 <a href="{{ route('customers.export', request()->query()) }}" class="btn btn-outline-secondary btn-sm">
                     <i class="fas fa-download me-1"></i> Export Excel
@@ -406,6 +409,37 @@
 </div>
 
 {{-- MODALS --}}
+{{-- Import Customer --}}
+<div class="modal fade" id="importCustomerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">Import Database Customer</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ route('customers.import') }}" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body">
+                    <label class="form-label">File Excel / CSV <span class="text-danger">*</span></label>
+                    <input type="file" name="file" class="form-control @error('file') is-invalid @enderror"
+                        accept=".xlsx,.xls,.csv" required>
+                    @error('file')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    <div class="form-text mt-2">
+                        Format XLSX, XLS, atau CSV; maksimal 10 MB. Customer valid dibuat sebagai Existing beserta lead Maintaining.
+                    </div>
+                    <a href="{{ route('customers.template') }}" class="btn btn-sm btn-outline-secondary mt-3">
+                        <i class="fas fa-download me-1"></i> Download Template Excel
+                    </a>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-success"><i class="fas fa-file-import me-1"></i> Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {{-- Add Customer --}}
 <div class="modal fade" id="addCustomerModal" tabindex="-1">
     <div class="modal-dialog modal-lg"><div class="modal-content">

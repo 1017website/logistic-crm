@@ -8,9 +8,12 @@ use App\Models\User;
 use App\Models\Activity;
 use App\Models\VendorService;
 use App\Models\Lead;
+use App\Services\SpreadsheetRowReader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class CustomerController extends Controller
 {
@@ -366,56 +369,197 @@ class CustomerController extends Controller
     public function template()
     {
         $headers = [
-            'Content-Type'        => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="template_import_customers.csv"',
+            'Company Name', 'PIC Name', 'Position', 'Phone', 'Email', 'Industry',
+            'Location', 'Address', 'Kode Invoice', 'Sales PIC Email/Name',
+            'Customer Since', 'Notes', 'Service Name', 'Unit', 'Tonnage', 'Shipping Zone',
         ];
-        $callback = function () {
-            $f = fopen('php://output', 'w');
-            fputs($f, "\xEF\xBB\xBF");
-            fputcsv($f, ['Company Name', 'PIC Name', 'Position', 'Phone', 'Email', 'Industry', 'Location', 'Kode Invoice', 'Sales PIC Email/Name']);
-            fputcsv($f, ['PT. Contoh Kimia', 'Budi Santoso', 'Purchasing Manager', '0812-1234-5678', 'budi@contoh.co.id', 'Manufacturing', 'Surabaya', 'PCK', 'sales@crm.com']);
-            fclose($f);
-        };
-        return response()->stream($callback, 200, $headers);
+        $rows = [[
+            'PT Contoh Logistik', 'Budi Santoso', 'Purchasing Manager', '0812-1234-5678',
+            'budi@contoh.co.id', 'Manufacturing', 'Surabaya', 'Jl. Contoh No. 10',
+            'PCL', 'sales@crm.com', now()->format('Y-m-d'), 'Customer existing',
+            'Trucking', 'trip', 10, 'Surabaya - Jakarta',
+        ]];
+
+        return \App\Helpers\ExcelExport::download('template_import_customers', $headers, $rows, 'Customers');
     }
 
-    public function import(Request $request)
+    public function import(Request $request, SpreadsheetRowReader $reader)
     {
-        $request->validate(['file' => 'required|file|mimes:csv,txt|max:2048']);
-        $handle   = fopen($request->file('file')->getRealPath(), 'r');
-        $header   = fgetcsv($handle);
-        $imported = 0;
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+        ]);
 
-        while (($row = fgetcsv($handle)) !== false) {
-            if (count($row) < 3 || empty(trim($row[0]))) continue;
-            $salesKey = trim($row[8] ?? '');
-            $salesUser = $salesKey !== ''
-                ? User::where('email', $salesKey)->orWhere('name', $salesKey)->first()
-                : null;
-            $invoiceCode = Customer::normalizeInvoiceCode($row[7] ?? null);
-            if ($invoiceCode && Customer::withTrashed()->where('invoice_code', $invoiceCode)->exists()) {
-                $invoiceCode = null;
+        $rows = $reader->read($request->file('file'), [
+            'company_name' => ['Company Name', 'Company', 'Nama Perusahaan', 'Customer Name'],
+            'pic_name' => ['PIC Name', 'PIC', 'Nama PIC'],
+            'pic_position' => ['Position', 'PIC Position', 'Jabatan'],
+            'phone' => ['Phone', 'Telephone', 'No Telepon', 'Nomor Telepon'],
+            'email' => ['Email', 'PIC Email'],
+            'industry' => ['Industry', 'Industri'],
+            'location' => ['Location', 'Lokasi'],
+            'address' => ['Address', 'Alamat'],
+            'invoice_code' => ['Kode Invoice', 'Invoice Code'],
+            'sales_key' => ['Sales PIC Email/Name', 'Sales PIC', 'Sales Email'],
+            'customer_since' => ['Customer Since', 'Tanggal Customer'],
+            'notes' => ['Notes', 'Catatan'],
+            'service_name' => ['Service Name', 'Layanan', 'Nama Layanan'],
+            'unit' => ['Unit', 'Satuan'],
+            'tonnage' => ['Tonnage', 'Tonase'],
+            'shipping_zone' => ['Shipping Zone', 'Zona Pengiriman', 'Route'],
+        ], ['company_name', 'pic_name', 'phone']);
+
+        $imported = 0;
+        $errors = [];
+
+        foreach ($rows as $spreadsheetRow) {
+            $rowNumber = $spreadsheetRow['row'];
+            $data = array_map(fn ($value) => is_string($value) ? trim($value) : $value, $spreadsheetRow['data']);
+            $data['company_name'] = trim((string) $data['company_name']);
+            $data['pic_name'] = trim((string) $data['pic_name']);
+            $data['phone'] = trim((string) $data['phone']);
+            $data['email'] = trim((string) $data['email']) ?: null;
+            $data['invoice_code'] = Customer::normalizeInvoiceCode((string) $data['invoice_code']);
+            $data['customer_since'] = $this->normalizeImportDate($data['customer_since']);
+
+            $validator = Validator::make($data, [
+                'company_name' => 'required|string|max:255',
+                'pic_name' => 'required|string|max:255',
+                'pic_position' => 'nullable|string|max:100',
+                'phone' => 'required|string|max:20',
+                'email' => 'nullable|email|max:255',
+                'industry' => 'nullable|string|max:100',
+                'location' => 'nullable|string|max:255',
+                'address' => 'nullable|string',
+                'invoice_code' => ['nullable', 'string', 'max:30', 'regex:/^[A-Z0-9_-]+$/'],
+                'customer_since' => 'nullable|date_format:Y-m-d',
+                'notes' => 'nullable|string',
+                'service_name' => 'nullable|string|max:255',
+                'unit' => 'nullable|string|max:100',
+                'tonnage' => 'nullable|numeric|min:0',
+                'shipping_zone' => 'nullable|string|max:255',
+            ]);
+
+            if ($validator->fails()) {
+                $errors[] = "Baris {$rowNumber}: ".implode(' ', $validator->errors()->all());
+                continue;
             }
 
-            // Revisi #1: import dari menu Customer = Existing
-            Customer::create([
-                'customer_code'  => \App\Models\Customer::generateCustomerCode(),
-                'invoice_code'   => $invoiceCode,
-                'company_name'   => trim($row[0]),
-                'pic_name'       => trim($row[1]),
-                'pic_position'   => trim($row[2] ?? ''),
-                'phone'          => trim($row[3] ?? ''),
-                'email'          => trim($row[4] ?? ''),
-                'industry'       => trim($row[5] ?? ''),
-                'location'       => trim($row[6] ?? ''),
-                'status'         => 'Existing',
-                'user_id'        => $salesUser?->id,
-                'customer_since' => now()->toDateString(),
-            ]);
-            $imported++;
+            if ($data['invoice_code'] && Customer::withTrashed()->where('invoice_code', $data['invoice_code'])->exists()) {
+                $errors[] = "Baris {$rowNumber}: kode invoice {$data['invoice_code']} sudah digunakan.";
+                continue;
+            }
+
+            $salesUser = null;
+            if (auth()->user()->isSalesExecutive()) {
+                $salesUser = auth()->user();
+            } elseif (trim((string) $data['sales_key']) !== '') {
+                $salesKey = trim((string) $data['sales_key']);
+                $salesUser = User::where('email', $salesKey)->orWhere('name', $salesKey)->first();
+                if (!$salesUser) {
+                    $errors[] = "Baris {$rowNumber}: Sales PIC '{$salesKey}' tidak ditemukan.";
+                    continue;
+                }
+            }
+
+            try {
+                DB::transaction(function () use ($data, $salesUser) {
+                    $customer = Customer::create([
+                        'customer_code' => Customer::generateCustomerCode(),
+                        'invoice_code' => $data['invoice_code'],
+                        'company_name' => $data['company_name'],
+                        'pic_name' => $data['pic_name'],
+                        'pic_position' => $data['pic_position'] ?: null,
+                        'phone' => $data['phone'],
+                        'email' => $data['email'],
+                        'industry' => $data['industry'] ?: null,
+                        'location' => $data['location'] ?: null,
+                        'address' => $data['address'] ?: null,
+                        'notes' => $data['notes'] ?: null,
+                        'status' => 'Existing',
+                        'user_id' => $salesUser?->id,
+                        'customer_since' => $data['customer_since'] ?: now()->toDateString(),
+                    ]);
+
+                    if (trim((string) $data['service_name']) !== '') {
+                        $customer->productItems()->create([
+                            'service_name' => trim((string) $data['service_name']),
+                            'product_name' => trim((string) $data['service_name']),
+                            'unit' => trim((string) $data['unit']),
+                            'tonnage' => $data['tonnage'] !== null && $data['tonnage'] !== '' ? $data['tonnage'] : null,
+                            'shipping_zone' => $data['shipping_zone'] ?: null,
+                        ]);
+                    }
+
+                    $lead = Lead::create([
+                        'customer_id' => $customer->id,
+                        'company_name' => $customer->company_name,
+                        'pic_name' => $customer->pic_name,
+                        'pic_position' => $customer->pic_position,
+                        'phone' => $customer->phone,
+                        'email' => $customer->email,
+                        'address' => $customer->address,
+                        'industry' => $customer->industry,
+                        'location' => $customer->location,
+                        'pipeline_stage' => 'Maintaining',
+                        'temperature' => 'Warm',
+                        'user_id' => $customer->user_id,
+                    ]);
+
+                    foreach ($customer->productItems as $product) {
+                        $lead->products()->create([
+                            'service_name' => $product->service_name ?? $product->product_name,
+                            'product_name' => $product->service_name ?? $product->product_name,
+                            'unit' => $product->unit ?? '',
+                            'tonnage' => $product->tonnage ?? null,
+                        ]);
+                    }
+                });
+                $imported++;
+            } catch (\Throwable $exception) {
+                report($exception);
+                $errors[] = "Baris {$rowNumber}: data gagal disimpan.";
+            }
         }
-        fclose($handle);
-        return redirect()->route('customers.index')->with('success', "Berhasil import {$imported} customer.");
+
+        $message = $imported > 0
+            ? "Berhasil import {$imported} customer."
+            : 'Tidak ada customer yang berhasil diimport.';
+        $response = redirect()->route('customers.index')
+            ->with($imported > 0 ? 'success' : 'error', $message);
+
+        return $errors !== []
+            ? $response->with('warning', $this->summarizeImportErrors($errors))
+            : $response;
+    }
+
+    private function normalizeImportDate(mixed $value): ?string
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return null;
+        }
+
+        if (is_numeric($value)) {
+            try {
+                return ExcelDate::excelToDateTimeObject((float) $value)->format('Y-m-d');
+            } catch (\Throwable $exception) {
+                return (string) $value;
+            }
+        }
+
+        $timestamp = strtotime((string) $value);
+
+        return $timestamp === false ? (string) $value : date('Y-m-d', $timestamp);
+    }
+
+    /** @param array<int, string> $errors */
+    private function summarizeImportErrors(array $errors): string
+    {
+        $visible = array_slice($errors, 0, 5);
+        $summary = implode(' ', $visible);
+
+        return count($errors) > 5
+            ? $summary.' Dan '.(count($errors) - 5).' error lainnya.'
+            : $summary;
     }
 
     // Add activity ke customer — disamakan dengan Sales Activity
@@ -477,4 +621,3 @@ class CustomerController extends Controller
     }
 
 }
-
