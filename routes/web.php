@@ -117,15 +117,18 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
     Route::patch('/customers/{customer}/transfer-sales', [CustomerController::class, 'transferSales'])->name('customers.transfer-sales');
     Route::resource('customers', CustomerController::class)->except(['destroy']);
 
-    // Vendors (Admin, Sales Manager, Transport Planner)
-    Route::middleware('role:Admin,Sales Manager,Transport Planner')->group(function () {
+    // Vendors (termasuk Sales Admin dan Finance/Accounting)
+    Route::middleware('role:Admin,Sales Manager,Sales Admin,Transport Planner,Finance')->group(function () {
         Route::get('/vendors/export', [VendorController::class, 'export'])->name('vendors.export');
         Route::get('/vendors/template', [VendorController::class, 'template'])->name('vendors.template');
         Route::post('/vendors/import', [VendorController::class, 'import'])->name('vendors.import');
         Route::post('/vendors/{vendor}/services', [VendorController::class, 'storeService'])->name('vendors.services.store');
         Route::post('/vendors/{vendor}/pics', [VendorController::class, 'storePic'])->name('vendors.pics.store');
         Route::resource('vendors', VendorController::class)->only(['index', 'store', 'update']);
+    });
 
+    // Master Service Type tetap khusus role operasional/pengelola master data.
+    Route::middleware('role:Admin,Sales Manager,Transport Planner')->group(function () {
         Route::resource('service-types', ServiceTypeController::class)->only(['index', 'store', 'update', 'destroy']);
     });
 

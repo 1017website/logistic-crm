@@ -4,6 +4,63 @@
 @section('page-title', 'Pipeline')
 @section('page-subtitle', 'Visualisasi proses penjualan dari Lead hingga Won/Closing')
 
+@push('styles')
+<style>
+    .pipeline-board-scroll {
+        overflow-x: auto;
+        padding-bottom: 4px;
+        overscroll-behavior-inline: contain;
+    }
+
+    #kanbanBoard {
+        flex-wrap: nowrap;
+        min-width: 100%;
+        width: max-content;
+        margin-right: 0;
+        margin-left: 0;
+    }
+
+    #kanbanBoard .pipeline-stage-column {
+        display: flex;
+        flex-direction: column;
+        flex: 1 0 240px;
+        width: 240px;
+        max-width: none;
+        min-width: 240px;
+        padding-right: 4px;
+        padding-left: 4px;
+    }
+
+    #kanbanBoard .kanban-drop-zone {
+        width: 100%;
+        height: clamp(320px, calc(100vh - 360px), 620px);
+        min-height: 320px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+    }
+
+    .pipeline-stage-summary {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        margin-bottom: 8px;
+        padding: 4px 0 8px;
+        border-bottom: 1px solid #f0f0f0;
+        background: #f9fafb;
+        color: #374151;
+        font-size: .72rem;
+        font-weight: 700;
+    }
+
+    @media (max-height: 700px) {
+        #kanbanBoard .kanban-drop-zone {
+            height: 320px;
+        }
+    }
+</style>
+@endpush
+
 @section('content')
 
 {{-- KPI --}}
@@ -78,6 +135,7 @@
 {{-- Kanban Board --}}
 <div class="card mb-4">
     <div class="card-body p-3">
+        <div class="pipeline-board-scroll">
         <div class="row g-2" id="kanbanBoard">
             @php
             $stageConfig = [
@@ -90,7 +148,7 @@
             @endphp
             @foreach($pipeline as $stageName => $leads)
             @php $cfg = $stageConfig[$stageName] ?? ['slug'=>'identifying','num'=>'01','desc'=>'']; @endphp
-            <div class="col">
+            <div class="col pipeline-stage-column">
                 <div class="kanban-header kanban-{{ $cfg['slug'] }}">
                     <div>
                         <div>{{ $cfg['num'] }}. {{ $stageName === 'Won' ? 'Won/Closing' : $stageName }}</div>
@@ -98,9 +156,9 @@
                     </div>
                     <span class="badge" style="background:rgba(0,0,0,.15);font-size:.65rem">{{ $leads->count() }}</span>
                 </div>
-                <div class="kanban-body kanban-drop-zone" id="zone-{{ Str::slug($stageName) }}" data-stage="{{ $stageName }}" style="min-height:300px">
+                <div class="kanban-body kanban-drop-zone" id="zone-{{ Str::slug($stageName) }}" data-stage="{{ $stageName }}" tabindex="0" aria-label="Daftar lead tahap {{ $stageName }}">
                     @php $stageValue = $leads->sum('potensi_revenue'); @endphp
-                    <div style="font-size:.72rem;font-weight:700;color:#374151;margin-bottom:8px;padding:4px 0;border-bottom:1px solid #f0f0f0">
+                    <div class="pipeline-stage-summary">
                         {{ idrm($stageValue) }} · {{ $leads->count() }} leads
                     </div>
 
@@ -141,6 +199,7 @@
                 </div>
             </div>
             @endforeach
+        </div>
         </div>
     </div>
 </div>

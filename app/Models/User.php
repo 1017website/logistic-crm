@@ -48,7 +48,13 @@ class User extends Authenticatable
             'users'           => in_array($this->role, ['Admin', 'Sales Manager']),
             'reports'         => in_array($this->role, ['Admin', 'Sales Manager']),
             'analytics'       => in_array($this->role, ['Admin', 'Sales Manager']),
-            'vendors'         => in_array($this->role, ['Admin', 'Sales Manager', 'Transport Planner']),
+            'sales_activity'  => !in_array($this->role, ['Sales Admin', 'Finance']),
+            'customers'       => in_array($this->role, self::ROLES),
+            'calendar'        => in_array($this->role, self::ROLES),
+            'vendors'         => in_array($this->role, [
+                'Admin', 'Sales Manager', 'Sales Admin', 'Transport Planner', 'Finance',
+            ]),
+            'service_types'   => in_array($this->role, ['Admin', 'Sales Manager', 'Transport Planner']),
             'quotations'      => in_array($this->role, ['Admin', 'Sales Manager', 'Sales Executive', 'Sales Admin']),
 
             // Request DO: dibuat sales, dilihat semua peran terkait alur.

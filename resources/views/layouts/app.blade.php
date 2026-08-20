@@ -1290,8 +1290,12 @@
         }
         .sidebar-overlay.show { opacity: 1; }
 
-        /* ════════════ RESPONSIVE: TABLET/MOBILE ≤ 991.98px ════════════ */
-        @media (max-width: 991.98px) {
+        /*
+         * RESPONSIVE: ponsel serta tablet/touch device sampai 1366px.
+         * Lebar tablet landscape sering melewati breakpoint Bootstrap `lg`
+         * (991.98px), sehingga sebelumnya masih mendapat layout desktop.
+         */
+        @media (max-width: 991.98px), (any-pointer: coarse) and (max-width: 1366px) {
             .mobile-menu-btn { display: flex; }
 
             /* Sidebar jadi off-canvas (geser dari kiri) */
@@ -1386,9 +1390,11 @@
             </a>
 
             <div class="sidebar-section">Sales</div>
+            @if(auth()->user()->canAccess('sales_activity'))
             <a href="{{ route('sales.activity') }}" class="sidebar-item {{ request()->routeIs('sales.*') ? 'active' : '' }}">
                 <i class="fas fa-chart-line si-icon"></i><span>Sales Activity</span>
             </a>
+            @endif
             <a href="{{ route('leads.index') }}" class="sidebar-item {{ request()->routeIs('leads.*') ? 'active' : '' }}">
                 <i class="fas fa-user-plus si-icon"></i><span>Leads</span>
             </a>
@@ -1400,21 +1406,27 @@
                 <i class="fas fa-file-signature si-icon"></i><span>Penawaran</span>
             </a>
             @endif
+            @if(auth()->user()->canAccess('calendar'))
             <a href="{{ route('calendar.index') }}" class="sidebar-item {{ request()->routeIs('calendar.*') ? 'active' : '' }}">
                 <i class="fas fa-calendar si-icon"></i><span>Calendar</span>
             </a>
+            @endif
             <a href="{{ route('tasks.index') }}" class="sidebar-item {{ request()->routeIs('tasks.*') ? 'active' : '' }}">
                 <i class="fas fa-bell si-icon"></i><span>Tasks / Reminder</span>
             </a>
 
             <div class="sidebar-section">Marketing</div>
+            @if(auth()->user()->canAccess('customers'))
             <a href="{{ route('customers.index') }}" class="sidebar-item {{ request()->routeIs('customers.*') ? 'active' : '' }}">
                 <i class="fas fa-building si-icon"></i><span>Database Customer</span>
             </a>
+            @endif
             @if(auth()->user()->canAccess('vendors'))
             <a href="{{ route('vendors.index') }}" class="sidebar-item {{ request()->routeIs('vendors.*') ? 'active' : '' }}">
                 <i class="fas fa-truck-moving si-icon"></i><span>Database Vendor</span>
             </a>
+            @endif
+            @if(auth()->user()->canAccess('service_types'))
             <a href="{{ route('service-types.index') }}" class="sidebar-item {{ request()->routeIs('service-types.*') ? 'active' : '' }}">
                 <i class="fas fa-tags si-icon"></i><span>Master Service Type</span>
             </a>
@@ -1703,7 +1715,11 @@
             icon.className = document.body.classList.contains('sidebar-collapsed') ? 'fas fa-chevron-right' : 'fas fa-chevron-left';
         }
 
-        // ── Mobile off-canvas sidebar ──
+        // ── Mobile/tablet off-canvas sidebar ──
+        const mobileSidebarMedia = window.matchMedia(
+            '(max-width: 991.98px), (any-pointer: coarse) and (max-width: 1366px)'
+        );
+
         function openMobileSidebar() {
             document.body.classList.add('sidebar-mobile-open');
             const ov = document.getElementById('sidebarOverlay');
@@ -1716,11 +1732,11 @@
         // Tutup sidebar saat klik menu (mobile) & saat layar dilebarkan
         document.querySelectorAll('.sidebar-nav .sidebar-item').forEach(function(el) {
             el.addEventListener('click', function() {
-                if (window.innerWidth <= 991) closeMobileSidebar();
+                if (mobileSidebarMedia.matches) closeMobileSidebar();
             });
         });
         window.addEventListener('resize', function() {
-            if (window.innerWidth > 991) closeMobileSidebar();
+            if (!mobileSidebarMedia.matches) closeMobileSidebar();
         });
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') closeMobileSidebar();

@@ -66,4 +66,17 @@ class LogisticRevisionTest extends TestCase
         $this->assertFalse($salesAdmin->canAccess('request_item_pricing'));
         $this->assertTrue($salesAdmin->canAccess('approve_do'));
     }
+
+    public function test_sales_admin_and_finance_navigation_permissions(): void
+    {
+        foreach (['Sales Admin', 'Finance'] as $role) {
+            $user = new User(['role' => $role]);
+
+            $this->assertFalse($user->canAccess('sales_activity'));
+            $this->assertTrue($user->canAccess('customers'));
+            $this->assertTrue($user->canAccess('vendors'));
+            $this->assertTrue($user->canAccess('calendar'));
+            $this->assertFalse($user->canAccess('service_types'));
+        }
+    }
 }
