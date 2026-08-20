@@ -49,6 +49,8 @@ class User extends Authenticatable
             'reports'         => in_array($this->role, ['Admin', 'Sales Manager']),
             'analytics'       => in_array($this->role, ['Admin', 'Sales Manager']),
             'sales_activity'  => !in_array($this->role, ['Sales Admin', 'Finance']),
+            'leads'           => !in_array($this->role, ['Sales Admin', 'Finance']),
+            'quick_actions'   => !in_array($this->role, ['Sales Admin', 'Finance']),
             'customers'       => in_array($this->role, self::ROLES),
             'calendar'        => in_array($this->role, self::ROLES),
             'vendors'         => in_array($this->role, [
@@ -64,7 +66,7 @@ class User extends Authenticatable
             // Verifikasi data request DO
             'verify_request'  => in_array($this->role, ['Admin', 'Sales Admin']),
             // Penugasan armada/vendor
-            'dispatch'        => in_array($this->role, ['Admin', 'Transport Planner']),
+            'dispatch'        => in_array($this->role, ['Admin', 'Sales Admin', 'Transport Planner']),
             // Approval penugasan
             'approve_assign'  => in_array($this->role, ['Admin', 'Sales Manager']),
             // DO final + alur lapangan + tutup DO

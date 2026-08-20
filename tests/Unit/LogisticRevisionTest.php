@@ -73,10 +73,15 @@ class LogisticRevisionTest extends TestCase
             $user = new User(['role' => $role]);
 
             $this->assertFalse($user->canAccess('sales_activity'));
+            $this->assertFalse($user->canAccess('leads'));
+            $this->assertFalse($user->canAccess('quick_actions'));
             $this->assertTrue($user->canAccess('customers'));
             $this->assertTrue($user->canAccess('vendors'));
             $this->assertTrue($user->canAccess('calendar'));
             $this->assertFalse($user->canAccess('service_types'));
         }
+
+        $this->assertTrue((new User(['role' => 'Sales Admin']))->canAccess('dispatch'));
+        $this->assertFalse((new User(['role' => 'Finance']))->canAccess('dispatch'));
     }
 }

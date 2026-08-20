@@ -252,7 +252,11 @@ class RequestOrderController extends Controller
                 $requestOrder->update(['vendor_id' => $request->vendor_id]);
             }
 
-            $requestOrder->transition('approval', 'Penugasan diajukan oleh Transport Planner.', auth()->id());
+            $requestOrder->transition(
+                'approval',
+                'Penugasan diajukan oleh ' . auth()->user()->role . '.',
+                auth()->id()
+            );
         });
 
         return back()->with('success', 'Penugasan diajukan & menunggu approval.');

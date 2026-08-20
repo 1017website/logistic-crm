@@ -69,7 +69,9 @@
             <div class="d-flex gap-2 flex-wrap" style="font-size:13px">
                 @if($do->surat_jalan_file)
                 <a href="{{ asset('storage/'.$do->surat_jalan_file) }}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="fas fa-file-alt me-1"></i> Surat Jalan</a>
-                @else <span class="text-muted">Surat jalan belum diunggah.</span> @endif
+                @elseif($do->assignment_type !== 'internal')
+                <span class="text-muted">Surat jalan vendor belum diunggah.</span>
+                @endif
                 @if($do->assignment_type === 'internal')
                 <a href="{{ route('delivery-orders.surat-jalan.print', $do->id) }}" target="_blank" class="btn btn-sm btn-outline-dark"><i class="fas fa-barcode me-1"></i> Cetak SJ Internal</a>
                 @endif
@@ -109,13 +111,27 @@
         @if($do->status === 'surat_jalan' && $u->canAccess('pod_field'))
         <div class="card mb-3 border-secondary"><div class="card-body p-3">
             <h6 style="font-weight:700"><i class="fas fa-file-signature me-1"></i> Terbitkan Surat Jalan</h6>
+            @if($do->assignment_type === 'internal')
+            <p class="text-muted mb-2" style="font-size:12px">Armada internal menggunakan surat jalan yang dicetak langsung dari sistem. Tidak perlu mengunggah file surat jalan.</p>
+            <a href="{{ route('delivery-orders.surat-jalan.print', $do->id) }}" target="_blank" class="btn btn-outline-dark btn-sm w-100 mb-2">
+                <i class="fas fa-print me-1"></i> Cetak Surat Jalan Internal
+            </a>
+            <form method="POST" action="{{ route('delivery-orders.surat-jalan', $do->id) }}">
+                @csrf
+                <textarea name="note" class="form-control form-control-sm mb-2" rows="2" placeholder="Catatan (opsional)"></textarea>
+                <button class="btn btn-primary btn-sm w-100" onclick="return confirm('Pastikan surat jalan internal sudah dicetak. Lanjut ke tahap pickup?')">
+                    <i class="fas fa-check me-1"></i> Konfirmasi SJ & Lanjut Pickup
+                </button>
+            </form>
+            @else
             <form method="POST" action="{{ route('delivery-orders.surat-jalan', $do->id) }}" enctype="multipart/form-data">
                 @csrf
-                <label class="form-label" style="font-size:12px">Upload Surat Jalan (PDF/gambar, maks 5MB)</label>
+                <label class="form-label" style="font-size:12px">Upload Surat Jalan Vendor (PDF/gambar, maks 5MB)</label>
                 <input type="file" name="surat_jalan_file" class="form-control form-control-sm mb-2" accept=".pdf,.jpg,.jpeg,.png" required>
                 <textarea name="note" class="form-control form-control-sm mb-2" rows="2" placeholder="Catatan (opsional)"></textarea>
                 <button class="btn btn-primary btn-sm w-100"><i class="fas fa-upload me-1"></i> Unggah & Lanjut Pickup</button>
             </form>
+            @endif
         </div></div>
         @endif
 

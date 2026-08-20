@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
  * REQUEST DO — order yang dibuat Sales, diverifikasi Sales Admin,
- * lalu ditugaskan oleh Transport Planner & disetujui (Approval Penugasan).
+ * lalu ditugaskan oleh Sales Admin/Transport Planner & disetujui
+ * (Approval Penugasan).
  * Setelah approval, otomatis menghasilkan DeliveryOrder (DO final).
  *
  * Tabel: request_orders (hasil rename dari delivery_orders lama).

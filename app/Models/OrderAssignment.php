@@ -6,8 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Penugasan armada untuk sebuah Request DO — dibuat Transport Planner,
- * disetujui pada tahap Approval Penugasan.
+ * Penugasan armada untuk sebuah Request DO — dibuat Sales Admin atau
+ * Transport Planner, lalu disetujui pada tahap Approval Penugasan.
  */
 class OrderAssignment extends Model
 {

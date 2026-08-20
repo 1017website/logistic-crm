@@ -151,8 +151,8 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
         Route::put('/request-order-items/{requestOrderItem}', [RequestOrderItemController::class, 'update'])->name('request-order-items.update');
         Route::delete('/request-order-items/{requestOrderItem}', [RequestOrderItemController::class, 'destroy'])->name('request-order-items.destroy');
     });
-    // Dispatch / penugasan armada (Transport Planner / Admin)
-    Route::middleware('role:Admin,Transport Planner')->group(function () {
+    // Dispatch / penugasan armada (Sales Admin / Transport Planner / Admin)
+    Route::middleware('role:Admin,Sales Admin,Transport Planner')->group(function () {
         Route::post('/request-orders/{requestOrder}/dispatch', [RequestOrderController::class, 'dispatchAssign'])->name('request-orders.dispatch');
     });
     // Approval penugasan (Sales Manager / Admin)

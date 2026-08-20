@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Storage;
 /**
  * DELIVERY ORDER (DO final) — tahap 2 alur fulfillment.
  *
- *   surat_jalan (upload surat jalan -> pickup)
+ *   surat_jalan (cetak internal / upload eksternal -> pickup)
  *   -> pickup -> in_delivery
  *   -> pod (upload foto POD)
  *   -> verifikasi_pod (Sales Admin)
@@ -73,16 +73,27 @@ class DeliveryOrderController extends Controller
         return view('delivery_orders.show', compact('deliveryOrder'));
     }
 
-    // ─────────────────── SURAT JALAN (upload -> pickup) ───────────────────
+    // ─────────────────── SURAT JALAN (cetak internal / upload eksternal -> pickup) ───────────────────
     public function uploadSuratJalan(Request $request, DeliveryOrder $deliveryOrder)
     {
+        if ($deliveryOrder->status !== 'surat_jalan') {
+            return back()->withErrors(['general' => 'DO tidak berada di tahap surat jalan.']);
+        }
+
+        $isInternal = $deliveryOrder->assignment_type === 'internal';
         $request->validate([
-            'surat_jalan_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            'surat_jalan_file' => ($isInternal ? 'nullable' : 'required') . '|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'note'             => 'nullable|string|max:1000',
         ]);
 
-        if ($deliveryOrder->status !== 'surat_jalan') {
-            return back()->withErrors(['general' => 'DO tidak berada di tahap surat jalan.']);
+        if ($isInternal) {
+            $deliveryOrder->transition(
+                'pickup',
+                $request->note ?: 'Surat jalan internal diterbitkan dari sistem.',
+                auth()->id()
+            );
+
+            return back()->with('success', 'Surat jalan internal dikonfirmasi. DO siap pickup.');
         }
 
         $path = $request->file('surat_jalan_file')->store('delivery-orders/surat-jalan', 'public');

@@ -1395,9 +1395,11 @@
                 <i class="fas fa-chart-line si-icon"></i><span>Sales Activity</span>
             </a>
             @endif
+            @if(auth()->user()->canAccess('leads'))
             <a href="{{ route('leads.index') }}" class="sidebar-item {{ request()->routeIs('leads.*') ? 'active' : '' }}">
                 <i class="fas fa-user-plus si-icon"></i><span>Leads</span>
             </a>
+            @endif
             <a href="{{ route('pipeline.index') }}" class="sidebar-item {{ request()->routeIs('pipeline.*') ? 'active' : '' }}">
                 <i class="fas fa-filter si-icon"></i><span>Pipeline</span>
             </a>

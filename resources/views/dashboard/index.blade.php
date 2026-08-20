@@ -252,6 +252,7 @@ function growthBadge($val, $prev_label) {
     </div>
 
     {{-- Quick Action --}}
+    @if(auth()->user()->canAccess('quick_actions'))
     <div class="col-lg-4">
         <div class="card">
             <div class="card-header">Quick Action</div>
@@ -309,6 +310,7 @@ function growthBadge($val, $prev_label) {
             </div>
         </div>
     </div>
+    @endif
 </div>
 @endsection
 
