@@ -13,6 +13,7 @@
                     <span class="badge bg-{{ $quotation->status_color }}">{{ $quotation->status_label }}</span>
                 </div>
                 <div class="d-flex gap-2">
+                    <a href="{{ route('quotations.preview', $quotation) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary"><i class="fas fa-print me-1"></i> Print Preview</a>
                     <a href="{{ route('quotations.pdf', $quotation) }}" class="btn btn-sm btn-primary"><i class="fas fa-file-pdf me-1"></i> Unduh PDF</a>
                     <a href="{{ route('quotations.edit', $quotation) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-pen me-1"></i> Edit</a>
                     <a href="{{ route('quotations.index') }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Kembali</a>

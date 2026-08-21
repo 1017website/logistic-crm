@@ -18,7 +18,9 @@
         </header>
         <div class="body">
             <div class="row"><span>Jenis dokumen</span><span>{{ $verification['label'] }}</span></div>
-            <div class="row"><span>Nomor dokumen</span><span>{{ $verification['number'] }}</span></div>
+            <div class="row"><span>{{ $verification['number_label'] ?? 'Nomor dokumen' }}</span><span>{{ $verification['number'] }}</span></div>
+            @isset($verification['attachment'])<div class="row"><span>Lampiran</span><span>{{ $verification['attachment'] }}</span></div>@endisset
+            @isset($verification['subject'])<div class="row"><span>Perihal</span><span>{{ $verification['subject'] }}</span></div>@endisset
             <div class="row"><span>Tanggal</span><span>{{ $verification['date'] ?: '-' }}</span></div>
             <div class="row"><span>Ditujukan kepada</span><span>{{ $verification['counterparty'] }}</span></div>
             @isset($verification['period'])<div class="row"><span>Periode</span><span>{{ $verification['period'] }}</span></div>@endisset

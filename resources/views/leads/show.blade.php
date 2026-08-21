@@ -270,6 +270,7 @@
                 ['label'=>'Lead Score','value'=>($lead->lead_score ?? 0) . ' / 100'],
                 ['label'=>'Probability','value'=>($lead->probability ?? 0) . '%'],
                 ['label'=>'Expected Closing','value'=>$lead->expected_closing ? $lead->expected_closing->format('M Y') : '-'],
+                ['label'=>'Potensi Revenue','value'=>idr($lead->potensi_revenue)],
                 ['label'=>'Competitor','value'=>$lead->competitor ?? '-'],
                 ] as $f)
                 <div class="d-flex justify-content-between align-items-center py-1" style="border-bottom:1px solid #f3f4f6;font-size:.78rem">
@@ -359,6 +360,11 @@
                         <div class="col-md-6">
                             <label class="form-label">Competitor / Vendor Existing</label>
                             <input type="text" name="competitor" class="form-control" value="{{ $lead->competitor }}" placeholder="Vendor yang sedang digunakan">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Potensi Revenue (Rp)</label>
+                            <input type="number" name="potensi_revenue" class="form-control" min="0" step="1" value="{{ old('potensi_revenue', $lead->potensi_revenue ?? 0) }}" placeholder="Contoh: 50000000">
+                            <div class="form-text">Nilai ini ditampilkan pada Pipeline.</div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Probability (%)</label>
@@ -467,6 +473,11 @@
                         <div class="col-md-12">
                             <label class="form-label">Competitor / Vendor Existing</label>
                             <input type="text" name="competitor" class="form-control" value="{{ $lead->competitor }}">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Potensi Revenue (Rp)</label>
+                            <input type="number" name="potensi_revenue" class="form-control" min="0" step="1" value="{{ old('potensi_revenue', $lead->potensi_revenue ?? 0) }}" placeholder="Contoh: 50000000">
+                            <div class="form-text">Ditampilkan sebagai nilai Rp pada kartu dan total Pipeline.</div>
                         </div>
                     </div>
                 </div>

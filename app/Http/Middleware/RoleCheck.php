@@ -24,7 +24,11 @@ class RoleCheck
             abort(403, 'Akun Anda tidak aktif. Hubungi administrator.');
         }
 
-        if (!empty($roles) && !in_array($user->role, $roles)) {
+        // Super Admin mewarisi semua endpoint yang mengizinkan Admin.
+        $allowed = in_array($user->role, $roles, true)
+            || ($user->isSuperAdmin() && in_array('Admin', $roles, true));
+
+        if (!empty($roles) && !$allowed) {
             abort(403, 'Anda tidak memiliki akses ke halaman ini.');
         }
 

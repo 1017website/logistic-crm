@@ -19,6 +19,8 @@ class OrderJobDetailController extends Controller
         $data = $this->validateData($request);
         $this->fillJobName($data);
         $data['request_order_id'] = $requestOrder->id;
+        $data['created_by'] = auth()->id();
+        $data['updated_by'] = auth()->id();
 
         OrderJobDetail::create($data);
         $requestOrder->update(['do_approved' => false]);
@@ -31,6 +33,7 @@ class OrderJobDetailController extends Controller
         $this->ensureEditable($jobDetail->requestOrder);
         $data = $this->validateData($request);
         $this->fillJobName($data);
+        $data['updated_by'] = auth()->id();
         $jobDetail->update($data);
         $jobDetail->requestOrder->update(['do_approved' => false]);
 
@@ -49,14 +52,14 @@ class OrderJobDetailController extends Controller
     private function validateData(Request $request): array
     {
         return $request->validate([
-            'pekerjaan_id'      => 'nullable|exists:pekerjaan,id',
-            'job_name'          => 'nullable|string|max:255',
+            'pekerjaan_id'      => 'nullable|required_without:job_name|exists:pekerjaan,id',
+            'job_name'          => 'nullable|required_without:pekerjaan_id|string|max:255',
             'job_code'          => 'nullable|string|max:20',
             'tgl_transaksi'     => 'nullable|date',
             'anggaran_biaya'    => 'nullable|numeric|min:0',
             'anggaran_jual'     => 'nullable|numeric|min:0',
-            'riil_biaya'        => 'nullable|numeric|min:0',
-            'riil_jual'         => 'nullable|numeric|min:0',
+            'riil_biaya'        => 'required|numeric|min:0',
+            'riil_jual'         => 'required|numeric|min:0',
             'dibayar'           => 'nullable|numeric|min:0',
             'vendor_id'         => 'nullable|exists:vendors,id',
             'status_pembayaran' => 'nullable|in:Lunas,Tempo',
@@ -87,6 +90,11 @@ class OrderJobDetailController extends Controller
             $requestOrder->invoice_status !== 'uninvoiced',
             422,
             'Rincian harga tidak dapat diubah karena Request DO sudah masuk invoice.'
+        );
+        abort_if(
+            $requestOrder->request_status !== 'finance',
+            422,
+            'Rincian biaya hanya dapat diubah pada tahap review Finance.'
         );
     }
 }

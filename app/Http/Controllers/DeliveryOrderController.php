@@ -51,7 +51,8 @@ class DeliveryOrderController extends Controller
         $revenue     = $closed->sum(fn($d) => $d->total_revenue);
         $totalCost   = $closed->sum(fn($d) => $d->total_cost);
         $grossProfit = $revenue - $totalCost;
-        $volumeDo    = $dos->total();
+        // Volume DO = jumlah record Delivery Order yang benar-benar dibuat pada periode.
+        $volumeDo    = DeliveryOrder::whereBetween('do_date', [$startDate, $endDate])->count();
 
         $pendingDeletionDoIds = \App\Models\DeletionRequest::pendingIdsFor(DeliveryOrder::class);
         $flowOptions = DeliveryOrder::FLOW;

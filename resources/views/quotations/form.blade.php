@@ -12,7 +12,36 @@
         : [['origin' => '', 'destination' => '', 'commodity' => '', 'tonnage' => '', 'unit' => '', 'rate' => '']]
     );
     $seedTerms = old('terms', $quotation->terms ?: $defaultTerms);
+    $customerAutofillData = $customers->mapWithKeys(function ($customer) {
+        $primaryPic = $customer->pics->sortByDesc('is_primary')->first();
+        return [(string) $customer->id => [
+            'company_name' => $customer->company_name,
+            'pic_name' => $customer->pic_name ?: $primaryPic?->pic_name,
+            'pic_position' => $customer->pic_position ?: $primaryPic?->pic_position,
+            'phone' => $customer->phone ?: $primaryPic?->phone,
+            'email' => $customer->email ?: $primaryPic?->email,
+            'address' => $customer->address,
+            'location' => $customer->location,
+            'industry' => $customer->industry,
+            'services' => $customer->productItems->map(fn ($product) => [
+                'name' => $product->display_name,
+                'unit' => $product->unit,
+                'tonnage' => $product->tonnage,
+                'shipping_zone' => $product->shipping_zone,
+            ])->values()->all(),
+        ]];
+    });
 @endphp
+
+@push('styles')
+<style>
+    .customer-autofill-preview { border:1px solid #bfdbfe; background:#eff6ff; border-radius:10px; padding:.7rem .85rem; }
+    .customer-autofill-preview-grid { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:.65rem; }
+    .customer-autofill-preview-label { color:#64748b; font-size:.66rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
+    .customer-autofill-preview-value { color:#1e3a8a; font-size:.76rem; font-weight:600; overflow-wrap:anywhere; }
+    @media (max-width:767.98px) { .customer-autofill-preview-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+</style>
+@endpush
 
 @if($errors->any())
     <div class="alert alert-danger py-2" style="font-size:13px">
@@ -46,32 +75,28 @@
         </div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-5">
+                <div class="col-md-4">
                     <label class="form-label">Ambil dari Database Customer</label>
                     <select name="customer_id" id="customerSelect" class="form-select">
                         <option value="">Input manual / belum terdaftar</option>
                         @foreach($customers as $customer)
                             <option value="{{ $customer->id }}"
-                                data-company="{{ $customer->company_name }}"
-                                data-pic="{{ $customer->pic_name }}"
-                                data-position="{{ $customer->pic_position }}"
-                                data-address="{{ $customer->address }}"
                                 @selected((string) old('customer_id', $quotation->customer_id) === (string) $customer->id)>
                                 {{ $customer->company_name }}
                             </option>
                         @endforeach
                     </select>
-                    <div class="form-text">Pilihan ini hanya membantu mengisi data; isinya tetap dapat diedit.</div>
+                    <div class="form-text">Nama perusahaan, PIC/jabatan, dan alamat akan terisi otomatis serta tetap dapat diedit.</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Nomor Surat</label>
+                    <input type="text" class="form-control" value="{{ $isEdit ? $quotation->quotation_number : 'Otomatis setelah disimpan' }}" readonly>
+                    <div class="form-text">Dibuat sistem dan tampil pada PDF serta verifikasi QR.</div>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Tanggal Surat <span class="text-danger">*</span></label>
                     <input type="date" name="quotation_date" class="form-control"
                         value="{{ old('quotation_date', $quotation->quotation_date?->format('Y-m-d')) }}" required>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Lampiran <span class="text-danger">*</span></label>
-                    <input type="text" name="attachment" class="form-control"
-                        value="{{ old('attachment', $quotation->attachment) }}" required>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Status <span class="text-danger">*</span></label>
@@ -80,6 +105,20 @@
                             <option value="{{ $key }}" @selected(old('status', $quotation->status) === $key)>{{ $label }}</option>
                         @endforeach
                     </select>
+                </div>
+                <div class="col-12 d-none" id="customerAutofillPreview">
+                    <div class="customer-autofill-preview">
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                            <div style="font-size:.75rem;font-weight:700;color:#1d4ed8"><i class="fas fa-circle-check me-1"></i>Data customer berhasil dimuat</div>
+                            <span class="badge bg-primary">Terisi otomatis</span>
+                        </div>
+                        <div class="customer-autofill-preview-grid">
+                            <div><div class="customer-autofill-preview-label">PIC / Jabatan</div><div class="customer-autofill-preview-value" id="customerPreviewPic">-</div></div>
+                            <div><div class="customer-autofill-preview-label">Kontak</div><div class="customer-autofill-preview-value" id="customerPreviewContact">-</div></div>
+                            <div><div class="customer-autofill-preview-label">Lokasi / Industri</div><div class="customer-autofill-preview-value" id="customerPreviewLocation">-</div></div>
+                            <div><div class="customer-autofill-preview-label">Layanan Tersimpan</div><div class="customer-autofill-preview-value" id="customerPreviewServices">-</div></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Baris Sapaan <span class="text-danger">*</span></label>
@@ -96,10 +135,15 @@
                     <input type="text" name="company_name" id="companyName" class="form-control"
                         value="{{ old('company_name', $quotation->company_name) }}" placeholder="PT. Nama Customer" required>
                 </div>
-                <div class="col-md-8">
+                <div class="col-md-6">
                     <label class="form-label">Alamat / Lokasi Penerima</label>
                     <textarea name="recipient_address" id="recipientAddress" class="form-control" rows="2"
                         placeholder="Di tempat atau alamat lengkap">{{ old('recipient_address', $quotation->recipient_address) }}</textarea>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Lampiran <span class="text-danger">*</span></label>
+                    <input type="text" name="attachment" class="form-control"
+                        value="{{ old('attachment', $quotation->attachment) }}" placeholder="-" required>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Perihal <span class="text-danger">*</span></label>
@@ -212,6 +256,8 @@
 (() => {
     const initialItems = @json($seedItems);
     const initialTerms = @json($seedTerms);
+    const customerAutofillData = @json($customerAutofillData);
+    const isEdit = @json($isEdit);
     const itemRows = document.getElementById('itemRows');
     const termRows = document.getElementById('termRows');
 
@@ -314,15 +360,56 @@
     document.getElementById('addItemBtn').addEventListener('click', () => addItem());
     document.getElementById('addTermBtn').addEventListener('click', () => addTerm());
 
-    document.getElementById('customerSelect').addEventListener('change', function () {
-        const option = this.options[this.selectedIndex];
-        if (!option?.value) return;
-        document.getElementById('companyName').value = option.dataset.company || '';
-        document.getElementById('recipientAddress').value = option.dataset.address || 'Di tempat.';
-        document.getElementById('recipientTitle').value = option.dataset.position
-            ? `Bpk/Ibu ${option.dataset.position}`
-            : 'Bpk/Ibu Pimpinan';
-    });
+    const customerSelect = document.getElementById('customerSelect');
+
+    function customerRecipient(customer) {
+        const parts = [];
+        if (customer.pic_name) parts.push(`Bpk/Ibu ${customer.pic_name}`);
+        if (customer.pic_position) parts.push(customer.pic_position);
+        return parts.join(' — ') || 'Bpk/Ibu Pimpinan';
+    }
+
+    function renderCustomerPreview(customer) {
+        const preview = document.getElementById('customerAutofillPreview');
+        if (!customer) {
+            preview.classList.add('d-none');
+            return;
+        }
+
+        const pic = [customer.pic_name, customer.pic_position].filter(Boolean).join(' — ') || '-';
+        const contact = [customer.phone, customer.email].filter(Boolean).join(' · ') || '-';
+        const location = [customer.location || customer.address, customer.industry].filter(Boolean).join(' · ') || '-';
+        const services = (customer.services || []).map(service => {
+            const detail = [service.unit, service.tonnage ? `${service.tonnage} ton` : null, service.shipping_zone].filter(Boolean).join(' / ');
+            return detail ? `${service.name} (${detail})` : service.name;
+        }).filter(Boolean).join(', ') || '-';
+
+        document.getElementById('customerPreviewPic').textContent = pic;
+        document.getElementById('customerPreviewContact').textContent = contact;
+        document.getElementById('customerPreviewLocation').textContent = location;
+        document.getElementById('customerPreviewServices').textContent = services;
+        preview.classList.remove('d-none');
+    }
+
+    function autofillCustomer(force = true) {
+        const customer = customerAutofillData[String(customerSelect.value)] || null;
+        renderCustomerPreview(customer);
+        if (!customer || !force) return;
+
+        document.getElementById('companyName').value = customer.company_name || '';
+        document.getElementById('recipientAddress').value = customer.address || customer.location || 'Di tempat.';
+        document.getElementById('recipientTitle').value = customerRecipient(customer);
+    }
+
+    customerSelect.addEventListener('change', () => autofillCustomer(true));
+    if (window.jQuery) {
+        window.jQuery(customerSelect).on('select2:select select2:clear', () => autofillCustomer(true));
+    }
+
+    if (customerSelect.value) {
+        const companyIsEmpty = !document.getElementById('companyName').value.trim();
+        autofillCustomer(!isEdit && companyIsEmpty);
+    }
 })();
 </script>
 @endpush

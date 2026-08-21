@@ -214,6 +214,11 @@
                                 <label class="form-label">Expected Closing</label>
                                 <input type="date" name="expected_closing" class="form-control" value="{{ old('expected_closing') }}">
                             </div>
+                            <div class="col-6">
+                                <label class="form-label">Potensi Revenue (Rp)</label>
+                                <input type="number" name="potensi_revenue" class="form-control" value="{{ old('potensi_revenue', 0) }}" min="0" step="1" placeholder="Contoh: 50000000">
+                                <div class="form-text">Ditampilkan sebagai nilai Rp pada kartu dan total Pipeline.</div>
+                            </div>
                             <div class="col-12">
                                 @include('components.sales-pic-field')
                             </div>

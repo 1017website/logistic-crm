@@ -79,6 +79,7 @@ class QuotationController extends Controller
 
     public function store(Request $request)
     {
+        $this->mergeCustomerDefaults($request);
         $data = $this->validated($request);
 
         $quotation = DB::transaction(function () use ($data) {
@@ -116,6 +117,7 @@ class QuotationController extends Controller
 
     public function update(Request $request, Quotation $quotation)
     {
+        $this->mergeCustomerDefaults($request);
         $data = $this->validated($request);
 
         DB::transaction(function () use ($quotation, $data) {
@@ -132,6 +134,20 @@ class QuotationController extends Controller
     }
 
     public function pdf(Quotation $quotation, DocumentSignatureService $documentSignature)
+    {
+        [$pdf, $filename] = $this->buildPdf($quotation, $documentSignature);
+
+        return $pdf->download($filename);
+    }
+
+    public function preview(Quotation $quotation, DocumentSignatureService $documentSignature)
+    {
+        [$pdf, $filename] = $this->buildPdf($quotation, $documentSignature);
+
+        return $pdf->stream($filename);
+    }
+
+    private function buildPdf(Quotation $quotation, DocumentSignatureService $documentSignature): array
     {
         $quotation->load(['items', 'customer', 'user']);
         $company = [
@@ -160,7 +176,7 @@ class QuotationController extends Controller
 
         $filename = 'Surat-Penawaran-' . str_replace(['/', '\\'], '-', $quotation->quotation_number) . '.pdf';
 
-        return $pdf->download($filename);
+        return [$pdf, $filename];
     }
 
     private function validated(Request $request): array
@@ -215,8 +231,50 @@ class QuotationController extends Controller
 
     private function customers()
     {
-        return Customer::orderBy('company_name')
-            ->get(['id', 'company_name', 'pic_name', 'pic_position', 'phone', 'address']);
+        return Customer::with(['pics', 'productItems'])
+            ->orderBy('company_name')
+            ->get([
+                'id', 'company_name', 'pic_name', 'pic_position', 'phone', 'email',
+                'address', 'location', 'industry',
+            ]);
+    }
+
+    /**
+     * Fallback server-side bila autofill browser belum berjalan atau field customer kosong.
+     */
+    private function mergeCustomerDefaults(Request $request): void
+    {
+        if (!$request->filled('customer_id')) {
+            return;
+        }
+
+        $customer = Customer::with('pics')->find($request->input('customer_id'));
+        if (!$customer) {
+            return;
+        }
+
+        $primaryPic = $customer->pics->sortByDesc('is_primary')->first();
+        $picName = trim((string) ($customer->pic_name ?: $primaryPic?->pic_name));
+        $picPosition = trim((string) ($customer->pic_position ?: $primaryPic?->pic_position));
+        $recipientTitle = collect([
+            $picName !== '' ? 'Bpk/Ibu ' . $picName : null,
+            $picPosition !== '' ? $picPosition : null,
+        ])->filter()->join(' — ') ?: 'Bpk/Ibu Pimpinan';
+
+        $merged = [];
+        if (!$request->filled('company_name')) {
+            $merged['company_name'] = $customer->company_name;
+        }
+        if (!$request->filled('recipient_address')) {
+            $merged['recipient_address'] = $customer->address ?: $customer->location ?: 'Di tempat.';
+        }
+        if (!$request->filled('recipient_title') || $request->input('recipient_title') === 'Bpk/Ibu Pimpinan') {
+            $merged['recipient_title'] = $recipientTitle;
+        }
+
+        if ($merged !== []) {
+            $request->merge($merged);
+        }
     }
 
     private function defaultTerms(): array

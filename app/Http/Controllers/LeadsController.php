@@ -65,6 +65,7 @@ class LeadsController extends Controller
             'lead_source'     => 'nullable|string|max:100',
             'competitor'      => 'nullable|string|max:255',
             'expected_closing' => 'nullable|date',
+            'potensi_revenue' => 'nullable|numeric|min:0|max:999999999999999',
             'user_id'         => 'required|exists:users,id',
             'notes_kebutuhan' => 'nullable|string',
             // inline pics
@@ -84,6 +85,7 @@ class LeadsController extends Controller
 
         $validated['lead_code']      = Lead::generateLeadCode();
         $validated['pipeline_stage'] = $validated['pipeline_stage'] ?? 'Identifying';
+        $validated['potensi_revenue'] = $validated['potensi_revenue'] ?? 0;
 
         if (auth()->user()->isSalesExecutive()) {
             $validated['user_id'] = auth()->id();
@@ -150,12 +152,17 @@ class LeadsController extends Controller
             'lead_source'     => 'nullable|string|max:100',
             'competitor'      => 'nullable|string|max:255',
             'expected_closing' => 'nullable|date',
+            'potensi_revenue' => 'nullable|numeric|min:0|max:999999999999999',
             'user_id'         => 'sometimes|exists:users,id',
             'notes_kebutuhan' => 'nullable|string',
             'catatan_internal' => 'nullable|string',
             'next_follow_up'  => 'nullable|date',
             'next_follow_up_notes' => 'nullable|string',
         ]);
+
+        if (array_key_exists('potensi_revenue', $validated) && $validated['potensi_revenue'] === null) {
+            $validated['potensi_revenue'] = 0;
+        }
 
         $lead->update($validated);
 

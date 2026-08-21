@@ -30,6 +30,8 @@ class PipelineController extends Controller
 
         $activeLeads = Lead::whereNotIn('pipeline_stage', ['Lost']);
         $totalValue = (clone $activeLeads)->sum('potensi_revenue');
+        $pipelineRevenue = Lead::whereIn('pipeline_stage', ['Identifying', 'Approaching', 'Follow Up'])
+            ->sum('potensi_revenue');
         $totalLeads = Lead::count();
         $potentialDeals = Lead::whereIn('pipeline_stage', ['Follow Up', 'Won'])->count();
         $wonCount = Lead::whereIn('pipeline_stage', $closedStages)->count();
@@ -38,6 +40,11 @@ class PipelineController extends Controller
         // Expected/actual revenue: ambil dari Delivery Order (qty × sell_price) status Done,
         // karena revenue riil ada di DO — bukan dari potensi_revenue lead yang sering 0.
         $expectedRevenue = $this->doRevenueQuery()->sum(DB::raw('items.qty * items.sell_price'));
+        $closingRevenue = (float) $expectedRevenue;
+        $revenueDifference = (float) $pipelineRevenue - $closingRevenue;
+        $closingToPipelinePercent = (float) $pipelineRevenue > 0
+            ? round(($closingRevenue / (float) $pipelineRevenue) * 100, 1)
+            : null;
 
         // Top Sales: deal closed = lead Won/Maintaining; revenue = DO milik sales tsb.
         $doRevenuePerUser = $this->doRevenuePerUser();
@@ -57,7 +64,8 @@ class PipelineController extends Controller
         $topSales = $topSales->sortByDesc(fn($u) => [$u->deals_closed, $u->expected_revenue])->values()->take(5);
 
         return view('pipeline.index', compact(
-            'pipeline', 'totalValue', 'totalLeads', 'potentialDeals',
+            'pipeline', 'totalValue', 'pipelineRevenue', 'closingRevenue',
+            'revenueDifference', 'closingToPipelinePercent', 'totalLeads', 'potentialDeals',
             'winRate', 'expectedRevenue', 'topSales'
         ));
     }
@@ -82,4 +90,3 @@ class PipelineController extends Controller
             ->toArray();
     }
 }
-

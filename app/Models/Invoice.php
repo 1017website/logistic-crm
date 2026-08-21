@@ -23,6 +23,8 @@ class Invoice extends Model
         'tgl_buat', 'tgl_tempo', 'tgl_pencairan',
         'total_hpp', 'total_jual', 'ppn_persen', 'ppn_nominal', 'grand_total',
         'jenis', 'billing_mode', 'operator_id', 'notes',
+        'edit_request_status', 'edit_request_reason', 'edit_requested_by', 'edit_requested_at',
+        'edit_reviewed_by', 'edit_reviewed_at', 'edit_review_note',
     ];
 
     protected $casts = [
@@ -34,6 +36,8 @@ class Invoice extends Model
         'ppn_persen'    => 'decimal:2',
         'ppn_nominal'   => 'decimal:0',
         'grand_total'   => 'decimal:0',
+        'edit_requested_at' => 'datetime',
+        'edit_reviewed_at' => 'datetime',
     ];
 
     public const STATUS = [
@@ -50,11 +54,25 @@ class Invoice extends Model
 
     public function customer(): BelongsTo { return $this->belongsTo(Customer::class); }
     public function operator(): BelongsTo { return $this->belongsTo(User::class, 'operator_id'); }
+    public function editRequester(): BelongsTo { return $this->belongsTo(User::class, 'edit_requested_by'); }
+    public function editReviewer(): BelongsTo { return $this->belongsTo(User::class, 'edit_reviewed_by'); }
     public function items(): HasMany      { return $this->hasMany(InvoiceItem::class); }
 
     public function getLabaAttribute(): float
     {
         return (float) $this->total_jual - (float) $this->total_hpp;
+    }
+
+    /** Jumlah DO unik di dalam invoice, bukan jumlah komponen TR/NTR. */
+    public function getDoCountAttribute(): int
+    {
+        return $this->items
+            ->map(fn (InvoiceItem $item) => $item->delivery_order_id
+                ? 'do:' . $item->delivery_order_id
+                : 'request:' . $item->request_order_id)
+            ->filter(fn (string $key) => !str_ends_with($key, ':'))
+            ->unique()
+            ->count();
     }
 
     public function getStatusLabelAttribute(): string

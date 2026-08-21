@@ -57,5 +57,10 @@ class RequestOrderItemController extends Controller
             422,
             'Item layanan tidak dapat diubah karena Request DO sudah masuk invoice.'
         );
+        abort_if(
+            $requestOrder->request_status !== 'finance',
+            422,
+            'Item layanan dan harga hanya dapat diubah pada tahap review Finance.'
+        );
     }
 }

@@ -53,6 +53,14 @@
         font-weight: 700;
     }
 
+    .revenue-comparison-card { border:1px solid #e5e7eb; overflow:hidden; }
+    .revenue-comparison-item { padding:1rem 1.1rem; }
+    .revenue-comparison-label { color:#6b7280; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+    .revenue-comparison-value { color:#111827; font-size:1.35rem; font-weight:800; margin-top:.2rem; }
+    .revenue-comparison-track { height:7px; background:#e5e7eb; border-radius:999px; overflow:hidden; margin-top:.65rem; }
+    .revenue-comparison-fill { height:100%; border-radius:999px; }
+    .revenue-comparison-result { height:100%; display:flex; flex-direction:column; justify-content:center; padding:1rem 1.1rem; background:#f8fafc; border-left:1px solid #e5e7eb; }
+
     @media (max-height: 700px) {
         #kanbanBoard .kanban-drop-zone {
             height: 320px;
@@ -69,9 +77,9 @@
         <div class="kpi-card">
             <div class="kpi-icon" style="background:#e5e5e5"><i class="fas fa-chart-bar" style="color:#111111"></i></div>
             <div>
-                <div class="kpi-label">Total Pipeline Value</div>
+                <div class="kpi-label">Total Nilai Lead Aktif</div>
                 <div class="kpi-value" style="font-size:1.1rem">{{ idrm($totalValue) }}</div>
-                <div><span class="kpi-vs">Semua stage aktif</span></div>
+                <div><span class="kpi-vs">Termasuk Won + Maintaining</span></div>
             </div>
         </div>
     </div>
@@ -109,9 +117,54 @@
         <div class="kpi-card">
             <div class="kpi-icon" style="background:#ccfbf1"><i class="fas fa-trophy" style="color:#0d9488"></i></div>
             <div>
-                <div class="kpi-label">Won Revenue</div>
+                <div class="kpi-label">Closing Revenue Aktual</div>
                 <div class="kpi-value" style="font-size:1.1rem">{{ idrm($expectedRevenue) }}</div>
-                <div><span class="kpi-vs">Total deal closed</span></div>
+                <div><span class="kpi-vs">Request DO Done</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Perbandingan potensi pipeline vs revenue closing aktual --}}
+@php
+    $comparisonMax = max((float) $pipelineRevenue, (float) $closingRevenue, 1);
+    $pipelineWidth = min(((float) $pipelineRevenue / $comparisonMax) * 100, 100);
+    $closingWidth = min(((float) $closingRevenue / $comparisonMax) * 100, 100);
+@endphp
+<div class="card revenue-comparison-card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <div style="font-weight:700">Perbandingan Revenue Pipeline vs Closing</div>
+            <div class="text-muted" style="font-size:.7rem">Pipeline memakai potensi lead yang masih terbuka; Closing memakai revenue aktual Request DO berstatus Done.</div>
+        </div>
+        @if($closingToPipelinePercent !== null)
+        <span class="badge bg-{{ $closingToPipelinePercent >= 100 ? 'success' : 'primary' }}">Closing {{ number_format($closingToPipelinePercent, 1, ',', '.') }}% dari Pipeline</span>
+        @endif
+    </div>
+    <div class="card-body p-0">
+        <div class="row g-0">
+            <div class="col-lg-4 revenue-comparison-item">
+                <div class="revenue-comparison-label"><i class="fas fa-chart-line me-1"></i> Potensi Pipeline Aktif</div>
+                <div class="revenue-comparison-value">{{ idr($pipelineRevenue) }}</div>
+                <div class="text-muted" style="font-size:.68rem">Identifying + Approaching + Follow Up</div>
+                <div class="revenue-comparison-track"><div class="revenue-comparison-fill" style="width:{{ $pipelineWidth }}%;background:#2563eb"></div></div>
+            </div>
+            <div class="col-lg-4 revenue-comparison-item">
+                <div class="revenue-comparison-label"><i class="fas fa-circle-check me-1"></i> Revenue Closing Aktual</div>
+                <div class="revenue-comparison-value" style="color:#059669">{{ idr($closingRevenue) }}</div>
+                <div class="text-muted" style="font-size:.68rem">Akumulasi Request DO Done dalam IDR</div>
+                <div class="revenue-comparison-track"><div class="revenue-comparison-fill" style="width:{{ $closingWidth }}%;background:#10b981"></div></div>
+            </div>
+            <div class="col-lg-4">
+                <div class="revenue-comparison-result">
+                    <div class="revenue-comparison-label">Selisih Pipeline − Closing</div>
+                    <div class="revenue-comparison-value" style="color:{{ $revenueDifference >= 0 ? '#d97706' : '#059669' }}">
+                        {{ $revenueDifference < 0 ? '-' : '' }}{{ idr(abs($revenueDifference)) }}
+                    </div>
+                    <div class="text-muted" style="font-size:.68rem">
+                        {{ $revenueDifference >= 0 ? 'Potensi revenue yang belum menjadi closing aktual.' : 'Closing aktual sudah melampaui pipeline aktif saat ini.' }}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -229,7 +282,7 @@
 
     <div class="col-lg-5">
         <div class="card">
-            <div class="card-header">Pipeline Trend (Expected Revenue per Bulan)</div>
+            <div class="card-header">Revenue Closing Aktual per Bulan</div>
             <div class="card-body p-3">
                 <canvas id="pipelineTrend" height="180"></canvas>
             </div>
@@ -323,7 +376,7 @@ $trendData[] = (float)($rev / 1000000);
         data: {
             labels: @json($trendLabels),
             datasets: [{
-                label: 'Expected Revenue (Jt)',
+                label: 'Revenue Closing Aktual (Jt)',
                 data: @json($trendData),
                 borderColor: '#111111',
                 backgroundColor: 'rgba(17,17,17,.08)',

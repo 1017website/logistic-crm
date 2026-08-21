@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Invoice')
 @section('page-title', 'Invoice')
-@section('page-subtitle', 'Invoice multi-DO sejak POD, Trucking/Non-Trucking dapat digabung atau dipisah')
+@section('page-subtitle', 'Status penagihan terpusat · satu invoice dapat memuat banyak DO · TR dan Non-TR dipisahkan')
 
 @section('content')
 @php $u = auth()->user(); @endphp
@@ -21,7 +21,8 @@
             @endforeach
         </ul>
         <div class="d-flex gap-2">
-            <a href="{{ route('invoices.export', array_merge(request()->query(), ['status'=>$status])) }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-download me-1"></i> Excel</a>
+            <a href="{{ route('invoices.export', array_merge(request()->query(), ['status'=>$status])) }}" class="btn btn-outline-success btn-sm"><i class="fas fa-file-excel me-1"></i> Export Excel</a>
+            <a href="{{ route('invoices.export-pdf', array_merge(request()->query(), ['status'=>$status])) }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-file-pdf me-1"></i> Export PDF</a>
             <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addInvoiceModal"><i class="fas fa-plus me-1"></i> Tambah</button>
         </div>
     </div>
@@ -63,7 +64,9 @@
                     <td class="py-2" style="font-size:12px">{{ $inv->tgl_buat?->format('d M Y') }}<br>
                         <span class="text-muted">Tempo: {{ $inv->tgl_tempo?->format('d M Y') ?? '-' }}</span></td>
                     <td class="py-2">{{ $inv->customer?->company_name ?? '-' }}</td>
-                    <td class="py-2"><span class="badge bg-dark">{{ $inv->jenis_label }}</span><br><small class="text-muted">{{ (float)$inv->ppn_persen > 0 ? 'PPN '.rtrim(rtrim(number_format($inv->ppn_persen,2),'0'),'.').'%' : 'Non-PPN' }}</small></td>
+                    <td class="py-2"><span class="badge bg-dark">{{ $inv->jenis_label }}</span><br>
+                        <small class="text-muted">{{ $inv->do_count }} DO · {{ $inv->items->count() }} komponen</small><br>
+                        <small class="text-muted">{{ (float)$inv->ppn_persen > 0 ? 'PPN '.rtrim(rtrim(number_format($inv->ppn_persen,2),'0'),'.').'%' : 'Non-PPN' }}</small></td>
                     <td class="py-2 text-end">{{ idr($inv->total_hpp) }}</td>
                     <td class="py-2 text-end">{{ idr($inv->total_jual) }}</td>
                     <td class="py-2 text-end" style="color:#10b981">{{ idr($inv->laba) }}</td>
@@ -77,6 +80,8 @@
                     <td class="py-2 text-nowrap">
                         <a href="{{ route('invoices.show', $inv->id) }}" class="btn btn-sm btn-outline-primary" style="padding:3px 7px" title="Detail"><i class="fas fa-list"></i></a>
                         <a href="{{ route('invoices.print', $inv->id) }}" target="_blank" class="btn btn-sm btn-outline-secondary" style="padding:3px 7px" title="Cetak"><i class="fas fa-print"></i></a>
+                        <a href="{{ route('invoices.pdf', $inv->id) }}" class="btn btn-sm btn-outline-danger" style="padding:3px 7px" title="Unduh PDF"><i class="fas fa-file-pdf"></i></a>
+                        <a href="{{ route('invoices.excel', $inv->id) }}" class="btn btn-sm btn-outline-success" style="padding:3px 7px" title="Unduh Excel rincian"><i class="fas fa-file-excel"></i></a>
                         @if($inv->status==='draft')
                         <form method="POST" action="{{ route('invoices.submit',$inv->id) }}" class="d-inline">@csrf<button class="btn btn-sm btn-outline-success" style="padding:3px 7px" title="Terbitkan"><i class="fas fa-paper-plane"></i></button></form>
                         @elseif($inv->status==='invoice')
@@ -131,22 +136,25 @@
             <div class="row g-2 mb-3">
                 <div class="col-md-4">
                     <label class="form-label">TR & Non-TR</label>
-                    <select name="billing_mode" class="form-select form-select-sm" required>
-                        <option value="combined">Gabung dalam 1 invoice</option>
-                        <option value="separate">Pisah menjadi invoice TR dan Non-TR</option>
-                    </select>
+                    <input type="hidden" name="billing_mode" value="separate">
+                    <div class="form-control form-control-sm bg-light">Otomatis dipisah: Invoice TR dan Invoice Non-TR</div>
+                    <small class="text-muted">Masing-masing invoice tetap dapat berisi banyak DO customer yang sama.</small>
                 </div>
                 <div class="col-md-3"><label class="form-label">Pajak</label><select name="ppn_mode" id="ppnMode" class="form-select form-select-sm" required><option value="non_ppn">Non-PPN</option><option value="ppn">PPN</option></select></div>
                 <div class="col-md-2" id="ppnPercentWrap" style="display:none"><label class="form-label">PPN</label><div class="input-group input-group-sm"><input type="number" step="0.01" min="0.01" max="100" name="ppn_persen" id="ppnPercent" class="form-control" value="11"><span class="input-group-text">%</span></div></div>
                 <div class="col-md-3"><label class="form-label">Catatan</label><input type="text" name="notes" class="form-control form-control-sm" placeholder="Opsional"></div>
             </div>
             <div class="mb-2">
-                <label class="form-label">Komponen DO siap tagih <small class="text-muted">(muncul setelah POD diterima)</small></label>
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                    <label class="form-label mb-0">Pilih beberapa DO siap tagih <small class="text-muted">(customer yang sama, setelah file POD diunggah)</small></label>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllDosBtn" disabled>Pilih Semua DO</button>
+                </div>
                 <div id="doListWrap" class="border rounded p-2" style="max-height:320px;overflow:auto">
                     <div class="text-muted">Pilih customer dulu.</div>
                 </div>
             </div>
             <div class="d-flex justify-content-end gap-3" style="font-size:13px">
+                <div><b id="selectedDoCount">0 DO dipilih · 0 komponen</b></div>
                 <div>Total HPP: <b id="sumHpp">Rp 0</b></div>
                 <div>Total Jual: <b id="sumJual" style="color:var(--primary)">Rp 0</b></div>
             </div>
@@ -175,7 +183,8 @@ async function loadAvailableDos(customerId){
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const dos = await res.json();
         if (!dos.length) {
-            wrap.innerHTML = '<div class="text-muted small">Tidak ada komponen DO siap tagih.<br>DO baru muncul setelah harga disetujui dan <b>POD diterima</b>. Komponen yang sudah masuk invoice tidak dapat dipilih ulang.</div>';
+            wrap.innerHTML = '<div class="text-muted small">Tidak ada komponen DO siap tagih.<br>DO baru muncul setelah harga disetujui dan <b>file POD sudah diunggah</b>. Status Sampai Tujuan atau Menunggu Upload POD belum dapat ditagih. Komponen yang sudah masuk invoice tidak dapat dipilih ulang.</div>';
+            const selectAll = document.getElementById('selectAllDosBtn'); if (selectAll) selectAll.disabled = true;
             recalcInv(); return;
         }
         wrap.innerHTML = dos.map(d => {
@@ -199,6 +208,7 @@ async function loadAvailableDos(customerId){
             </div>`;
         }).join('');
         wrap.querySelectorAll('.doChk').forEach(c => c.addEventListener('change', recalcInv));
+        const selectAll = document.getElementById('selectAllDosBtn'); if (selectAll) selectAll.disabled = false;
         recalcInv();
     } catch(e) {
         wrap.innerHTML = '<div class="text-danger small">Gagal memuat DO: ' + (e.message||e) + '</div>';
@@ -229,10 +239,26 @@ if (window.jQuery) {
 
 function recalcInv(){
     let hpp=0, jual=0, n=0;
-    document.querySelectorAll('.doChk:checked').forEach(c=>{ hpp+=+c.dataset.hpp; jual+=+c.dataset.jual; n++; });
+    const selectedDos = new Set();
+    document.querySelectorAll('.doChk:checked').forEach(c=>{
+        hpp+=+c.dataset.hpp; jual+=+c.dataset.jual; n++;
+        selectedDos.add(String(c.value).split(':')[0]);
+    });
+    const count = document.getElementById('selectedDoCount');
+    if (count) count.textContent = `${selectedDos.size} DO dipilih · ${n} komponen`;
     const eh = document.getElementById('sumHpp'); if (eh) eh.textContent = fmtRp(hpp);
     const ej = document.getElementById('sumJual'); if (ej) ej.textContent = fmtRp(jual);
     const btn = document.getElementById('invSubmitBtn'); if (btn) btn.disabled = n===0;
+    const allChecks = [...document.querySelectorAll('.doChk:not(:disabled)')];
+    const selectAll = document.getElementById('selectAllDosBtn');
+    if (selectAll) selectAll.textContent = allChecks.length && allChecks.every(c => c.checked) ? 'Batalkan Semua' : 'Pilih Semua DO';
 }
+
+document.getElementById('selectAllDosBtn')?.addEventListener('click', function(){
+    const checks = [...document.querySelectorAll('.doChk:not(:disabled)')];
+    const shouldCheck = checks.some(c => !c.checked);
+    checks.forEach(c => { c.checked = shouldCheck; });
+    recalcInv();
+});
 </script>
 @endsection

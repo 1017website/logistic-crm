@@ -122,11 +122,11 @@
                             <td style="font-size:.75rem">{{ $cust->industry ?? '-' }}</td>
                             <td><span class="badge-{{ strtolower($cust->status) }}">{{ $cust->status }}</span></td>
                             <td style="font-size:.75rem">{{ $cust->salesUser?->name ?? '-' }}</td>
-                            <td style="font-size:.72rem;max-width:160px">
+                            <td class="crm-services-cell" style="font-size:.72rem">
                                 @if($cust->productItems && $cust->productItems->count())
-                                    <div style="display:flex;flex-wrap:wrap;gap:3px">
+                                    <div class="crm-service-list">
                                         @foreach($cust->productItems as $p)
-                                            <span style="background:#f2f2f2;color:#111111;padding:1px 6px;border-radius:10px;font-size:.65rem;white-space:nowrap">
+                                            <span class="crm-service-tag" title="{{ $p->display_name }}{{ $p->unit ? ' — '.$p->unit : '' }}{{ $p->tonnage ? ' ('.rtrim(rtrim(number_format($p->tonnage,3,',','.'),'0'),',').' ton)' : '' }}">
                                                 {{ $p->display_name }}{{ $p->unit ? ' — '.$p->unit : '' }}{{ $p->tonnage ? ' ('.rtrim(rtrim(number_format($p->tonnage,3,',','.'),'0'),',').' ton)' : '' }}
                                             </span>
                                         @endforeach
@@ -135,13 +135,13 @@
                                     <span style="color:#d1d5db">-</span>
                                 @endif
                             </td>
-                            <td style="font-size:.72rem">
+                            <td class="crm-last-activity-cell" style="font-size:.72rem">
                                 @if($cust->activities->count())
                                     <div>{{ $cust->activities->sortByDesc('activity_at')->first()->activity_at->format('d M Y') }}</div>
                                     <div style="color:var(--text-muted)">{{ $cust->activities->sortByDesc('activity_at')->first()->type }}</div>
                                 @else<span style="color:#d1d5db">-</span>@endif
                             </td>
-                            <td>
+                            <td class="crm-actions-cell">
                                 <div class="d-flex gap-1">
                                     <a href="{{ route('customers.index', array_merge(request()->query(), ['selected_id'=>$cust->id])) }}"
                                         class="btn btn-sm btn-outline-primary" style="padding:3px 7px">
@@ -161,7 +161,7 @@
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="8" class="text-center py-4" style="color:var(--text-muted)">
+                        <tr><td colspan="9" class="text-center py-4" style="color:var(--text-muted)">
                             <i class="fas fa-building" style="font-size:2rem;display:block;margin-bottom:8px;opacity:.2"></i>
                             Tidak ada data customer.
                         </td></tr>

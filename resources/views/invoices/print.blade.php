@@ -65,6 +65,23 @@
         .sheet { width:auto; min-height:auto; margin:0; padding:8mm; box-shadow:none; }
         @page { size:A4; margin:8mm; }
     }
+    @if($isPdf ?? false)
+    body { background:#fff; font-size:10px; }
+    .toolbar { display:none !important; }
+    .sheet { width:auto; min-height:auto; margin:0; padding:5mm; box-shadow:none; }
+    .topgrid { margin-bottom:10px; }
+    table.items thead th { padding:6px; font-size:9px; }
+    table.items thead th { background:#111827 !important; color:#ffffff !important; }
+    table.items tbody td { padding:6px; font-size:9px; }
+    .metabox .r, .totals .r { display:table; width:100%; }
+    .metabox .r .k, .metabox .r .v, .totals .r .k, .totals .r span { display:table-cell; }
+    .metabox .r .k { width:45%; }
+    .metabox .r .v, .totals .r span:last-child { text-align:right; }
+    .totwrap { margin-top:9px; }
+    .sign { width:76mm; margin-top:18px; }
+    .foot { margin-top:12px; }
+    @page { size:A4 landscape; margin:7mm; }
+    @endif
 </style>
 </head>
 <body>
@@ -74,7 +91,7 @@
     $statusText  = ['draft'=>'DRAFT','invoice'=>'INVOICE','paid'=>'LUNAS'][$invoice->status] ?? strtoupper($invoice->status);
 @endphp
 
-<div class="toolbar">
+<div class="toolbar" @if($isPdf ?? false) style="display:none" @endif>
     <button class="primary" onclick="window.print()">Cetak</button>
     <a href="{{ route('invoices.print', [$invoice->id, 'type' => 'all']) }}">Semua</a>
     @if($invoice->items->contains('item_type', 'TR'))<a href="{{ route('invoices.print', [$invoice->id, 'type' => 'TR']) }}">Trucking</a>@endif
@@ -116,8 +133,12 @@
             <tr>
                 <th style="width:34px" class="c">No</th>
                 <th style="width:78px">Tgl Kirim</th>
-                <th>Keterangan</th>
-                <th style="width:130px" class="r">Jumlah (Rp)</th>
+                <th style="width:90px">Nama</th>
+                <th>Uraian</th>
+                <th style="width:90px">Jenis Truck</th>
+                <th style="width:48px" class="r">Qty</th>
+                <th style="width:90px" class="r">Harga</th>
+                <th style="width:100px" class="r">Jumlah</th>
             </tr>
         </thead>
         <tbody>
@@ -127,9 +148,9 @@
                 <tr>
                     <td class="c">{{ $no++ }}</td>
                     <td>{{ $finalDo?->do_date?->format('d-m-y') ?? $do?->tgl_muat?->format('d-m-y') ?? $do?->order_date?->format('d-m-y') ?? '-' }}</td>
+                    <td><b>{{ $it->item_name ?: ($it->item_type === 'TR' ? 'Trucking' : 'Non-Trucking') }}</b></td>
                     <td>
-                        <b>{{ $finalDo?->do_number ?? $do?->do_number ?? 'DO' }}</b>
-                        — <b>{{ $it->item_type === 'TR' ? 'Trucking' : 'Non-Trucking' }}</b>: {{ $it->description }}
+                        <b>{{ $finalDo?->do_number ?? $do?->do_number ?? 'DO' }}</b> — {{ $it->description }}
                         <br>{{ $do?->muat ?? $finalDo?->origin ?? $do?->origin ?? '-' }} &rarr; {{ $do?->bongkar ?? $finalDo?->destination ?? $do?->destination ?? $do?->tujuan ?? '-' }}
                         <div class="det">
                             @if($do?->komoditi)Komoditas: {{ $do->komoditi }} · @endif
@@ -139,6 +160,9 @@
                             @if($do?->jenis_truck)Armada: {{ $do->jenis_truck }}@endif
                         </div>
                     </td>
+                    <td>{{ $it->truck_type ?: $do?->jenis_truck ?: '-' }}</td>
+                    <td class="r">{{ rtrim(rtrim(number_format((float)($it->quantity ?: 1), 3, ',', '.'), '0'), ',') }}</td>
+                    <td class="r">{{ number_format((float)($it->unit_price ?: $it->jual), 0, ',', '.') }}</td>
                     <td class="r">{{ number_format($it->jual, 0, ',', '.') }}</td>
                 </tr>
             @endforeach

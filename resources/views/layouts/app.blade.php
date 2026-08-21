@@ -1068,6 +1068,22 @@
         }
 
         /* TABLE */
+        .table-responsive {
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Keep every list table at its natural readable width. When the available
+           space is smaller, the wrapper scrolls instead of cells overlapping. */
+        .table-responsive > .table {
+            min-width: max-content;
+        }
+
+        .table-responsive > .table th {
+            white-space: nowrap;
+        }
+
         .crm-table {
             font-size: .82rem;
         }
@@ -1091,6 +1107,47 @@
 
         .crm-table tr:hover td {
             background: #fafafa;
+        }
+
+        .crm-services-cell {
+            width: 180px;
+            min-width: 180px;
+            max-width: 180px;
+        }
+
+        .crm-service-list {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            gap: 3px;
+        }
+
+        .crm-service-tag {
+            display: inline-block;
+            max-width: 100%;
+            padding: 2px 7px;
+            border-radius: 10px;
+            background: #f2f2f2;
+            color: #111111;
+            font-size: .65rem;
+            line-height: 1.25;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        .crm-last-activity-cell {
+            min-width: 110px;
+        }
+
+        .crm-actions-cell {
+            min-width: 112px;
+            white-space: nowrap;
+        }
+
+        @media print {
+            .table-responsive > .table {
+                min-width: 0;
+            }
         }
 
         /* QUICK ACTION */

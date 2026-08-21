@@ -11,12 +11,12 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         $users = [
-            // Admin
+            // Super Admin
             [
                 'name'     => 'Administrator',
                 'email'    => 'admin@crm.com',
                 'password' => Hash::make('password'),
-                'role'     => 'Admin',
+                'role'     => 'Super Admin',
                 'status'   => 'Active',
                 'target'   => 0,
                 'phone'    => '08100000001',

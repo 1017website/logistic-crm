@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Request DO')
 @section('page-title', 'Request DO')
-@section('page-subtitle', 'Sales Admin membuat request; Accounting melengkapi layanan dan harga di halaman detail')
+@section('page-subtitle', 'Alur: Request DO → Sales Admin → Finance & DP → Sales Manager')
 
 @section('content')
     <div class="row g-3">
@@ -19,20 +19,36 @@
                     </a>
                 </div>
                 <div class="d-flex gap-3 flex-wrap">
-                    @foreach([[$volumeDo, 'Volume DO', '#111'], [$revenue, 'Revenue', '#111111'], [$grossProfit, 'Gross Profit', '#10b981']] as $s)
+                    @foreach([[$volumeDo, 'Total DO Dibuat', '#111'], [$activeRequestCount, 'Request Aktif', '#2563eb'], [$issuedDoCount, 'DO Terbit', '#059669'], [$cancelledRequestCount, 'Request Batal', '#dc2626'], [$revenue, 'Revenue', '#111111'], [$grossProfit, 'Gross Profit', '#10b981']] as $s)
                         <div class="text-center {{ !$loop->first ? 'ps-3' : '' }}"
                             style="{{ !$loop->first ? 'border-left:1px solid var(--border-color)' : '' }}">
                             <div style="font-size:{{ $loop->index >= 1 ? '1rem' : '1.2rem' }};font-weight:800;color:{{ $s[2] }}">
-                                {{ $loop->index >= 1 ? idr($s[0]) : $s[0] }}
+                                {{ $loop->index >= 4 ? idr($s[0]) : $s[0] }}
                             </div>
                             <div style="font-size:.68rem;color:var(--text-muted)">{{ $s[1] }}</div>
                         </div>
                     @endforeach
+                    <div class="text-center ps-3" style="border-left:1px solid var(--border-color)">
+                        <div style="font-size:1rem;font-weight:800;color:#059669">{{ $dpTakenCount }} DO</div>
+                        <div style="font-size:.68rem;color:var(--text-muted)">DP Terambil</div>
+                        <div style="font-size:.65rem;color:#059669">{{ idr($dpTakenAmount) }}</div>
+                    </div>
+                    <div class="text-center ps-3" style="border-left:1px solid var(--border-color)">
+                        <div style="font-size:1rem;font-weight:800;color:#6b7280">{{ $dpNotTakenCount }} DO</div>
+                        <div style="font-size:.68rem;color:var(--text-muted)">DP Tidak Terambil</div>
+                        <div style="font-size:.65rem;color:#6b7280">{{ idr($dpNotTakenAmount) }}</div>
+                    </div>
                 </div>
             </div>
 
+            <ul class="nav nav-pills mb-3" style="gap:6px">
+                <li class="nav-item"><a class="nav-link {{ $tab === 'active' ? 'active' : '' }}" href="{{ route('request-orders.index', array_merge(request()->query(), ['tab'=>'active', 'page'=>null])) }}">Request Aktif</a></li>
+                <li class="nav-item"><a class="nav-link {{ $tab === 'cancelled' ? 'active bg-danger' : '' }}" href="{{ route('request-orders.index', array_merge(request()->query(), ['tab'=>'cancelled', 'page'=>null])) }}">Request Batal <span class="badge bg-light text-dark ms-1">{{ $cancelledRequestCount }}</span></a></li>
+            </ul>
+
             {{-- Filter --}}
             <form method="GET" action="{{ route('request-orders.index') }}">
+                <input type="hidden" name="tab" value="{{ $tab }}">
                 <div class="card mb-3">
                     <div class="card-body p-3">
                         <div class="row g-2 align-items-end">
@@ -48,11 +64,27 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-2">
+                                <select name="operational_status" class="form-select form-select-sm">
+                                    <option value="all">Semua Status DO</option>
+                                    @foreach($operationalStatusOptions as $key => $label)
+                                        <option value="{{ $key }}" @selected($operationalStatus == $key)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select name="dp_status" class="form-select form-select-sm">
+                                    <option value="all">Semua Status DP</option>
+                                    @foreach($dpStatusOptions as $key => $label)
+                                        <option value="{{ $key }}" @selected($dpStatus == $key)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-3">
                                 <input type="text" name="search" class="form-control form-control-sm"
                                     placeholder="Cari DO, customer, layanan..." value="{{ $search }}">
                             </div>
-                            <div class="col-md-2"><button type="submit" class="btn btn-primary btn-sm w-100"><i
+                            <div class="col-md-1"><button type="submit" class="btn btn-primary btn-sm w-100"><i
                                         class="fas fa-search"></i></button></div>
                         </div>
                     </div>
@@ -69,12 +101,13 @@
                                     <th class="px-3 py-2" style="width:28px"></th>
                                     <th class="px-3 py-2">No. DO</th>
                                     <th class="py-2">Customer</th>
-                                    <th class="py-2">Vendor</th>
                                     <th class="py-2">Sales PIC</th>
                                     <th class="py-2">Revenue</th>
                                     <th class="py-2">HPP</th>
                                     <th class="py-2">Gross Profit</th>
                                     <th class="py-2">Margin</th>
+                                    <th class="py-2">Status DO</th>
+                                    <th class="py-2">DP</th>
                                     <th class="py-2">Tahap Flow</th>
                                     <th class="py-2">Tgl Order</th>
                                     <th class="py-2">Service Type</th>
@@ -96,16 +129,45 @@
                                         </td>
                                         <td class="px-3 py-2" style="font-weight:700;color:var(--primary)">{{ $po->do_number }}</td>
                                         <td class="py-2" style="font-size:12px">{{ $po->customer?->company_name ?? '-' }}</td>
-                                        <td class="py-2" style="color:#6b7280;font-size:12px">{{ $po->vendor?->vendor_name ?? '-' }}</td>
                                         <td class="py-2" style="font-size:12px;font-weight:600">{{ $po->salesUser?->name ?? '-' }}</td>
                                         <td class="py-2" style="font-weight:600;color:var(--primary);white-space:nowrap">{{ idr($po->total_revenue) }}</td>
                                         <td class="py-2" style="color:#dc2626;font-size:12px;white-space:nowrap">{{ idr($po->total_cost) }}</td>
                                         <td class="py-2" style="font-weight:600;color:#10b981;white-space:nowrap">{{ idr($po->gross_profit) }}</td>
                                         <td class="py-2" style="font-size:12px;color:#6b7280">{{ $po->gross_margin }}%</td>
+                                        <td class="py-2" style="min-width:150px;max-width:190px">
+                                            <span class="badge bg-{{ $po->operational_status_color }}">{{ $po->operational_status_label }}</span>
+                                            @if($po->rescheduled_for)
+                                                <div style="font-size:10px;color:#0369a1;margin-top:3px"><i class="fas fa-calendar-alt me-1"></i>{{ $po->rescheduled_for->format('d M Y') }}</div>
+                                            @endif
+                                            @if($po->operational_note)
+                                                <div style="font-size:10px;color:#6b7280;line-height:1.25;margin-top:3px;white-space:normal" title="{{ $po->operational_note }}">
+                                                    {{ \Illuminate\Support\Str::limit($po->operational_note, 60) }}
+                                                </div>
+                                            @endif
+                                            @if($po->cancel_reason)
+                                                <div style="font-size:10px;color:#b91c1c;line-height:1.25;margin-top:3px;white-space:normal"><b>Alasan batal:</b> {{ \Illuminate\Support\Str::limit($po->cancel_reason, 80) }}</div>
+                                            @endif
+                                        </td>
+                                        <td class="py-2" style="min-width:130px">
+                                            <span class="badge {{ $po->dp_request_active ? 'bg-'.$po->dp_status_color : 'bg-dark' }}">{{ $po->dp_request_active ? $po->dp_status_label : 'DP Nonaktif' }}</span>
+                                            @if(($po->dp_amount ?? 0) > 0)
+                                                <div style="font-size:10px;font-weight:600;color:#374151;margin-top:3px">{{ idr($po->dp_amount) }}</div>
+                                            @endif
+                                            @if(auth()->user()->canAccess('finance_dp_review') && in_array($po->request_status, ['finance', 'approval', 'assigned']))
+                                                <div class="mt-1">
+                                                    <a href="{{ route('request-orders.show', $po) }}#dp-management"
+                                                        class="btn btn-sm btn-outline-info" style="font-size:10px;padding:2px 6px;white-space:nowrap"
+                                                        title="{{ $po->dp_status === 'pending' ? 'Input data DP' : 'Perbarui data DP' }}">
+                                                        <i class="fas fa-coins me-1"></i>{{ $po->dp_status === 'pending' ? 'Input DP' : 'Update DP' }}
+                                                    </a>
+                                                </div>
+                                            @endif
+                                        </td>
                                         <td class="py-2">
                                             @php
                                                 $flowColors = [
                                                     'draft' => ['#f3f4f6','#6b7280'], 'verifikasi' => ['#fef3c7','#d97706'],
+                                                    'finance' => ['#e0f2fe','#0369a1'],
                                                     'dispatch' => ['#dbeafe','#2563eb'], 'approval' => ['#ede9fe','#7c3aed'],
                                                     'assigned' => ['#d1fae5','#059669'], 'rejected' => ['#fee2e2','#dc2626'],
                                                     'cancelled' => ['#fee2e2','#dc2626'],
@@ -130,6 +192,22 @@
                                                 <i class="fas fa-pencil-alt"></i>
                                             </button>
                                             @endif
+                                            @if(auth()->user()->canAccess('operational_status'))
+                                            <button class="btn btn-sm btn-outline-{{ $po->operational_status_color }}" style="padding:3px 7px"
+                                                onclick="openOperationalStatus({{ $po->id }})" title="Ubah status jalan/pending/reschedule/cancel">
+                                                <i class="fas fa-exchange-alt"></i>
+                                            </button>
+                                            @endif
+                                            @if($po->request_status !== 'cancelled' && in_array(auth()->user()->role, ['Admin','Sales Admin']))
+                                            <form method="POST" action="{{ route('request-orders.cancel', $po) }}" class="d-inline cancel-request-form">@csrf
+                                                <input type="hidden" name="reason">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:3px 7px" title="Batalkan Request DO"><i class="fas fa-ban"></i></button>
+                                            </form>
+                                            @elseif($po->request_status === 'cancelled' && in_array(auth()->user()->role, ['Admin','Sales Admin']))
+                                            <form method="POST" action="{{ route('request-orders.reactivate', $po) }}" class="d-inline">@csrf
+                                                <button class="btn btn-sm btn-outline-success" style="padding:3px 7px" onclick="return confirm('Aktifkan kembali request ini?')" title="Aktifkan kembali"><i class="fas fa-undo"></i></button>
+                                            </form>
+                                            @endif
                                             @include('components.delete-request-button', [
                                                 'module'  => 'request-orders',
                                                 'id'      => $po->id,
@@ -141,7 +219,7 @@
                                     {{-- Detail row (collapsed) --}}
                                     <tr id="po-detail-{{ $po->id }}" style="display:none;background:#f8faff">
                                         <td></td>
-                                        <td colspan="11" class="px-3 py-2">
+                                        <td colspan="13" class="px-3 py-2">
                                             <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">
                                                 Detail Item — {{ $po->do_number }}
                                                 @if($po->notes) <span style="font-weight:400;color:#9ca3af;margin-left:8px"><i class="fas fa-sticky-note me-1"></i>{{ $po->notes }}</span> @endif
@@ -185,7 +263,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="10" class="text-center py-4" style="color:#9ca3af">Belum ada data DO pada
+                                        <td colspan="14" class="text-center py-4" style="color:#9ca3af">Belum ada data DO pada
                                             periode ini</td>
                                     </tr>
                                 @endforelse
@@ -199,16 +277,67 @@
         </div>
     </div>
 
+    @if(auth()->user()->canAccess('operational_status'))
+    <div class="modal fade" id="operationalStatusModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="POST" id="operationalStatusForm">
+                    @csrf
+                    <div class="modal-header">
+                        <div>
+                            <h6 class="modal-title fw-bold mb-1">Ubah Status Operasional DO</h6>
+                            <div id="operationalStatusDoNumber" class="text-muted" style="font-size:12px"></div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Status DO <span class="text-danger">*</span></label>
+                            <select name="operational_status" id="operationalStatusSelect" class="form-select" onchange="toggleRescheduleDate()" required>
+                                @foreach($operationalStatusOptions as $key => $label)
+                                    <option value="{{ $key }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <div class="form-text">Status ini terpisah dari Tahap Flow approval.</div>
+                        </div>
+                        <div class="mb-3 d-none" id="rescheduleDateWrap">
+                            <label class="form-label">Jadwal Baru <span class="text-danger">*</span></label>
+                            <input type="date" name="rescheduled_for" id="operationalRescheduledFor" class="form-control">
+                        </div>
+                        <div>
+                            <label class="form-label">Keterangan <span id="operationalNoteRequired" class="text-danger">*</span></label>
+                            <textarea name="operational_note" id="operationalNote" class="form-control" rows="3" maxlength="1000" placeholder="Alasan pending, reschedule, atau cancel"></textarea>
+                            <div class="form-text">Wajib diisi jika DO tidak berjalan.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Simpan Status</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
+
 
     @push('styles')
         <style>
-            .request-do-dialog { max-width: min(1420px, 96vw); height: calc(100vh - 2rem); margin-top:1rem; margin-bottom:1rem; }
+            .request-do-dialog { max-width:min(1380px, 94vw); height:calc(100dvh - 3rem); margin:1.5rem auto; }
             .request-do-modal .modal-content { border:0; border-radius:18px; overflow:hidden; box-shadow:0 28px 70px rgba(15,23,42,.18); max-height:100%; display:flex; flex-direction:column; }
             .request-do-modal .modal-content > form { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
             .request-do-modal .modal-header { flex:0 0 auto; border-bottom:1px solid #e5e7eb; padding:1rem 1.25rem; background:#fff; }
-            .request-do-modal .modal-footer { flex:0 0 auto; border-top:1px solid #e5e7eb; padding:.8rem 1.25rem; background:#fff; }
+            .request-do-modal .modal-footer { flex:0 0 auto; border-top:1px solid #e5e7eb; padding:.8rem 1.25rem; background:#fff; display:flex; align-items:center; }
             .request-do-modal .modal-body { flex:1 1 auto; min-height:0; overflow-y:auto; background:#f8fafc; padding:1rem 1.25rem 1.25rem; }
-            .request-form-intro { border:1px solid #dbeafe; background:#eff6ff; color:#1e3a8a; border-radius:12px; padding:.75rem .9rem; font-size:.78rem; margin-bottom:.9rem; }
+            .request-form-guide { display:flex; align-items:center; gap:.5rem; border:1px solid #dbeafe; background:#eff6ff; color:#1e3a8a; border-radius:12px; padding:.65rem .8rem; font-size:.75rem; margin-bottom:.9rem; }
+            .request-guide-step { display:inline-flex; align-items:center; gap:.38rem; white-space:nowrap; }
+            .request-guide-step b { width:20px; height:20px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:#1d4ed8; color:#fff; font-size:.65rem; }
+            .request-guide-arrow { color:#93c5fd; font-size:.65rem; }
+            .request-required-note { margin-left:auto; color:#475569; white-space:nowrap; }
+            .request-primary-grid { display:grid; grid-template-columns:minmax(0, 1.12fr) minmax(0, .88fr); gap:.9rem; align-items:stretch; margin-bottom:.9rem; }
+            .request-primary-grid .request-section-card { height:100%; margin-bottom:0; }
+            .request-primary-grid .row > [class*="col-lg-"] { width:50%; }
+            .request-primary-grid .row > .col-12 { width:100%; }
             .request-section-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:1rem; margin-bottom:.9rem; box-shadow:0 8px 22px rgba(15,23,42,.04); }
             .request-section-title, .request-summary { display:flex; align-items:center; gap:.6rem; color:#111827; font-weight:800; font-size:.82rem; letter-spacing:.02em; margin-bottom:.85rem; }
             .request-section-title small, .request-summary small { color:#6b7280; font-weight:500; letter-spacing:0; }
@@ -220,20 +349,36 @@
             .request-optional-section { padding:0; }
             .request-optional-section > summary { list-style:none; cursor:pointer; padding:1rem; margin:0; }
             .request-optional-section > summary::-webkit-details-marker { display:none; }
-            .request-optional-section > summary::after { content:'\f078'; font-family:'Font Awesome 6 Free'; font-weight:900; font-size:.72rem; color:#6b7280; margin-left:auto; transition:transform .2s ease; }
+            .request-optional-section > summary::after { content:'\f078'; font-family:'Font Awesome 6 Free'; font-weight:900; font-size:.72rem; color:#6b7280; margin-left:.35rem; transition:transform .2s ease; }
             .request-optional-section[open] > summary::after { transform:rotate(180deg); }
             .request-optional-body { padding:0 1rem 1rem; }
-            .request-subsection-label { color:#6b7280; font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; border-bottom:1px dashed #e5e7eb; padding-bottom:.35rem; margin:.25rem 0 .65rem; }
+            .request-optional-badge { margin-left:auto; border:1px solid #bfdbfe; background:#eff6ff; color:#1d4ed8; border-radius:999px; padding:.2rem .55rem; font-size:.65rem; font-weight:700; }
+            .request-ops-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:.75rem; }
+            .request-ops-group { min-width:0; background:#f8fafc; border:1px solid #e5e7eb; border-radius:12px; padding:.8rem; }
+            .request-ops-group .row { --bs-gutter-x:.75rem; --bs-gutter-y:.7rem; }
+            .request-ops-group .row > [class*="col-"] { width:50%; }
+            .request-ops-group .row > .request-full-field { width:100%; }
+            .request-subsection-label { color:#475569; font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; border-bottom:1px dashed #cbd5e1; padding-bottom:.4rem; margin:0 0 .65rem; }
+            .request-footer-note { color:#64748b; font-size:.72rem; }
             .request-items-head { display:flex; justify-content:space-between; align-items:center; gap:.75rem; margin-bottom:.85rem; }
             .request-items-table { min-width:1080px; font-size:.76rem; }
             .request-items-table thead th { background:#f8fafc; color:#374151; font-size:.72rem; vertical-align:middle; white-space:nowrap; }
             .request-items-table td { vertical-align:middle; }
             .request-items-table tfoot td { background:#f8fafc; font-weight:800; }
             .request-items-help { color:#6b7280; font-size:.72rem; }
+            @media (max-width:1199.98px) {
+                .request-primary-grid, .request-ops-grid { grid-template-columns:1fr; }
+            }
             @media (max-width:991.98px) {
                 .request-do-dialog { max-width:100vw; height:calc(100vh - 1rem); margin:.5rem; }
                 .request-do-modal .modal-body { padding:.85rem; }
                 .request-section-card { padding:.85rem; }
+                .request-form-guide { overflow-x:auto; }
+                .request-required-note { display:none; }
+            }
+            @media (max-width:575.98px) {
+                .request-primary-grid .row > [class*="col-"], .request-ops-group .row > [class*="col-"] { width:100%; }
+                .request-footer-note { display:none; }
             }
         </style>
     @endpush
@@ -244,25 +389,30 @@
                 <div class="modal-header">
                     <div>
                         <h6 class="modal-title fw-bold mb-1">Tambah Request DO</h6>
-                        <div class="text-muted" style="font-size:.75rem">Isi data secara berurutan: customer, rute, operasional, lalu item layanan.</div>
+                        <div class="text-muted" style="font-size:.75rem">Lengkapi data utama dan rute. Detail operasional dapat diisi jika sudah tersedia.</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST" action="{{ route('request-orders.store') }}" id="addDoForm">
                     @csrf
                     <div class="modal-body">
-                        <div class="request-form-intro">
-                            <i class="fas fa-circle-info me-1"></i>
-                            Field bertanda <span class="text-danger fw-bold">*</span> wajib diisi. Bagian operasional muatan boleh dibuka hanya jika detail armada/container sudah tersedia.
+                        <div class="request-form-guide" aria-label="Urutan pengisian Request DO">
+                            <span class="request-guide-step"><b>1</b> Data utama</span>
+                            <i class="fas fa-chevron-right request-guide-arrow"></i>
+                            <span class="request-guide-step"><b>2</b> Rute & jadwal</span>
+                            <i class="fas fa-chevron-right request-guide-arrow"></i>
+                            <span class="request-guide-step"><b>3</b> Operasional <span class="text-muted">(opsional)</span></span>
+                            <span class="request-required-note"><span class="text-danger fw-bold">*</span> wajib diisi</span>
                         </div>
 
+                        <div class="request-primary-grid">
                         <div class="request-section-card">
                             <div class="request-section-title">
                                 <span class="request-section-number">1</span>
                                 <div>Informasi Customer & Penugasan <small>data utama request</small></div>
                             </div>
                             <div class="row g-3">
-                                <div class="col-lg-4 col-md-6">
+                                <div class="col-lg-6 col-md-6">
                                     <label class="form-label">Customer <span class="text-danger">*</span></label>
                                     <select name="customer_id" id="addCustomerSelect" class="form-select" onchange="onCustomerChange(this,'addLeadDisplay'); setDefaultSalesPic(this,'addSalesPicSelect')" required>
                                         <option value="">-- Pilih Customer --</option>
@@ -271,21 +421,12 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="col-lg-4 col-md-6">
+                                <div class="col-lg-6 col-md-6">
                                     <label class="form-label">Sales PIC <span class="text-danger">*</span></label>
                                     <select name="user_id" id="addSalesPicSelect" class="form-select" required>
                                         <option value="">-- Pilih Sales PIC --</option>
                                         @foreach($salesUsers as $u)
                                             <option value="{{ $u->id }}" @selected(auth()->id() === $u->id)>{{ $u->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-lg-4 col-md-6">
-                                    <label class="form-label">Vendor</label>
-                                    <select name="vendor_id" class="form-select" id="addVendorSelect" onchange="onVendorChange(this,'addItemsBody')">
-                                        <option value="">-- Pilih Vendor --</option>
-                                        @foreach($vendors as $s)
-                                            <option value="{{ $s->id }}">{{ $s->vendor_name }} ({{ $s->vendor_type }})</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -346,22 +487,28 @@
                                 </div>
                             </div>
                         </div>
+                        </div>
 
-                        <details class="request-section-card request-optional-section mb-3">
+                        <details class="request-section-card request-optional-section mb-3" id="addOperationalDetails">
                             <summary class="request-summary">
                                 <span class="request-section-number">3</span>
-                                <div>Detail Operasional Muatan <small>opsional, untuk armada/container</small></div>
+                                <div>Detail Operasional Muatan <small>armada, container, dan driver</small></div>
+                                <span class="request-optional-badge">Opsional · klik untuk buka</span>
                             </summary>
                             <div class="request-optional-body">
+                                <div class="request-ops-grid">
+                                <section class="request-ops-group">
                                 <div class="request-subsection-label">Armada & Muatan</div>
-                                <div class="row g-3 mb-2">
+                                <div class="row">
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Checker</label><input type="text" name="checker" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Jenis Truck</label><input type="text" name="jenis_truck" class="form-control" placeholder="Trailer 20'/40'"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">No. Polisi</label><input type="text" name="no_pol" class="form-control" placeholder="B 1234 XXX"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Komoditi</label><input type="text" name="komoditi" class="form-control"></div>
                                 </div>
+                                </section>
+                                <section class="request-ops-group">
                                 <div class="request-subsection-label">Lokasi Muat & Bongkar</div>
-                                <div class="row g-3 mb-2">
+                                <div class="row">
                                     <div class="col-lg-4 col-md-6"><label class="form-label">Depo</label><input type="text" name="depo" class="form-control"></div>
                                     <div class="col-lg-4 col-md-6"><label class="form-label">Muat</label><input type="text" name="muat" class="form-control" placeholder="Lokasi muat"></div>
                                     <div class="col-lg-4 col-md-6"><label class="form-label">Tgl Muat</label><input type="date" name="tgl_muat" class="form-control"></div>
@@ -369,33 +516,32 @@
                                     <div class="col-lg-4 col-md-6"><label class="form-label">Tgl Bongkar</label><input type="date" name="tgl_bongkar" class="form-control"></div>
                                     <div class="col-lg-4 col-md-6"><label class="form-label">Tujuan</label><input type="text" name="tujuan" class="form-control"></div>
                                 </div>
+                                </section>
+                                <section class="request-ops-group">
                                 <div class="request-subsection-label">Container & Area</div>
-                                <div class="row g-3 mb-2">
+                                <div class="row">
                                     <div class="col-lg-3 col-md-6"><label class="form-label">No. Container</label><input type="text" name="no_container" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">No. Seal</label><input type="text" name="no_seal" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Grade</label><input type="text" name="grade" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Sektor</label><input type="text" name="sektor" class="form-control"></div>
                                 </div>
+                                </section>
+                                <section class="request-ops-group">
                                 <div class="request-subsection-label">Driver & Detail Alamat</div>
-                                <div class="row g-3">
+                                <div class="row">
                                     <div class="col-lg-4 col-md-6"><label class="form-label">Supir</label><input type="text" name="supir" class="form-control"></div>
                                     <div class="col-lg-4 col-md-6"><label class="form-label">HP Supir</label><input type="text" name="hp_supir" class="form-control"></div>
                                     <div class="col-lg-4 col-md-6"><label class="form-label">Kota</label><input type="text" name="kota" class="form-control"></div>
-                                    <div class="col-lg-3 col-md-6"><label class="form-label">Empty/Full</label><input type="text" name="empty_full" class="form-control" placeholder="Empty / Full"></div>
-                                    <div class="col-lg-3 col-md-6"><label class="form-label">Bongkar Empty/Full</label><input type="text" name="bongkar_empty_full" class="form-control" placeholder="Empty / Full"></div>
-                                    <div class="col-lg-3 col-md-6"><label class="form-label">Kecamatan</label><input type="text" name="kecamatan" class="form-control"></div>
-                                    <div class="col-lg-3 col-md-6"><label class="form-label">Kelurahan</label><input type="text" name="kelurahan" class="form-control"></div>
+                                    <div class="col-12 request-full-field"><label class="form-label">Alamat</label><textarea name="alamat" class="form-control" rows="2" placeholder="Alamat lengkap operasional"></textarea></div>
+                                </div>
+                                </section>
                                 </div>
                             </div>
                         </details>
-
-                        <div class="alert alert-info mb-0" style="font-size:.78rem">
-                            <i class="fas fa-circle-info me-1"></i>
-                            Item layanan dan harga akan dilengkapi oleh Accounting dari halaman detail setelah request disimpan.
-                        </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
+                        <div class="request-footer-note"><i class="fas fa-circle-info me-1"></i>Item layanan dan harga dilengkapi Accounting setelah request disimpan.</div>
+                        <button type="button" class="btn btn-light btn-sm ms-auto" data-bs-dismiss="modal">Batal</button>
                         <button type="submit" class="btn btn-primary btn-sm">Simpan Request DO</button>
                     </div>
                 </form>
@@ -410,25 +556,30 @@
                 <div class="modal-header">
                     <div>
                         <h6 class="modal-title fw-bold mb-1">Edit Request DO — <span id="editPoNumber"></span></h6>
-                        <div class="text-muted" style="font-size:.75rem">Perbarui data request, rute, operasional, dan item layanan.</div>
+                        <div class="text-muted" style="font-size:.75rem">Perbarui data utama, rute, atau detail operasional Request DO.</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <form method="POST" id="editDoForm">
                     @csrf @method('PUT')
                     <div class="modal-body">
-                        <div class="request-form-intro">
-                            <i class="fas fa-circle-info me-1"></i>
-                            Form ini hanya mengubah data request. Layanan dan harga dikelola Accounting pada halaman detail.
+                        <div class="request-form-guide" aria-label="Urutan pengisian Request DO">
+                            <span class="request-guide-step"><b>1</b> Data utama</span>
+                            <i class="fas fa-chevron-right request-guide-arrow"></i>
+                            <span class="request-guide-step"><b>2</b> Rute & jadwal</span>
+                            <i class="fas fa-chevron-right request-guide-arrow"></i>
+                            <span class="request-guide-step"><b>3</b> Operasional <span class="text-muted">(opsional)</span></span>
+                            <span class="request-required-note"><span class="text-danger fw-bold">*</span> wajib diisi</span>
                         </div>
 
+                        <div class="request-primary-grid">
                         <div class="request-section-card">
                             <div class="request-section-title">
                                 <span class="request-section-number">1</span>
                                 <div>Informasi Customer & Penugasan <small>data utama request</small></div>
                             </div>
                             <div class="row g-3">
-                                <div class="col-lg-4 col-md-6">
+                                <div class="col-lg-6 col-md-6">
                                     <label class="form-label">Customer <span class="text-danger">*</span></label>
                                     <select name="customer_id" id="epCustomer" class="form-select" onchange="onCustomerChange(this,'epLeadDisplay'); setDefaultSalesPic(this,'epSalesPicSelect')" required>
                                         <option value="">-- Pilih Customer --</option>
@@ -437,21 +588,12 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="col-lg-4 col-md-6">
+                                <div class="col-lg-6 col-md-6">
                                     <label class="form-label">Sales PIC <span class="text-danger">*</span></label>
                                     <select name="user_id" id="epSalesPicSelect" class="form-select" required>
                                         <option value="">-- Pilih Sales PIC --</option>
                                         @foreach($salesUsers as $u)
                                             <option value="{{ $u->id }}">{{ $u->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-lg-4 col-md-6">
-                                    <label class="form-label">Vendor</label>
-                                    <select name="vendor_id" id="epVendor" class="form-select" onchange="onVendorChange(this,'editItemsBody')">
-                                        <option value="">-- Pilih Vendor --</option>
-                                        @foreach($vendors as $s)
-                                            <option value="{{ $s->id }}">{{ $s->vendor_name }} ({{ $s->vendor_type }})</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -512,22 +654,28 @@
                                 </div>
                             </div>
                         </div>
+                        </div>
 
-                        <details class="request-section-card request-optional-section mb-3">
+                        <details class="request-section-card request-optional-section mb-3" id="editOperationalDetails">
                             <summary class="request-summary">
                                 <span class="request-section-number">3</span>
-                                <div>Detail Operasional Muatan <small>opsional, untuk armada/container</small></div>
+                                <div>Detail Operasional Muatan <small>armada, container, dan driver</small></div>
+                                <span class="request-optional-badge">Opsional · klik untuk buka</span>
                             </summary>
                             <div class="request-optional-body">
+                                <div class="request-ops-grid">
+                                <section class="request-ops-group">
                                 <div class="request-subsection-label">Armada & Muatan</div>
-                                <div class="row g-3 mb-2">
+                                <div class="row">
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Checker</label><input type="text" name="checker" id="epChecker" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Jenis Truck</label><input type="text" name="jenis_truck" id="epJenisTruck" class="form-control" placeholder="Trailer 20'/40'"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">No. Polisi</label><input type="text" name="no_pol" id="epNoPol" class="form-control" placeholder="B 1234 XXX"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Komoditi</label><input type="text" name="komoditi" id="epKomoditi" class="form-control"></div>
                                 </div>
+                                </section>
+                                <section class="request-ops-group">
                                 <div class="request-subsection-label">Lokasi Muat & Bongkar</div>
-                                <div class="row g-3 mb-2">
+                                <div class="row">
                                     <div class="col-lg-4 col-md-6"><label class="form-label">Depo</label><input type="text" name="depo" id="epDepo" class="form-control"></div>
                                     <div class="col-lg-4 col-md-6"><label class="form-label">Muat</label><input type="text" name="muat" id="epMuat" class="form-control" placeholder="Lokasi muat"></div>
                                     <div class="col-lg-4 col-md-6"><label class="form-label">Tgl Muat</label><input type="date" name="tgl_muat" id="epTglMuat" class="form-control"></div>
@@ -535,32 +683,32 @@
                                     <div class="col-lg-4 col-md-6"><label class="form-label">Tgl Bongkar</label><input type="date" name="tgl_bongkar" id="epTglBongkar" class="form-control"></div>
                                     <div class="col-lg-4 col-md-6"><label class="form-label">Tujuan</label><input type="text" name="tujuan" id="epTujuan" class="form-control"></div>
                                 </div>
+                                </section>
+                                <section class="request-ops-group">
                                 <div class="request-subsection-label">Container & Area</div>
-                                <div class="row g-3 mb-2">
+                                <div class="row">
                                     <div class="col-lg-3 col-md-6"><label class="form-label">No. Container</label><input type="text" name="no_container" id="epNoContainer" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">No. Seal</label><input type="text" name="no_seal" id="epNoSeal" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Grade</label><input type="text" name="grade" id="epGrade" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Sektor</label><input type="text" name="sektor" id="epSektor" class="form-control"></div>
                                 </div>
+                                </section>
+                                <section class="request-ops-group">
                                 <div class="request-subsection-label">Driver & Detail Alamat</div>
-                                <div class="row g-3">
+                                <div class="row">
                                     <div class="col-lg-4 col-md-6"><label class="form-label">Supir</label><input type="text" name="supir" id="epSupir" class="form-control"></div>
                                     <div class="col-lg-4 col-md-6"><label class="form-label">HP Supir</label><input type="text" name="hp_supir" id="epHpSupir" class="form-control"></div>
                                     <div class="col-lg-4 col-md-6"><label class="form-label">Kota</label><input type="text" name="kota" id="epKota" class="form-control"></div>
-                                    <div class="col-lg-3 col-md-6"><label class="form-label">Empty/Full</label><input type="text" name="empty_full" id="epEmptyFull" class="form-control" placeholder="Empty / Full"></div>
-                                    <div class="col-lg-3 col-md-6"><label class="form-label">Bongkar Empty/Full</label><input type="text" name="bongkar_empty_full" id="epBongkarEmptyFull" class="form-control" placeholder="Empty / Full"></div>
-                                    <div class="col-lg-3 col-md-6"><label class="form-label">Kecamatan</label><input type="text" name="kecamatan" id="epKecamatan" class="form-control"></div>
-                                    <div class="col-lg-3 col-md-6"><label class="form-label">Kelurahan</label><input type="text" name="kelurahan" id="epKelurahan" class="form-control"></div>
+                                    <div class="col-12 request-full-field"><label class="form-label">Alamat</label><textarea name="alamat" id="epAlamat" class="form-control" rows="2" placeholder="Alamat lengkap operasional"></textarea></div>
+                                </div>
+                                </section>
                                 </div>
                             </div>
                         </details>
-
-                        <div class="alert alert-info mb-0" style="font-size:.78rem">
-                            Item layanan dan harga dikelola Accounting dari halaman detail Request DO.
-                        </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Batal</button>
+                        <div class="request-footer-note"><i class="fas fa-circle-info me-1"></i>Item layanan dan harga dikelola Accounting dari halaman detail.</div>
+                        <button type="button" class="btn btn-light btn-sm ms-auto" data-bs-dismiss="modal">Batal</button>
                         <button type="submit" class="btn btn-primary btn-sm">Simpan Perubahan</button>
                     </div>
                 </form>
@@ -631,8 +779,39 @@
                 document.getElementById(prefix + 'TotalProfit').style.color = profit >= 0 ? '#10b981' : '#dc2626';
             }
 
-            // Map vendor_id → services dari controller
-            const vendorServicesMap = @json($vendorServices->groupBy('vendor_id'));
+            // Item layanan dan harga dilengkapi Finance setelah request dibuat.
+            const vendorServicesMap = {};
+            const operationalStatusData = @js($operationalStatusData);
+            const operationalStatusBaseUrl = @js(url('/request-orders'));
+
+            function openOperationalStatus(id) {
+                const data = operationalStatusData[id];
+                if (!data) return;
+
+                document.getElementById('operationalStatusForm').action = operationalStatusBaseUrl + '/' + id + '/operational-status';
+                document.getElementById('operationalStatusDoNumber').textContent = data.number;
+                document.getElementById('operationalStatusSelect').value = data.status || 'running';
+                document.getElementById('operationalNote').value = data.note || '';
+                document.getElementById('operationalRescheduledFor').value = data.rescheduled_for || '';
+                toggleRescheduleDate();
+
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('operationalStatusModal')).show();
+            }
+
+            function toggleRescheduleDate() {
+                const status = document.getElementById('operationalStatusSelect')?.value || 'running';
+                const dateWrap = document.getElementById('rescheduleDateWrap');
+                const dateInput = document.getElementById('operationalRescheduledFor');
+                const noteInput = document.getElementById('operationalNote');
+                const noteRequired = document.getElementById('operationalNoteRequired');
+                const isRescheduled = status === 'rescheduled';
+                const needsNote = status !== 'running';
+
+                dateWrap?.classList.toggle('d-none', !isRescheduled);
+                if (dateInput) dateInput.required = isRescheduled;
+                if (noteInput) noteInput.required = needsNote;
+                noteRequired?.classList.toggle('d-none', !needsNote);
+            }
 
             // Map customer_id & company_name → lead info untuk Linked Lead
             const leadsByCustomerId = {};
@@ -903,8 +1082,7 @@
                     epChecker:'checker', epJenisTruck:'jenis_truck', epNoPol:'no_pol', epKomoditi:'komoditi',
                     epDepo:'depo', epMuat:'muat', epTglMuat:'tgl_muat', epBongkar:'bongkar', epTglBongkar:'tgl_bongkar',
                     epTujuan:'tujuan', epNoContainer:'no_container', epNoSeal:'no_seal', epGrade:'grade', epSektor:'sektor',
-                    epSupir:'supir', epHpSupir:'hp_supir', epKota:'kota', epEmptyFull:'empty_full',
-                    epBongkarEmptyFull:'bongkar_empty_full', epKecamatan:'kecamatan', epKelurahan:'kelurahan'
+                    epSupir:'supir', epHpSupir:'hp_supir', epKota:'kota', epAlamat:'alamat'
                 };
                 Object.keys(opMap).forEach(function(elId){
                     const el = document.getElementById(elId);
@@ -916,6 +1094,15 @@
                     }
                     el.value = val;
                 });
+
+                // Detail operasional tetap ringkas, tetapi otomatis terbuka jika data sudah pernah diisi.
+                const editOperationalDetails = document.getElementById('editOperationalDetails');
+                if (editOperationalDetails) {
+                    editOperationalDetails.open = Object.values(opMap).some(field => {
+                        const value = po[field];
+                        return value !== null && value !== undefined && String(value).trim() !== '';
+                    });
+                }
 
                 const setSelect2 = (elId, val) => {
                     const el = document.getElementById(elId);
@@ -947,7 +1134,6 @@
                     setSelect2('epCurrency', po.currency);
                     setSelect2('epDeliveryType', _dt);
                     setSelect2('epCustomer', po.customer_id);
-                    setSelect2('epVendor', po.vendor_id);
                     setSelect2('epSalesPicSelect', po.user_id);
                 };
                 _fillSelects();
@@ -993,14 +1179,12 @@
                     setSelect2('epCurrency', po.currency);
                     setSelect2('epDeliveryType', _dt);
                     setSelect2('epCustomer', po.customer_id);
-                    setSelect2('epVendor', po.vendor_id);
                     setSelect2('epSalesPicSelect', po.user_id);
                     setDateInputValue('epDate', po.order_date);
                     setTimeout(function () {
                         setSelect2('epCurrency', po.currency);
                         setSelect2('epDeliveryType', _dt);
                         setSelect2('epCustomer', po.customer_id);
-                        setSelect2('epVendor', po.vendor_id);
                         setSelect2('epSalesPicSelect', po.user_id);
                         setDateInputValue('epDate', po.order_date);
                     }, 60);
@@ -1083,11 +1267,9 @@
                 });
 
                 addModal.addEventListener('hidden.bs.modal', function () {
-                    // Reset tbody dan vendor select saat modal ditutup
+                    // Reset tbody saat modal ditutup
                     const body = document.getElementById('addItemsBody');
                     if (body) body.innerHTML = '';
-                    const vendorSel = document.getElementById('addVendorSelect');
-                    if (vendorSel) vendorSel.value = '';
                     itemIndex = 0;
                 });
             });
@@ -1179,6 +1361,17 @@
                     });
                 }
             })();
+
+            document.querySelectorAll('.cancel-request-form').forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    const reason = window.prompt('Tuliskan alasan pembatalan Request DO:');
+                    if (!reason || !reason.trim()) {
+                        event.preventDefault();
+                        return;
+                    }
+                    form.querySelector('[name="reason"]').value = reason.trim();
+                });
+            });
         </script>
     @endpush
 @endsection

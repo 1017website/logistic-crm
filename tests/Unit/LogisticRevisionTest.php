@@ -56,15 +56,17 @@ class LogisticRevisionTest extends TestCase
         $this->assertSame('Jasa Bongkar', $breakdown['NTR']['description']);
     }
 
-    public function test_accounting_owns_request_pricing_while_sales_admin_owns_approval(): void
+    public function test_accounting_owns_request_pricing_while_sales_admin_and_manager_own_approval(): void
     {
         $accounting = new User(['role' => 'Finance']);
         $salesAdmin = new User(['role' => 'Sales Admin']);
+        $salesManager = new User(['role' => 'Sales Manager']);
 
         $this->assertTrue($accounting->canAccess('request_item_pricing'));
         $this->assertTrue($accounting->canAccess('job_details'));
         $this->assertFalse($salesAdmin->canAccess('request_item_pricing'));
         $this->assertTrue($salesAdmin->canAccess('approve_do'));
+        $this->assertTrue($salesManager->canAccess('approve_do'));
     }
 
     public function test_sales_admin_and_finance_navigation_permissions(): void

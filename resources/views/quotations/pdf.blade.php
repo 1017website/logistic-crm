@@ -59,6 +59,7 @@
 
     <div class="inset">
         <table class="meta">
+            <tr><td class="label">Nomor</td><td>:&nbsp; {{ $quotation->quotation_number }}</td></tr>
             <tr><td class="label">Lampiran</td><td>:&nbsp; {{ $quotation->attachment }}</td></tr>
             <tr><td class="label">Perihal</td><td>:&nbsp; {{ $quotation->subject }}</td></tr>
         </table>

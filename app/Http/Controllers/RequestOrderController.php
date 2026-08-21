@@ -7,8 +7,6 @@ use App\Models\Lead;
 use App\Models\RequestOrder;
 use App\Models\DeliveryOrder;
 use App\Models\OrderAssignment;
-use App\Models\Vendor;
-use App\Models\VendorService;
 use App\Models\User;
 use App\Models\Notification;
 use Illuminate\Http\Request;
@@ -18,8 +16,8 @@ use Illuminate\Support\Facades\DB;
  * REQUEST DO — tahap 1 alur fulfillment.
  *
  *   Sales (store, draft->verifikasi)
- *   -> Sales Admin (verify: approve->dispatch / reject)
- *   -> Transport Planner (dispatch: simpan penugasan -> approval)
+ *   -> Sales Admin (verify: approve->finance / reject)
+ *   -> Finance (review harga & DP -> approval / kembali ke Sales Admin)
  *   -> Sales Manager/Admin (approve: terbitkan DO final / reject)
  */
 class RequestOrderController extends Controller
@@ -29,14 +27,28 @@ class RequestOrderController extends Controller
         $search    = $request->get('search');
         $status    = $request->get('status');         // status legacy (Done/In Progress)
         $flow      = $request->get('flow');            // request_status
+        $operationalStatus = $request->get('operational_status');
+        $dpStatus  = $request->get('dp_status');
+        $tab       = $request->get('tab', 'active');
         $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->get('end_date', now()->endOfMonth()->format('Y-m-d'));
 
-        $query = RequestOrder::with(['customer', 'vendor', 'lead', 'items', 'salesUser', 'verifier'])
+        $query = RequestOrder::with(['customer', 'lead', 'items', 'salesUser', 'verifier', 'operationalStatusChanger', 'dpReviewer'])
             ->whereBetween('order_date', [$startDate, $endDate]);
+
+        if ($tab === 'cancelled') {
+            $query->where('request_status', 'cancelled');
+        } else {
+            // Request yang sudah disetujui berpindah ke menu Delivery Orders.
+            $query->whereNotIn('request_status', ['assigned', 'cancelled']);
+        }
 
         if ($status && $status !== 'all') $query->where('status', $status);
         if ($flow && $flow !== 'all')     $query->where('request_status', $flow);
+        if ($operationalStatus && $operationalStatus !== 'all') {
+            $query->where('operational_status', $operationalStatus);
+        }
+        if ($dpStatus && $dpStatus !== 'all') $query->where('dp_status', $dpStatus);
 
         if ($search) {
             $query->where(fn($q) => $q
@@ -47,37 +59,63 @@ class RequestOrderController extends Controller
         }
 
         $dos = $query->orderByDesc('order_date')->orderByDesc('id')->paginate(15)->withQueryString();
+        $operationalStatusData = $dos->getCollection()->mapWithKeys(fn(RequestOrder $do) => [
+            $do->id => [
+                'id' => $do->id,
+                'number' => $do->do_number,
+                'status' => $do->operational_status ?? 'running',
+                'note' => $do->operational_note,
+                'rescheduled_for' => $do->rescheduled_for?->format('Y-m-d'),
+            ],
+        ])->all();
 
-        // KPI dari request yang sudah Done
+        // KPI pendapatan dari request yang sudah menjadi DO dan tidak dibatalkan.
         $allDone = RequestOrder::with('items')
             ->whereBetween('order_date', [$startDate, $endDate])
-            ->where('status', 'Done')->where('currency', 'IDR')->get();
+            ->where('request_status', 'assigned')
+            ->where('operational_status', '!=', 'cancelled')
+            ->where('currency', 'IDR')->get();
 
         $revenue     = $allDone->sum(fn($so) => $so->total_revenue);
         $totalCost   = $allDone->sum(fn($so) => $so->total_cost);
         $grossProfit = $revenue - $totalCost;
-        $volumeDo    = $allDone->count();
+        // Volume DO selalu bersumber dari jumlah Delivery Order yang benar-benar dibuat.
+        $volumeDo = DeliveryOrder::whereBetween('do_date', [$startDate, $endDate])->count();
+        $issuedDoCount = RequestOrder::whereBetween('order_date', [$startDate, $endDate])
+            ->where('request_status', 'assigned')->count();
+        $cancelledRequestCount = RequestOrder::whereBetween('order_date', [$startDate, $endDate])
+            ->where('request_status', 'cancelled')->count();
+        $activeRequestCount = RequestOrder::whereBetween('order_date', [$startDate, $endDate])
+            ->whereNotIn('request_status', ['assigned', 'cancelled'])->count();
+
+        $dpRows = RequestOrder::whereBetween('order_date', [$startDate, $endDate])
+            ->whereIn('dp_status', ['taken', 'not_taken'])
+            ->get(['dp_status', 'dp_amount']);
+        $dpTakenCount     = $dpRows->where('dp_status', 'taken')->count();
+        $dpTakenAmount    = (float) $dpRows->where('dp_status', 'taken')->sum('dp_amount');
+        $dpNotTakenCount  = $dpRows->where('dp_status', 'not_taken')->count();
+        $dpNotTakenAmount = (float) $dpRows->where('dp_status', 'not_taken')->sum('dp_amount');
 
         $customers = Customer::where('status', 'Existing')
             ->orderBy('company_name')->get(['id', 'company_name', 'user_id']);
-        $vendors   = Vendor::where('status', 'Active')->orderBy('vendor_name')
-            ->get(['id', 'vendor_name', 'vendor_type', 'service_type']);
         $salesUsers = User::orderBy('name')->get(['id', 'name']);
         $leads = Lead::where(function ($q) {
             $q->whereIn('pipeline_stage', ['Won', 'Maintaining'])->orWhereNotNull('customer_id');
         })->orderBy('company_name')->get(['id', 'company_name', 'lead_code', 'customer_id']);
 
-        $vendorServices = VendorService::with('vendor')
-            ->orderBy('service_name')->get(['id', 'vendor_id', 'service_name', 'unit', 'tariff', 'tariff_unit']);
-
         $pendingDeletionDoIds = \App\Models\DeletionRequest::pendingIdsFor(RequestOrder::class);
 
         $flowOptions = RequestOrder::FLOW;
+        $operationalStatusOptions = RequestOrder::OPERATIONAL_STATUSES;
+        $dpStatusOptions = RequestOrder::DP_STATUSES;
 
         return view('request_orders.index', compact(
             'dos', 'revenue', 'grossProfit', 'volumeDo', 'totalCost',
-            'customers', 'vendors', 'leads', 'vendorServices', 'salesUsers',
-            'search', 'status', 'flow', 'flowOptions', 'startDate', 'endDate', 'pendingDeletionDoIds'
+            'customers', 'leads', 'salesUsers',
+            'search', 'status', 'flow', 'flowOptions', 'operationalStatus', 'operationalStatusOptions',
+            'dpStatus', 'dpStatusOptions', 'dpTakenCount', 'dpTakenAmount', 'dpNotTakenCount', 'dpNotTakenAmount',
+            'operationalStatusData', 'startDate', 'endDate', 'pendingDeletionDoIds',
+            'tab', 'issuedDoCount', 'cancelledRequestCount', 'activeRequestCount'
         ));
     }
 
@@ -86,7 +124,8 @@ class RequestOrderController extends Controller
         $requestOrder->load([
             'items', 'customer', 'vendor', 'lead', 'salesUser', 'verifier',
             'assignment.vendor', 'assignment.planner', 'assignment.approver',
-            'statusLogs.user', 'deliveryOrder',
+            'statusLogs.user', 'deliveryOrder', 'operationalStatusChanger', 'dpReviewer',
+            'jobDetails.vendor', 'jobDetails.pekerjaan', 'jobDetails.creator', 'jobDetails.updater',
         ]);
         return view('request_orders.show', compact('requestOrder'));
     }
@@ -107,7 +146,6 @@ class RequestOrderController extends Controller
             $ro = RequestOrder::create([
                 'do_number'      => RequestOrder::generateDoNumber(),
                 'customer_id'    => $request->customer_id,
-                'vendor_id'      => $request->vendor_id,
                 'lead_id'        => $request->lead_id,
                 'user_id'        => $userId,
                 'currency'       => $request->currency,
@@ -128,26 +166,12 @@ class RequestOrderController extends Controller
             return $ro;
         });
 
-        // Sales Admin hanya mengisi data request. Accounting/Finance melengkapi
-        // item layanan dan harga dari halaman detail Request DO.
-        if (auth()->user()?->isSalesAdmin()) {
-            User::where('role', 'Finance')->where('status', 'Active')->each(function (User $accounting) use ($ro) {
-                Notification::send(
-                    $accounting->id,
-                    'request_do_pricing',
-                    'Request DO perlu dilengkapi',
-                    $ro->do_number . ' telah dibuat. Silakan lengkapi item layanan dan harga.',
-                    route('request-orders.show', $ro)
-                );
-            });
-        }
-
         return redirect()->route('request-orders.index')->with('success', 'Request DO berhasil dibuat & masuk antrian verifikasi.');
     }
 
     public function edit(RequestOrder $requestOrder)
     {
-        $requestOrder->load(['items', 'customer', 'vendor', 'lead']);
+        $requestOrder->load(['items', 'customer', 'lead']);
         $data = $requestOrder->toArray();
         $data['order_date']        = $requestOrder->order_date?->format('Y-m-d');
         $data['estimated_arrival'] = $requestOrder->estimated_arrival?->format('Y-m-d');
@@ -167,7 +191,6 @@ class RequestOrderController extends Controller
         DB::transaction(function () use ($request, $requestOrder) {
             $requestOrder->update([
                 'customer_id'    => $request->customer_id,
-                'vendor_id'      => $request->vendor_id,
                 'lead_id'        => $request->lead_id,
                 'user_id'        => $request->user_id,
                 'currency'       => $request->currency,
@@ -205,8 +228,17 @@ class RequestOrderController extends Controller
                 'verified_at' => now(),
                 'verify_note' => $request->note,
             ]);
-            $requestOrder->transition('dispatch', $request->note ?: 'Data terverifikasi.', auth()->id());
-            $msg = 'Verifikasi disetujui. Diteruskan ke Transport Planner.';
+            $requestOrder->transition('finance', $request->note ?: 'Data Sales Admin terverifikasi.', auth()->id());
+            User::where('role', 'Finance')->where('status', 'Active')->each(function (User $finance) use ($requestOrder) {
+                Notification::send(
+                    $finance->id,
+                    'request_do_finance_review',
+                    'Request DO menunggu review Finance',
+                    $requestOrder->do_number . ' perlu diperiksa harga dan status DP.',
+                    route('request-orders.show', $requestOrder)
+                );
+            });
+            $msg = 'Verifikasi disetujui. Diteruskan ke Finance untuk review harga & DP.';
         } else {
             $requestOrder->update(['verify_note' => $request->note]);
             $requestOrder->transition('rejected', $request->note ?: 'Verifikasi ditolak.', auth()->id());
@@ -214,6 +246,190 @@ class RequestOrderController extends Controller
         }
 
         return back()->with('success', $msg);
+    }
+
+    // ─────────────────── REVIEW FINANCE & DP ───────────────────
+    public function financeReview(Request $request, RequestOrder $requestOrder)
+    {
+        $validated = $request->validate([
+            'action'    => 'required|in:approve,reject',
+            'dp_status' => 'nullable|in:taken,not_taken',
+            'dp_amount' => 'nullable|numeric|min:0',
+            'dp_note'   => 'nullable|string|max:1000',
+        ]);
+
+        if (($validated['action'] ?? null) === 'approve' && $requestOrder->dp_request_active) {
+            $dpErrors = [];
+            if (empty($validated['dp_status'])) $dpErrors['dp_status'] = 'Status DP wajib dipilih.';
+            if (!array_key_exists('dp_amount', $validated)) $dpErrors['dp_amount'] = 'Nominal DP wajib diisi.';
+            if ($dpErrors !== []) return back()->withInput()->withErrors($dpErrors);
+        }
+
+        if (($validated['action'] ?? null) === 'approve'
+            && ($validated['dp_status'] ?? null) === 'taken'
+            && (float) ($validated['dp_amount'] ?? 0) <= 0) {
+            return back()->withInput()->withErrors(['dp_amount' => 'Nominal DP terambil harus lebih dari 0.']);
+        }
+
+        if ($requestOrder->request_status !== 'finance') {
+            return back()->withErrors(['general' => 'Request DO tidak berada di tahap review Finance.']);
+        }
+
+        if ($validated['action'] === 'reject') {
+            $requestOrder->transition(
+                'verifikasi',
+                $validated['dp_note'] ?: 'Dikembalikan oleh Finance untuk diperbaiki Sales Admin.',
+                auth()->id()
+            );
+            return back()->with('success', 'Request DO dikembalikan ke Sales Admin untuk diperbaiki.');
+        }
+
+        DB::transaction(function () use ($requestOrder, $validated) {
+            $dpStatus = $requestOrder->dp_request_active ? $validated['dp_status'] : 'not_taken';
+            $dpAmount = $requestOrder->dp_request_active ? ($validated['dp_amount'] ?? 0) : 0;
+            $requestOrder->update([
+                'dp_status'      => $dpStatus,
+                'dp_amount'      => $dpAmount,
+                'dp_note'        => $validated['dp_note'] ?? null,
+                'dp_reviewed_by' => auth()->id(),
+                'dp_reviewed_at' => now(),
+            ]);
+            $requestOrder->transition(
+                'approval',
+                'Finance selesai review. ' . ($requestOrder->dp_request_active
+                    ? RequestOrder::DP_STATUSES[$dpStatus] . ' sebesar ' . number_format((float) $dpAmount, 0, ',', '.') . '.'
+                    : 'Request DP nonaktif.'),
+                auth()->id()
+            );
+
+            User::where('role', 'Sales Manager')->where('status', 'Active')->each(function (User $manager) use ($requestOrder) {
+                Notification::send(
+                    $manager->id,
+                    'request_do_manager_approval',
+                    'Request DO menunggu approval',
+                    $requestOrder->do_number . ' telah direview Finance dan menunggu approval Sales Manager.',
+                    route('request-orders.show', $requestOrder)
+                );
+            });
+        });
+
+        return back()->with('success', 'Review Finance & DP selesai. Diteruskan ke Sales Manager.');
+    }
+
+    /** Perbarui data DP setelah tahap review Finance tanpa mengubah flow Request DO. */
+    public function updateDp(Request $request, RequestOrder $requestOrder)
+    {
+        if (!in_array($requestOrder->request_status, ['approval', 'assigned'], true)) {
+            return back()->withErrors([
+                'general' => $requestOrder->request_status === 'finance'
+                    ? 'Gunakan form Review Finance & DP untuk meneruskan Request DO ke Sales Manager.'
+                    : 'DP baru dapat diperbarui setelah Request DO melewati tahap review Finance.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'dp_status' => 'required|in:taken,not_taken',
+            'dp_amount' => 'required|numeric|min:0',
+            'dp_note'   => 'nullable|string|max:1000',
+        ], [
+            'dp_status.required' => 'Status DP wajib dipilih.',
+            'dp_amount.required' => 'Nominal DP wajib diisi.',
+        ]);
+
+        if ($validated['dp_status'] === 'taken' && (float) $validated['dp_amount'] <= 0) {
+            return back()->withInput()->withErrors([
+                'dp_amount' => 'Nominal DP terambil harus lebih dari 0.',
+            ]);
+        }
+
+        $requestOrder->update([
+            'dp_status'      => $validated['dp_status'],
+            'dp_amount'      => $validated['dp_amount'],
+            'dp_note'        => $validated['dp_note'] ?? null,
+            'dp_reviewed_by' => auth()->id(),
+            'dp_reviewed_at' => now(),
+        ]);
+
+        return back()->with('success', 'Data DP berhasil diperbarui tanpa mengubah tahap flow Request DO.');
+    }
+
+    /** Aktif/nonaktifkan kebutuhan DP tanpa menghapus histori review Finance. */
+    public function updateDpActive(Request $request, RequestOrder $requestOrder)
+    {
+        $data = $request->validate([
+            'active' => 'required|boolean',
+            'note' => 'nullable|string|max:1000',
+        ]);
+
+        $active = (bool) $data['active'];
+        $requestOrder->update([
+            'dp_request_active' => $active,
+            'dp_status' => $active ? ($requestOrder->dp_status ?: 'pending') : 'not_taken',
+            'dp_amount' => $active ? $requestOrder->dp_amount : 0,
+            'dp_note' => $data['note'] ?: ($active ? 'Request DP diaktifkan kembali.' : 'Request DP dinonaktifkan.'),
+            'dp_reviewed_by' => auth()->id(),
+            'dp_reviewed_at' => now(),
+        ]);
+
+        \App\Models\OrderStatusLog::record(
+            $requestOrder,
+            null,
+            $active ? 'dp_activated' : 'dp_deactivated',
+            auth()->id(),
+            $data['note'] ?: ($active ? 'Request DP diaktifkan.' : 'Request DP dinonaktifkan.')
+        );
+
+        return back()->with('success', 'Request DP berhasil ' . ($active ? 'diaktifkan.' : 'dinonaktifkan.'));
+    }
+
+    /** Batalkan request sebelum DO final diterbitkan. */
+    public function cancel(Request $request, RequestOrder $requestOrder)
+    {
+        $data = $request->validate(['reason' => 'required|string|max:1000']);
+
+        if ($requestOrder->request_status === 'assigned' || $requestOrder->deliveryOrder()->exists()) {
+            return back()->withErrors(['general' => 'Request sudah menjadi Delivery Order dan tidak dapat dibatalkan dari menu Request DO.']);
+        }
+        if ($requestOrder->request_status === 'cancelled') {
+            return back()->withErrors(['general' => 'Request DO sudah dibatalkan.']);
+        }
+
+        DB::transaction(function () use ($requestOrder, $data) {
+            $requestOrder->update([
+                'status' => 'Cancelled',
+                'operational_status' => 'cancelled',
+                'do_approved' => false,
+                'cancelled_by' => auth()->id(),
+                'cancelled_at' => now(),
+                'cancel_reason' => $data['reason'],
+            ]);
+            $requestOrder->transition('cancelled', $data['reason'], auth()->id());
+        });
+
+        return redirect()->route('request-orders.index', ['tab' => 'cancelled'])
+            ->with('success', $requestOrder->do_number . ' berhasil dibatalkan.');
+    }
+
+    /** Aktifkan kembali request batal ke antrian verifikasi Sales Admin. */
+    public function reactivate(Request $request, RequestOrder $requestOrder)
+    {
+        $data = $request->validate(['note' => 'nullable|string|max:1000']);
+        if ($requestOrder->request_status !== 'cancelled') {
+            return back()->withErrors(['general' => 'Hanya Request DO batal yang dapat diaktifkan kembali.']);
+        }
+
+        DB::transaction(function () use ($requestOrder, $data) {
+            $requestOrder->update([
+                'status' => 'In Progress',
+                'operational_status' => 'running',
+                'cancelled_by' => null,
+                'cancelled_at' => null,
+                'cancel_reason' => null,
+            ]);
+            $requestOrder->transition('verifikasi', $data['note'] ?: 'Request DO diaktifkan kembali.', auth()->id());
+        });
+
+        return redirect()->route('request-orders.index')->with('success', 'Request DO kembali ke antrian verifikasi.');
     }
 
     // ─────────────────── DISPATCH (Transport Planner) ───────────────────
@@ -275,30 +491,33 @@ class RequestOrderController extends Controller
         }
 
         $assignment = $requestOrder->assignment()->where('approval_status', 'pending')->first();
-        if (!$assignment) {
-            return back()->withErrors(['general' => 'Tidak ada penugasan pending untuk disetujui.']);
-        }
 
         if ($request->action === 'reject') {
-            $assignment->update([
-                'approval_status' => 'rejected',
-                'approved_by'     => auth()->id(),
-                'approved_at'     => now(),
-                'approval_note'   => $request->note,
-            ]);
-            // kembalikan ke dispatch agar planner bisa atur ulang
-            $requestOrder->transition('dispatch', $request->note ?: 'Penugasan ditolak, atur ulang.', auth()->id());
-            return back()->with('success', 'Penugasan ditolak. Dikembalikan ke Transport Planner.');
+            if ($assignment) {
+                $assignment->update([
+                    'approval_status' => 'rejected',
+                    'approved_by'     => auth()->id(),
+                    'approved_at'     => now(),
+                    'approval_note'   => $request->note,
+                ]);
+            }
+            $returnStage = $assignment ? 'dispatch' : 'finance';
+            $requestOrder->transition($returnStage, $request->note ?: 'Approval Sales Manager ditolak untuk diperbaiki.', auth()->id());
+            return back()->with('success', $assignment
+                ? 'Penugasan ditolak. Dikembalikan ke Transport Planner.'
+                : 'Request DO ditolak. Dikembalikan ke Finance.');
         }
 
         // APPROVE → terbitkan DO final otomatis
         DB::transaction(function () use ($requestOrder, $assignment, $request) {
-            $assignment->update([
-                'approval_status' => 'approved',
-                'approved_by'     => auth()->id(),
-                'approved_at'     => now(),
-                'approval_note'   => $request->note,
-            ]);
+            if ($assignment) {
+                $assignment->update([
+                    'approval_status' => 'approved',
+                    'approved_by'     => auth()->id(),
+                    'approved_at'     => now(),
+                    'approval_note'   => $request->note,
+                ]);
+            }
 
             $requestOrder->transition('assigned', $request->note ?: 'Penugasan disetujui.', auth()->id());
 
@@ -306,20 +525,20 @@ class RequestOrderController extends Controller
                 'do_number'        => DeliveryOrder::generateDoNumber(),
                 'request_order_id' => $requestOrder->id,
                 'customer_id'      => $requestOrder->customer_id,
-                'vendor_id'        => $assignment->vendor_id,
+                'vendor_id'        => $assignment?->vendor_id ?? $requestOrder->vendor_id,
                 'user_id'          => $requestOrder->user_id,
                 'status'           => 'surat_jalan',
-                'assignment_type'  => $assignment->assignment_type,
-                'fleet_info'       => $assignment->isExternal()
+                'assignment_type'  => $assignment?->assignment_type,
+                'fleet_info'       => $assignment?->isExternal()
                                         ? ($assignment->vendor?->vendor_name ?? $assignment->fleet_info)
-                                        : $assignment->fleet_info,
-                'driver_name'      => $assignment->driver_name,
-                'driver_phone'     => $assignment->driver_phone,
+                                        : $assignment?->fleet_info,
+                'driver_name'      => $assignment?->driver_name,
+                'driver_phone'     => $assignment?->driver_phone,
                 'origin'           => $requestOrder->origin,
                 'destination'      => $requestOrder->destination,
                 'do_date'          => now()->toDateString(),
                 'pickup_date'      => $requestOrder->pickup_date,
-                'actual_cost'      => $assignment->estimated_cost ?? 0,
+                'actual_cost'      => $assignment?->estimated_cost ?? 0,
             ]);
 
             \App\Models\OrderStatusLog::record($do, null, 'surat_jalan', auth()->id(), 'DO terbit otomatis dari approval penugasan ' . $requestOrder->do_number . '.');
@@ -337,7 +556,7 @@ class RequestOrderController extends Controller
             }
         });
 
-        return back()->with('success', 'Penugasan disetujui & Delivery Order otomatis diterbitkan.');
+        return back()->with('success', 'Request DO disetujui Sales Manager & Delivery Order otomatis diterbitkan.');
     }
 
     // ─────────────────── APPROVAL DO (bandingkan Jual vs HPP) ───────────────────
@@ -365,6 +584,59 @@ class RequestOrderController extends Controller
         return back()->with('success', $msg);
     }
 
+    /** Ubah status pelaksanaan tanpa mengubah tahap flow approval Request DO. */
+    public function updateOperationalStatus(Request $request, RequestOrder $requestOrder)
+    {
+        $validated = $request->validate([
+            'operational_status' => 'required|in:' . implode(',', array_keys(RequestOrder::OPERATIONAL_STATUSES)),
+            'operational_note'   => 'required_unless:operational_status,running|nullable|string|max:1000',
+            'rescheduled_for'    => 'required_if:operational_status,rescheduled|nullable|date',
+        ], [
+            'operational_note.required_unless' => 'Keterangan wajib diisi ketika DO tidak berjalan.',
+            'rescheduled_for.required_if'       => 'Tanggal jadwal baru wajib diisi untuk status Reschedule.',
+        ]);
+
+        $from = $requestOrder->operational_status ?? 'running';
+        $to   = $validated['operational_status'];
+        $note = $validated['operational_note'] ?? null;
+
+        DB::transaction(function () use ($requestOrder, $from, $to, $note, $validated) {
+            $updates = [
+                'operational_status'             => $to,
+                'operational_note'               => $note,
+                'rescheduled_for'                => $to === 'rescheduled' ? $validated['rescheduled_for'] : null,
+                'operational_status_changed_by'  => auth()->id(),
+                'operational_status_changed_at'  => now(),
+            ];
+
+            // Status lama dipertahankan untuk kompatibilitas laporan, tetapi Cancel
+            // harus dikeluarkan dari perhitungan DO berjalan/selesai.
+            if ($to === 'cancelled') {
+                $updates['status'] = 'Cancelled';
+                $updates['do_approved'] = false;
+            } elseif ($requestOrder->status === 'Cancelled') {
+                $updates['status'] = 'In Progress';
+            }
+
+            $requestOrder->update($updates);
+
+            $logNote = $note ?: 'DO diaktifkan kembali dan dapat berjalan.';
+            if ($to === 'rescheduled' && !empty($validated['rescheduled_for'])) {
+                $logNote .= ' Jadwal baru: ' . date('d M Y', strtotime($validated['rescheduled_for'])) . '.';
+            }
+
+            \App\Models\OrderStatusLog::record(
+                $requestOrder,
+                'operational_' . $from,
+                'operational_' . $to,
+                auth()->id(),
+                $logNote
+            );
+        });
+
+        return back()->with('success', 'Status operasional ' . $requestOrder->do_number . ' diperbarui menjadi ' . RequestOrder::OPERATIONAL_STATUSES[$to] . '.');
+    }
+
     public function destroy(RequestOrder $requestOrder)
     {
         $no = $requestOrder->do_number;
@@ -377,11 +649,35 @@ class RequestOrderController extends Controller
         $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->get('end_date', now()->endOfMonth()->format('Y-m-d'));
 
-        $sos = RequestOrder::with(['customer', 'vendor', 'items'])
-            ->whereBetween('order_date', [$startDate, $endDate])
-            ->orderByDesc('order_date')->get();
+        $query = RequestOrder::with(['customer', 'items'])
+            ->whereBetween('order_date', [$startDate, $endDate]);
 
-        $headers = ['Request DO', 'Customer', 'Vendor', 'Flow', 'Delivery Type', 'Origin', 'Destination', 'Tracking', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA'];
+        if ($request->get('tab', 'active') === 'cancelled') {
+            $query->where('request_status', 'cancelled');
+        } else {
+            $query->whereNotIn('request_status', ['assigned', 'cancelled']);
+        }
+
+        if ($request->filled('flow') && $request->get('flow') !== 'all') {
+            $query->where('request_status', $request->get('flow'));
+        }
+        if ($request->filled('operational_status') && $request->get('operational_status') !== 'all') {
+            $query->where('operational_status', $request->get('operational_status'));
+        }
+        if ($request->filled('dp_status') && $request->get('dp_status') !== 'all') {
+            $query->where('dp_status', $request->get('dp_status'));
+        }
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(fn($q) => $q
+                ->where('do_number', 'like', "%$search%")
+                ->orWhereHas('customer', fn($customer) => $customer->where('company_name', 'like', "%$search%"))
+                ->orWhereHas('items', fn($item) => $item->where('service_name', 'like', "%$search%")));
+        }
+
+        $sos = $query->orderByDesc('order_date')->get();
+
+        $headers = ['Request DO', 'Customer', 'Flow', 'Status Operasional', 'Keterangan Status', 'Alasan Batal', 'Jadwal Reschedule', 'Request DP', 'Status DP', 'Nominal DP', 'Catatan DP', 'Direview Finance', 'Delivery Type', 'Origin', 'Destination', 'Tracking', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA'];
 
         $rows = [];
         foreach ($sos as $so) {
@@ -389,8 +685,16 @@ class RequestOrderController extends Controller
                 $rows[] = [
                     $so->do_number,
                     $so->customer?->company_name ?? '-',
-                    $so->vendor?->vendor_name ?? '-',
                     $so->flow_label,
+                    $so->operational_status_label,
+                    $so->operational_note,
+                    $so->cancel_reason,
+                    $so->rescheduled_for?->format('Y-m-d'),
+                    $so->dp_request_active ? 'Aktif' : 'Nonaktif',
+                    $so->dp_status_label,
+                    (float) $so->dp_amount,
+                    $so->dp_note,
+                    $so->dp_reviewed_at?->format('Y-m-d H:i:s'),
                     $so->delivery_type, $so->origin, $so->destination, $so->tracking_number,
                     $item->service_name, $item->unit,
                     $item->tonnage !== null ? (float) $item->tonnage : null,
@@ -411,7 +715,6 @@ class RequestOrderController extends Controller
     {
         return [
             'customer_id' => 'required|exists:customers,id',
-            'vendor_id'   => 'nullable|exists:vendors,id',
             'lead_id'     => 'nullable|exists:leads,id',
             'user_id'     => 'required|exists:users,id',
             'currency'    => 'required|in:IDR,USD,SGD',
@@ -424,6 +727,7 @@ class RequestOrderController extends Controller
             'estimated_arrival' => 'nullable|date',
             'pickup_date'       => 'nullable|date',
             'notes'             => 'nullable|string',
+            'alamat'            => 'nullable|string|max:1000',
         ];
     }
 
@@ -433,8 +737,7 @@ class RequestOrderController extends Controller
         $keys = [
             'checker', 'jenis_truck', 'no_pol', 'komoditi', 'depo', 'muat', 'tgl_muat',
             'bongkar', 'tgl_bongkar', 'tujuan', 'no_container', 'no_seal', 'grade', 'sektor',
-            'supir', 'hp_supir', 'kota', 'empty_full', 'bongkar_empty_full',
-            'kecamatan', 'kelurahan', 'keterangan',
+            'supir', 'hp_supir', 'kota', 'alamat', 'keterangan',
         ];
         $out = [];
         foreach ($keys as $k) {

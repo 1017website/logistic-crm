@@ -27,20 +27,30 @@ class QuotationWorkflowTest extends TestCase
         $customer = Customer::create([
             'customer_code' => 'CUST-' . uniqid(),
             'company_name' => 'PT Garam Test',
-            'pic_name' => 'Pimpinan',
+            'pic_name' => 'Budi Santoso',
+            'pic_position' => 'Purchasing',
             'phone' => '031000000',
+            'email' => 'budi@garam.test',
             'address' => 'Gresik',
             'user_id' => $user->id,
         ]);
+
+        $this->actingAs($user)
+            ->get(route('quotations.create'))
+            ->assertOk()
+            ->assertSee('Data customer berhasil dimuat')
+            ->assertSee('Nama perusahaan, PIC/jabatan, dan alamat akan terisi otomatis')
+            ->assertSee('Nomor Surat')
+            ->assertSee('Otomatis setelah disimpan');
 
         $payload = [
             'customer_id' => $customer->id,
             'quotation_date' => '2026-08-03',
             'recipient_name' => 'Yth.',
             'recipient_title' => 'Bpk/Ibu Pimpinan',
-            'company_name' => 'PT Garam Test',
-            'recipient_address' => 'Di tempat.',
-            'attachment' => '-',
+            'company_name' => '',
+            'recipient_address' => '',
+            'attachment' => '1 Berkas',
             'subject' => 'Surat Penawaran Harga',
             'opening' => null,
             'terms' => ['Tarif termasuk biaya buruh.', 'Pembayaran 14 hari setelah invoice.'],
@@ -69,6 +79,9 @@ class QuotationWorkflowTest extends TestCase
         $this->assertSame('SPH-2608-' . str_pad((string) $quotation->id, 4, '0', STR_PAD_LEFT), $quotation->quotation_number);
         $this->assertCount(1, $quotation->items);
         $this->assertSame('Gresik Segoromadu', $quotation->items->first()->origin);
+        $this->assertSame('PT Garam Test', $quotation->company_name);
+        $this->assertSame('Bpk/Ibu Budi Santoso — Purchasing', $quotation->recipient_title);
+        $this->assertSame('Gresik', $quotation->recipient_address);
 
         $this->actingAs($user)
             ->get(route('quotations.show', $quotation))
@@ -83,6 +96,17 @@ class QuotationWorkflowTest extends TestCase
         $this->assertStringStartsWith('%PDF-', $response->getContent());
         $response->assertDownload('Surat-Penawaran-' . $quotation->quotation_number . '.pdf');
 
+        $preview = $this->actingAs($user)->get(route('quotations.preview', $quotation));
+        $preview->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith('inline;', (string) $preview->headers->get('content-disposition'));
+        $this->assertStringStartsWith('%PDF-', $preview->getContent());
+
+        $this->actingAs($user)
+            ->get(route('quotations.index'))
+            ->assertOk()
+            ->assertSee('Print Preview')
+            ->assertSee(route('quotations.preview', $quotation), false);
+
         $verificationUrl = URL::signedRoute('documents.verify', [
             'kind' => 'quotation',
             'id' => $quotation->id,
@@ -91,6 +115,11 @@ class QuotationWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('Dokumen Terverifikasi')
             ->assertSee($quotation->quotation_number)
+            ->assertSee('Nomor surat')
+            ->assertSee('Lampiran')
+            ->assertSee('1 Berkas')
+            ->assertSee('Perihal')
+            ->assertSee('Surat Penawaran Harga')
             ->assertSee('Anggi Sanjaya');
     }
 

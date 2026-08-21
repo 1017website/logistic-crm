@@ -14,7 +14,7 @@ class Lead extends Model
         'lead_code','customer_id','company_name','pic_name','pic_position',
         'phone','email','address','industry','location','pipeline_stage','temperature',
         'product_interest','volume_estimate','timeline','notes_kebutuhan',
-        'catatan_internal','probability','lead_score',
+        'catatan_internal','probability','lead_score','potensi_revenue',
         'lead_source','competitor','expected_closing','user_id',
         'next_follow_up','next_follow_up_time','next_follow_up_notes'
     ];
@@ -23,6 +23,7 @@ class Lead extends Model
         'expected_closing' => 'date',
         'next_follow_up'   => 'date',
         'lead_score'       => 'decimal:1',
+        'potensi_revenue'  => 'decimal:0',
     ];
 
     protected static function booted(): void

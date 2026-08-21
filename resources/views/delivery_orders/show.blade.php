@@ -107,6 +107,31 @@
         @if(session('success'))<div class="alert alert-success py-2" style="font-size:13px">{{ session('success') }}</div>@endif
         @foreach($errors->all() as $e)<div class="alert alert-danger py-2" style="font-size:13px">{{ $e }}</div>@endforeach
 
+        {{-- DP mengikuti DO setelah Request DO disetujui dan berpindah ke menu ini. --}}
+        @if($do->requestOrder && $u->canAccess('finance_dp_review'))
+        <div class="card mb-3 border-info" id="dp-management"><div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0" style="font-weight:700"><i class="fas fa-coins me-1 text-info"></i> Request DP</h6>
+                <span class="badge {{ $do->requestOrder->dp_request_active ? 'bg-'.$do->requestOrder->dp_status_color : 'bg-dark' }}">{{ $do->requestOrder->dp_request_active ? $do->requestOrder->dp_status_label : 'Nonaktif' }}</span>
+            </div>
+            <form method="POST" action="{{ route('request-orders.dp-active', $do->requestOrder) }}" class="mb-2">@csrf
+                <input type="hidden" name="active" value="{{ $do->requestOrder->dp_request_active ? 0 : 1 }}">
+                <button class="btn btn-sm {{ $do->requestOrder->dp_request_active ? 'btn-outline-dark' : 'btn-info' }} w-100">{{ $do->requestOrder->dp_request_active ? 'Nonaktifkan Request DP' : 'Aktifkan Request DP' }}</button>
+            </form>
+            @if($do->requestOrder->dp_request_active)
+            <form method="POST" action="{{ route('request-orders.dp.update', $do->requestOrder) }}">@csrf
+                <select name="dp_status" class="form-select form-select-sm mb-2" required>
+                    <option value="taken" @selected($do->requestOrder->dp_status === 'taken')>DP Terambil</option>
+                    <option value="not_taken" @selected($do->requestOrder->dp_status === 'not_taken')>DP Tidak Terambil</option>
+                </select>
+                <input type="number" name="dp_amount" class="form-control form-control-sm mb-2" min="0" value="{{ (float)$do->requestOrder->dp_amount }}" required placeholder="Nominal DP">
+                <textarea name="dp_note" class="form-control form-control-sm mb-2" rows="2" placeholder="Keterangan DP">{{ $do->requestOrder->dp_note }}</textarea>
+                <button class="btn btn-info btn-sm w-100">Simpan Data DP</button>
+            </form>
+            @endif
+        </div></div>
+        @endif
+
         {{-- SURAT JALAN (Sales Admin) --}}
         @if($do->status === 'surat_jalan' && $u->canAccess('pod_field'))
         <div class="card mb-3 border-secondary"><div class="card-body p-3">
@@ -166,7 +191,8 @@
         {{-- POD upload (Sales Admin) --}}
         @if($do->status === 'pod' && $u->canAccess('pod_field'))
         <div class="card mb-3" style="border-color:#7c3aed"><div class="card-body p-3">
-            <h6 style="font-weight:700"><i class="fas fa-camera me-1" style="color:#7c3aed"></i> Upload POD (Bukti Terima)</h6>
+            <h6 style="font-weight:700"><i class="fas fa-camera me-1" style="color:#7c3aed"></i> Menunggu POD (Bukti Terima)</h6>
+            <p class="text-muted mb-2" style="font-size:12px">Barang sudah sampai tujuan, tetapi POD belum diterima sistem. Unggah foto/PDF POD agar DO tersedia di menu Invoice.</p>
             <form method="POST" action="{{ route('delivery-orders.pod', $do->id) }}" enctype="multipart/form-data">
                 @csrf
                 <label class="form-label" style="font-size:12px">Foto/PDF POD (maks 5MB)</label>

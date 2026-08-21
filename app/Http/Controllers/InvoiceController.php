@@ -7,7 +7,9 @@ use App\Models\DeliveryOrder;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\RequestOrder;
+use App\Models\User;
 use App\Services\InvoiceBillingService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -128,7 +130,9 @@ class InvoiceController extends Controller
             'tgl_tempo' => 'nullable|date|after_or_equal:tgl_buat',
             'selections' => 'required|array|min:1',
             'selections.*' => ['required', 'string', 'regex:/^\d+:(TR|NTR)$/'],
-            'billing_mode' => 'required|in:combined,separate',
+            // Nilai combined lama tetap diterima agar form/cache lama tidak error,
+            // tetapi penyimpanan di bawah selalu memisahkan TR dan NTR.
+            'billing_mode' => 'nullable|in:combined,separate',
             'ppn_mode' => 'required|in:ppn,non_ppn',
             'ppn_persen' => 'required_if:ppn_mode,ppn|nullable|numeric|min:0.01|max:100',
             'notes' => 'nullable|string|max:2000',
@@ -193,9 +197,9 @@ class InvoiceController extends Controller
                 ];
             })->values();
 
-            $groups = $data['billing_mode'] === 'separate'
-                ? $rows->groupBy('type')
-                : collect(['combined' => $rows]);
+            // Kebijakan baru: komponen Trucking dan Non-Trucking selalu terpisah,
+            // tetapi setiap invoice tetap dapat memuat banyak DO customer yang sama.
+            $groups = $rows->groupBy('type');
 
             $createdInvoices = collect();
             $ppnPersen = $data['ppn_mode'] === 'ppn' ? (float) $data['ppn_persen'] : 0.0;
@@ -220,7 +224,7 @@ class InvoiceController extends Controller
                     'tgl_buat' => $data['tgl_buat'],
                     'tgl_tempo' => $data['tgl_tempo'] ?? null,
                     'jenis' => $jenis,
-                    'billing_mode' => $data['billing_mode'],
+                    'billing_mode' => 'separate',
                     'operator_id' => auth()->id(),
                     'notes' => $data['notes'] ?? null,
                 ]);
@@ -236,7 +240,11 @@ class InvoiceController extends Controller
                         'request_order_id' => $do->request_order_id,
                         'delivery_order_id' => $do->id,
                         'item_type' => $row['type'],
+                        'item_name' => $row['type'] === 'TR' ? 'Trucking' : 'Non-Trucking',
                         'description' => $row['description'],
+                        'truck_type' => $do->requestOrder?->jenis_truck,
+                        'quantity' => 1,
+                        'unit_price' => $row['jual'],
                         'hpp' => $row['hpp'],
                         'jual' => $row['jual'],
                     ]);
@@ -338,6 +346,7 @@ class InvoiceController extends Controller
 
     public function updateNumber(Request $request, Invoice $invoice)
     {
+        $this->authorizeInvoiceEdit($invoice);
         $data = $request->validate(['invoice_number' => 'required|string|max:100']);
         $invoice->update(['invoice_number' => $data['invoice_number']]);
 
@@ -346,6 +355,7 @@ class InvoiceController extends Controller
 
     public function updatePpn(Request $request, Invoice $invoice)
     {
+        $this->authorizeInvoiceEdit($invoice);
         $data = $request->validate(['ppn_persen' => 'required|numeric|min:0|max:100']);
         $this->recalcTotals(
             $invoice,
@@ -362,11 +372,98 @@ class InvoiceController extends Controller
         $invoice->load([
             'customer',
             'operator',
+            'editRequester',
+            'editReviewer',
             'items.requestOrder.jobDetails',
             'items.deliveryOrder.requestOrder',
         ]);
 
         return view('invoices.show', compact('invoice'));
+    }
+
+    public function requestEdit(Request $request, Invoice $invoice)
+    {
+        if (!auth()->user()->isFinance()) abort(403);
+        if ($invoice->status === 'paid') {
+            return back()->withErrors(['general' => 'Invoice lunas tidak dapat diminta untuk diedit.']);
+        }
+
+        $data = $request->validate(['reason' => 'required|string|max:1000']);
+        $invoice->update([
+            'edit_request_status' => 'pending',
+            'edit_request_reason' => $data['reason'],
+            'edit_requested_by' => auth()->id(),
+            'edit_requested_at' => now(),
+            'edit_reviewed_by' => null,
+            'edit_reviewed_at' => null,
+            'edit_review_note' => null,
+        ]);
+
+        User::where('role', 'Super Admin')->where('status', 'Active')->each(fn(User $admin) =>
+            \App\Models\Notification::send(
+                $admin->id,
+                'invoice_edit_request',
+                'Permintaan edit invoice',
+                $invoice->invoice_number . ' menunggu persetujuan Super Admin.',
+                route('invoices.show', $invoice)
+            )
+        );
+
+        return back()->with('success', 'Permintaan edit dikirim ke Super Admin.');
+    }
+
+    public function reviewEdit(Request $request, Invoice $invoice)
+    {
+        if (!auth()->user()->isSuperAdmin()) abort(403);
+        $data = $request->validate([
+            'action' => 'required|in:approve,reject',
+            'note' => 'nullable|string|max:1000',
+        ]);
+        if ($invoice->edit_request_status !== 'pending') {
+            return back()->withErrors(['general' => 'Tidak ada permintaan edit yang sedang menunggu.']);
+        }
+
+        $invoice->update([
+            'edit_request_status' => $data['action'] === 'approve' ? 'approved' : 'rejected',
+            'edit_reviewed_by' => auth()->id(),
+            'edit_reviewed_at' => now(),
+            'edit_review_note' => $data['note'] ?? null,
+        ]);
+
+        return back()->with('success', $data['action'] === 'approve'
+            ? 'Permintaan disetujui. Finance sekarang dapat mengedit invoice.'
+            : 'Permintaan edit ditolak.');
+    }
+
+    public function finishEdit(Invoice $invoice)
+    {
+        if (!auth()->user()->isFinance() || $invoice->edit_request_status !== 'approved') abort(403);
+        $invoice->update(['edit_request_status' => 'none']);
+        return back()->with('success', 'Edit selesai dan invoice dikunci kembali.');
+    }
+
+    public function updateItem(Request $request, Invoice $invoice, InvoiceItem $invoiceItem)
+    {
+        $this->authorizeInvoiceEdit($invoice);
+        abort_unless($invoiceItem->invoice_id === $invoice->id, 404);
+        $data = $request->validate([
+            'item_name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'truck_type' => 'nullable|string|max:255',
+            'quantity' => 'required|numeric|min:0.001',
+            'unit_price' => 'required|numeric|min:0',
+        ]);
+        $data['jual'] = round((float) $data['quantity'] * (float) $data['unit_price']);
+        $invoiceItem->update($data);
+        $invoice->refresh();
+        $this->recalcTotals(
+            $invoice,
+            (float) $invoice->items()->sum('hpp'),
+            (float) $invoice->items()->sum('jual'),
+            (float) $invoice->ppn_persen
+        );
+
+        return back()->with('success', 'Rincian invoice diperbarui.');
     }
 
     public function destroy(Invoice $invoice)
@@ -396,55 +493,54 @@ class InvoiceController extends Controller
 
     public function print(Request $request, Invoice $invoice, \App\Services\DocumentSignatureService $documentSignature)
     {
-        $data = $request->validate([
-            'type' => 'nullable|in:all,TR,NTR',
+        return view('invoices.print', [
+            ...$this->printPayload($request, $invoice, $documentSignature),
+            'isPdf' => false,
         ]);
-        $printType = $data['type'] ?? 'all';
+    }
 
-        $invoice->load([
-            'customer',
-            'items.requestOrder',
-            'items.deliveryOrder.requestOrder',
-        ]);
-
-        $printItems = $invoice->items
-            ->when($printType !== 'all', fn(Collection $items) => $items->where('item_type', $printType))
-            ->values();
-
-        if ($printItems->isEmpty()) {
-            throw ValidationException::withMessages([
-                'type' => 'Tipe layanan yang dipilih tidak ada pada invoice ini.',
-            ]);
+    public function pdf(Request $request, Invoice $invoice, \App\Services\DocumentSignatureService $documentSignature)
+    {
+        $payload = [...$this->printPayload($request, $invoice, $documentSignature), 'isPdf' => true];
+        $logo = $payload['company']['logo'] ?? null;
+        if ($logo && !str_starts_with($logo, 'data:') && \Illuminate\Support\Facades\Storage::disk('public')->exists($logo)) {
+            $mime = \Illuminate\Support\Facades\Storage::disk('public')->mimeType($logo) ?: 'image/png';
+            $payload['company']['logo'] = 'data:' . $mime . ';base64,'
+                . base64_encode(\Illuminate\Support\Facades\Storage::disk('public')->get($logo));
+        } elseif ($logo && !str_starts_with($logo, 'data:')) {
+            $payload['company']['logo'] = null;
         }
+        return Pdf::loadView('invoices.print', $payload)->setPaper('a4', 'landscape')
+            ->download('invoice-' . Str::slug($invoice->invoice_number ?: $invoice->invoice_id) . '.pdf');
+    }
 
-        $printSubtotal = (float) $printItems->sum('jual');
-        $printPpn = round($printSubtotal * (float) $invoice->ppn_persen / 100);
-        $printGrand = $printSubtotal + $printPpn;
+    public function exportInvoice(Invoice $invoice)
+    {
+        $invoice->load(['customer', 'items.deliveryOrder', 'items.requestOrder']);
+        $headers = ['No Invoice', 'Customer', 'No DO', 'Nama', 'Uraian', 'Jenis Truck', 'Qty', 'Harga', 'Jumlah'];
+        $rows = $invoice->items->isNotEmpty()
+            ? $invoice->items->map(fn(InvoiceItem $item) => [
+                $invoice->invoice_number,
+                $invoice->customer?->company_name ?? '-',
+                $item->deliveryOrder?->do_number ?? $item->requestOrder?->do_number ?? '-',
+                $item->item_name,
+                $item->description,
+                $item->truck_type,
+                (float) $item->quantity,
+                (float) $item->unit_price,
+                (float) $item->jual,
+            ])->all()
+            : [[
+                $invoice->invoice_number,
+                $invoice->customer?->company_name ?? '-',
+                '-', $invoice->jenis_label ?: 'Invoice',
+                $invoice->notes ?: 'Ringkasan invoice (rincian DO tidak tersedia)',
+                '-', 1, (float) $invoice->total_jual, (float) $invoice->total_jual,
+            ]];
 
-        $companyName = \App\Models\Setting::get('company_name', 'Perusahaan');
-        $company = [
-            'name' => $companyName,
-            'address' => \App\Models\Setting::get('company_address', ''),
-            'phone' => \App\Models\Setting::get('company_phone', ''),
-            'email' => \App\Models\Setting::get('company_email', ''),
-            'website' => \App\Models\Setting::get('company_website', ''),
-            'logo' => \App\Models\Setting::get('company_doc_logo')
-                ?: \App\Models\Setting::get('company_logo', ''),
-            'signatory_name' => \App\Models\Setting::get('company_signatory_name') ?: $companyName,
-            'signatory_title' => \App\Models\Setting::get('company_signatory_title') ?: 'Direktur',
-        ];
-        $signature = $documentSignature->make('invoice', $invoice->getKey());
-
-        return view('invoices.print', compact(
-            'invoice',
-            'printType',
-            'printItems',
-            'printSubtotal',
-            'printPpn',
-            'printGrand',
-            'company',
-            'signature'
-        ));
+        return \App\Helpers\ExcelExport::download(
+            'invoice-' . ($invoice->invoice_id ?: $invoice->id), $headers, $rows, 'Invoice'
+        );
     }
 
     public function export(Request $request)
@@ -453,7 +549,7 @@ class InvoiceController extends Controller
         $customerId = $request->get('customer_id');
         $jenis = $request->get('jenis');
 
-        $query = Invoice::with('customer');
+        $query = Invoice::with(['customer', 'items.deliveryOrder', 'items.requestOrder']);
         if ($status && $status !== 'all') {
             $query->where('status', $status);
         }
@@ -465,25 +561,43 @@ class InvoiceController extends Controller
         }
 
         $headers = [
-            'Invoice ID', 'No Invoice', 'Customer', 'Tipe', 'Status', 'Tgl Buat',
-            'Tgl Tempo', 'HPP', 'Jual', 'Laba', 'PPN', 'Grand Total', 'Tgl Cair', 'Umur (hari)',
+            'Invoice ID', 'No Invoice', 'Customer', 'Status', 'Tgl Buat', 'No DO',
+            'Nama', 'Uraian', 'Jenis Truck', 'Qty', 'Harga', 'Jumlah', 'PPN Invoice', 'Grand Total Invoice',
         ];
-        $rows = $query->orderByDesc('tgl_buat')->get()->map(fn(Invoice $inv) => [
-            $inv->invoice_id,
-            $inv->invoice_number,
-            $inv->customer?->company_name ?? '-',
-            $inv->jenis_label,
-            $inv->status_label,
-            $inv->tgl_buat?->format('Y-m-d'),
-            $inv->tgl_tempo?->format('Y-m-d'),
-            (float) $inv->total_hpp,
-            (float) $inv->total_jual,
-            (float) $inv->laba,
-            (float) $inv->ppn_nominal,
-            (float) $inv->grand_total,
-            $inv->tgl_pencairan?->format('Y-m-d'),
-            $inv->umur_hari,
-        ])->all();
+        $rows = $query->orderByDesc('tgl_buat')->get()->flatMap(function (Invoice $inv) {
+            if ($inv->items->isEmpty()) {
+                return [[
+                    $inv->invoice_id,
+                    $inv->invoice_number,
+                    $inv->customer?->company_name ?? '-',
+                    $inv->status_label,
+                    $inv->tgl_buat?->format('Y-m-d'),
+                    '-',
+                    $inv->jenis_label ?: 'Invoice',
+                    $inv->notes ?: 'Ringkasan invoice (rincian DO tidak tersedia)',
+                    '-', 1, (float) $inv->total_jual, (float) $inv->total_jual,
+                    (float) $inv->ppn_nominal,
+                    (float) ($inv->grand_total ?: $inv->total_jual),
+                ]];
+            }
+
+            return $inv->items->map(fn(InvoiceItem $item) => [
+                $inv->invoice_id,
+                $inv->invoice_number,
+                $inv->customer?->company_name ?? '-',
+                $inv->status_label,
+                $inv->tgl_buat?->format('Y-m-d'),
+                $item->deliveryOrder?->do_number ?? $item->requestOrder?->do_number ?? '-',
+                $item->item_name,
+                $item->description,
+                $item->truck_type,
+                (float) $item->quantity,
+                (float) $item->unit_price,
+                (float) $item->jual,
+                (float) $inv->ppn_nominal,
+                (float) $inv->grand_total,
+            ]);
+        })->all();
 
         return \App\Helpers\ExcelExport::download(
             'invoices-' . date('Ymd'),
@@ -491,6 +605,20 @@ class InvoiceController extends Controller
             $rows,
             'Invoices'
         );
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $query = Invoice::with(['customer', 'items.deliveryOrder', 'items.requestOrder']);
+        if ($request->filled('status') && $request->status !== 'all') $query->where('status', $request->status);
+        if ($request->filled('customer_id')) $query->where('customer_id', $request->integer('customer_id'));
+        if (array_key_exists((string) $request->jenis, Invoice::TYPES)) $query->where('jenis', $request->jenis);
+        $invoices = $query->orderByDesc('tgl_buat')->get();
+        $customer = $request->filled('customer_id') ? Customer::find($request->integer('customer_id')) : null;
+
+        return Pdf::loadView('invoices.export_pdf', compact('invoices', 'customer'))
+            ->setPaper('a4', 'landscape')
+            ->download('rekap-invoice-' . ($customer ? Str::slug($customer->company_name) : 'semua-customer') . '.pdf');
     }
 
     private function recalcTotals(Invoice $invoice, float $hpp, float $jual, float $ppnPersen): void
@@ -503,6 +631,46 @@ class InvoiceController extends Controller
             'ppn_nominal' => $ppnNominal,
             'grand_total' => $jual + $ppnNominal,
         ]);
+    }
+
+    private function authorizeInvoiceEdit(Invoice $invoice): void
+    {
+        if ($invoice->status === 'paid') abort(403, 'Invoice lunas tidak dapat diedit.');
+        $user = auth()->user();
+        abort_unless($user->isSuperAdmin() || ($user->isFinance() && $invoice->edit_request_status === 'approved'), 403,
+            'Finance harus mengajukan permintaan edit dan menunggu persetujuan Super Admin.');
+    }
+
+    private function printPayload(Request $request, Invoice $invoice, \App\Services\DocumentSignatureService $documentSignature): array
+    {
+        $data = $request->validate(['type' => 'nullable|in:all,TR,NTR']);
+        $printType = $data['type'] ?? 'all';
+        $invoice->load(['customer', 'items.requestOrder', 'items.deliveryOrder.requestOrder']);
+        $printItems = $invoice->items
+            ->when($printType !== 'all', fn(Collection $items) => $items->where('item_type', $printType))->values();
+        if ($printItems->isEmpty()) {
+            throw ValidationException::withMessages(['type' => 'Tipe layanan yang dipilih tidak ada pada invoice ini.']);
+        }
+        $printSubtotal = (float) $printItems->sum('jual');
+        $printPpn = round($printSubtotal * (float) $invoice->ppn_persen / 100);
+        $printGrand = $printSubtotal + $printPpn;
+        $companyName = \App\Models\Setting::get('company_name', 'Perusahaan');
+        $salesManager = User::where('role', 'Sales Manager')->where('status', 'Active')->orderBy('id')->first();
+        $logo = \App\Models\Setting::get('company_doc_logo') ?: \App\Models\Setting::get('company_logo', '');
+        $company = [
+            'name' => $companyName,
+            'address' => \App\Models\Setting::get('company_address', ''),
+            'phone' => \App\Models\Setting::get('company_phone', ''),
+            'email' => \App\Models\Setting::get('company_email', ''),
+            'website' => \App\Models\Setting::get('company_website', ''),
+            'logo' => $logo,
+            'signatory_name' => $salesManager?->name ?: (\App\Models\Setting::get('company_signatory_name') ?: $companyName),
+            'signatory_title' => $salesManager
+                ? ($salesManager->position ?: 'Sales Manager')
+                : (\App\Models\Setting::get('company_signatory_title') ?: 'Direktur'),
+        ];
+        $signature = $documentSignature->make('invoice', $invoice->getKey());
+        return compact('invoice', 'printType', 'printItems', 'printSubtotal', 'printPpn', 'printGrand', 'company', 'signature');
     }
 
 }

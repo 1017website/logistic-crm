@@ -20,6 +20,7 @@ class User extends Authenticatable
 
     /** Semua role yang valid di sistem. */
     public const ROLES = [
+        'Super Admin',
         'Admin',
         'Sales Manager',
         'Sales Executive',
@@ -34,7 +35,8 @@ class User extends Authenticatable
     public function customers(): HasMany  { return $this->hasMany(Customer::class, 'user_id'); }
 
     // ── Role helpers ──
-    public function isAdmin(): bool            { return $this->role === 'Admin'; }
+    public function isSuperAdmin(): bool       { return $this->role === 'Super Admin'; }
+    public function isAdmin(): bool            { return in_array($this->role, ['Super Admin', 'Admin'], true); }
     public function isSalesManager(): bool     { return $this->role === 'Sales Manager'; }
     public function isSalesExecutive(): bool   { return $this->role === 'Sales Executive'; }
     public function isSalesAdmin(): bool       { return $this->role === 'Sales Admin'; }
@@ -43,6 +45,8 @@ class User extends Authenticatable
 
     public function canAccess(string $feature): bool
     {
+        if ($this->isSuperAdmin()) return true;
+
         return match($feature) {
             'settings'        => $this->isAdmin(),
             'users'           => in_array($this->role, ['Admin', 'Sales Manager']),
@@ -75,10 +79,12 @@ class User extends Authenticatable
             // Finance: invoice & payment
             'finance'         => in_array($this->role, ['Admin', 'Finance']),
             'request_item_pricing' => in_array($this->role, ['Admin', 'Finance']),
+            'finance_dp_review' => in_array($this->role, ['Admin', 'Finance']),
             'invoices'        => in_array($this->role, ['Admin', 'Finance', 'Sales Manager']),
             'pekerjaan'       => in_array($this->role, ['Admin', 'Sales Manager', 'Transport Planner']),
             'job_details'     => in_array($this->role, ['Admin', 'Finance']),
-            'approve_do'      => in_array($this->role, ['Admin', 'Sales Admin']),
+            'approve_do'      => in_array($this->role, ['Admin', 'Sales Admin', 'Sales Manager']),
+            'operational_status' => in_array($this->role, ['Admin', 'Sales Manager', 'Sales Admin', 'Transport Planner']),
             'logistic_reports'=> in_array($this->role, ['Admin', 'Sales Manager', 'Finance']),
             default           => true,
         };

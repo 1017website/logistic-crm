@@ -99,6 +99,7 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
         Route::get('/quotations/{quotation}', [QuotationController::class, 'show'])->name('quotations.show');
         Route::get('/quotations/{quotation}/edit', [QuotationController::class, 'edit'])->name('quotations.edit');
         Route::put('/quotations/{quotation}', [QuotationController::class, 'update'])->name('quotations.update');
+        Route::get('/quotations/{quotation}/preview', [QuotationController::class, 'preview'])->name('quotations.preview');
         Route::get('/quotations/{quotation}/pdf', [QuotationController::class, 'pdf'])->name('quotations.pdf');
     });
 
@@ -144,16 +145,25 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
     // Verifikasi data (Sales Admin / Admin)
     Route::middleware('role:Admin,Sales Admin')->group(function () {
         Route::post('/request-orders/{requestOrder}/verify', [RequestOrderController::class, 'verify'])->name('request-orders.verify');
+        Route::post('/request-orders/{requestOrder}/cancel', [RequestOrderController::class, 'cancel'])->name('request-orders.cancel');
+        Route::post('/request-orders/{requestOrder}/reactivate', [RequestOrderController::class, 'reactivate'])->name('request-orders.reactivate');
     });
     // Accounting/Finance melengkapi layanan dan harga setelah request dibuat.
     Route::middleware('role:Admin,Finance')->group(function () {
         Route::post('/request-orders/{requestOrder}/items', [RequestOrderItemController::class, 'store'])->name('request-order-items.store');
         Route::put('/request-order-items/{requestOrderItem}', [RequestOrderItemController::class, 'update'])->name('request-order-items.update');
         Route::delete('/request-order-items/{requestOrderItem}', [RequestOrderItemController::class, 'destroy'])->name('request-order-items.destroy');
+        Route::post('/request-orders/{requestOrder}/finance-review', [RequestOrderController::class, 'financeReview'])->name('request-orders.finance-review');
+        Route::post('/request-orders/{requestOrder}/dp', [RequestOrderController::class, 'updateDp'])->name('request-orders.dp.update');
+        Route::post('/request-orders/{requestOrder}/dp-active', [RequestOrderController::class, 'updateDpActive'])->name('request-orders.dp-active');
     });
     // Dispatch / penugasan armada (Sales Admin / Transport Planner / Admin)
     Route::middleware('role:Admin,Sales Admin,Transport Planner')->group(function () {
         Route::post('/request-orders/{requestOrder}/dispatch', [RequestOrderController::class, 'dispatchAssign'])->name('request-orders.dispatch');
+    });
+    // Status pelaksanaan DO dapat diubah oleh operasional dan manager.
+    Route::middleware('role:Admin,Sales Manager,Sales Admin,Transport Planner')->group(function () {
+        Route::post('/request-orders/{requestOrder}/operational-status', [RequestOrderController::class, 'updateOperationalStatus'])->name('request-orders.operational-status');
     });
     // Approval penugasan (Sales Manager / Admin)
     Route::middleware('role:Admin,Sales Manager')->group(function () {
@@ -185,7 +195,7 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
         Route::post('/request-orders/{requestOrder}/job-details', [OrderJobDetailController::class, 'store'])->name('job-details.store');
         Route::put('/job-details/{jobDetail}', [OrderJobDetailController::class, 'update'])->name('job-details.update');
     });
-    Route::middleware('role:Admin,Sales Admin')->group(function () {
+    Route::middleware('role:Admin,Sales Admin,Sales Manager')->group(function () {
         // Approval DO (bandingkan jual vs hpp) — siapkan DO untuk ditagih
         Route::post('/request-orders/{requestOrder}/approve-do', [RequestOrderController::class, 'approveDo'])->name('request-orders.approve-do');
     });
@@ -204,7 +214,10 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
     Route::middleware('role:Admin,Finance,Sales Manager')->group(function () {
         Route::get('/invoices/available-dos', [InvoiceController::class, 'availableDos'])->name('invoices.available-dos');
         Route::get('/invoices/export', [InvoiceController::class, 'export'])->name('invoices.export');
+        Route::get('/invoices/export/pdf', [InvoiceController::class, 'exportPdf'])->name('invoices.export-pdf');
         Route::get('/invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('invoices.print');
+        Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
+        Route::get('/invoices/{invoice}/excel', [InvoiceController::class, 'exportInvoice'])->name('invoices.excel');
         Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
         Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
         Route::post('/invoices', [InvoiceController::class, 'store'])->name('invoices.store');
@@ -213,6 +226,14 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
         Route::post('/invoices/{invoice}/pay', [InvoiceController::class, 'pay'])->name('invoices.pay');
         Route::put('/invoices/{invoice}/number', [InvoiceController::class, 'updateNumber'])->name('invoices.number');
         Route::put('/invoices/{invoice}/ppn', [InvoiceController::class, 'updatePpn'])->name('invoices.ppn');
+        Route::put('/invoices/{invoice}/items/{invoiceItem}', [InvoiceController::class, 'updateItem'])->name('invoices.items.update');
+    });
+    Route::middleware('role:Finance')->group(function () {
+        Route::post('/invoices/{invoice}/request-edit', [InvoiceController::class, 'requestEdit'])->name('invoices.request-edit');
+        Route::post('/invoices/{invoice}/finish-edit', [InvoiceController::class, 'finishEdit'])->name('invoices.finish-edit');
+    });
+    Route::middleware('role:Super Admin')->group(function () {
+        Route::post('/invoices/{invoice}/review-edit', [InvoiceController::class, 'reviewEdit'])->name('invoices.review-edit');
     });
     Route::middleware('role:Admin,Finance')->group(function () {
         Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');

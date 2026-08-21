@@ -91,6 +91,10 @@
                                             style="padding:4px 8px" title="Detail">
                                             <i class="fas fa-eye"></i>
                                         </a>
+                                        <a href="{{ route('quotations.preview', $quotation) }}" target="_blank" rel="noopener"
+                                            class="btn btn-sm btn-outline-primary" style="padding:4px 9px" title="Print Preview">
+                                            <i class="fas fa-print me-1"></i> Preview
+                                        </a>
                                         <a href="{{ route('quotations.pdf', $quotation) }}" class="btn btn-sm btn-primary"
                                             style="padding:4px 9px" title="Unduh PDF">
                                             <i class="fas fa-file-pdf me-1"></i> PDF

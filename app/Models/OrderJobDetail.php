@@ -17,6 +17,7 @@ class OrderJobDetail extends Model
         'request_order_id', 'pekerjaan_id', 'job_name', 'job_code', 'tgl_transaksi',
         'anggaran_biaya', 'anggaran_jual', 'riil_biaya', 'riil_jual', 'dibayar',
         'vendor_id', 'status_pembayaran', 'tgl_realisasi', 'catatan',
+        'created_by', 'updated_by',
     ];
 
     protected $casts = [
@@ -32,6 +33,8 @@ class OrderJobDetail extends Model
     public function requestOrder(): BelongsTo { return $this->belongsTo(RequestOrder::class); }
     public function pekerjaan(): BelongsTo    { return $this->belongsTo(Pekerjaan::class); }
     public function vendor(): BelongsTo       { return $this->belongsTo(Vendor::class); }
+    public function creator(): BelongsTo      { return $this->belongsTo(User::class, 'created_by'); }
+    public function updater(): BelongsTo      { return $this->belongsTo(User::class, 'updated_by'); }
 
     public function getLabaAttribute(): float
     {

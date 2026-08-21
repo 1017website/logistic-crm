@@ -6,6 +6,7 @@ use App\Models\DeliveryOrder;
 use App\Models\Invoice;
 use App\Models\Quotation;
 use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class DocumentVerificationController extends Controller
@@ -34,6 +35,9 @@ class DocumentVerificationController extends Controller
         return [
             'label' => 'Surat Penawaran Harga',
             'number' => $document->quotation_number,
+            'number_label' => 'Nomor surat',
+            'attachment' => $document->attachment ?: '-',
+            'subject' => $document->subject ?: '-',
             'date' => $document->quotation_date?->translatedFormat('d F Y'),
             'counterparty' => $document->company_name,
             'signer' => $document->signatory_name,
@@ -45,14 +49,15 @@ class DocumentVerificationController extends Controller
     private function invoice(int $id, string $signer, string $title): array
     {
         $document = Invoice::with('customer')->findOrFail($id);
+        $salesManager = User::where('role', 'Sales Manager')->where('status', 'Active')->orderBy('id')->first();
 
         return [
             'label' => 'Invoice',
             'number' => $document->invoice_number,
             'date' => $document->tgl_buat?->translatedFormat('d F Y'),
             'counterparty' => $document->customer?->company_name ?? '-',
-            'signer' => $signer,
-            'title' => $title,
+            'signer' => $salesManager?->name ?: $signer,
+            'title' => $salesManager ? ($salesManager->position ?: 'Sales Manager') : $title,
             'status' => $document->status_label,
         ];
     }

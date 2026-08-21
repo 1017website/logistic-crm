@@ -25,6 +25,10 @@ class RequestOrder extends Model
     protected $fillable = [
         'do_number', 'customer_id', 'vendor_id', 'lead_id', 'user_id',
         'currency', 'status', 'request_status',
+        'operational_status', 'operational_note', 'rescheduled_for',
+        'operational_status_changed_by', 'operational_status_changed_at',
+        'dp_status', 'dp_request_active', 'dp_amount', 'dp_note', 'dp_reviewed_by', 'dp_reviewed_at',
+        'cancelled_by', 'cancelled_at', 'cancel_reason',
         'verified_by', 'verified_at', 'verify_note',
         'order_date', 'pickup_date', 'notes',
         'delivery_type', 'origin', 'destination',
@@ -34,7 +38,7 @@ class RequestOrder extends Model
         'checker', 'jenis_truck', 'depo', 'muat', 'tgl_muat', 'bongkar', 'tgl_bongkar',
         'komoditi', 'tujuan', 'sektor', 'kode_sektor', 'no_container', 'no_seal', 'grade',
         'no_pol', 'supir', 'hp_supir', 'empty_full', 'bongkar_empty_full',
-        'kota', 'kecamatan', 'kelurahan', 'keterangan',
+        'kota', 'alamat', 'kecamatan', 'kelurahan', 'keterangan',
         // Penagihan & approval DO
         'invoice_status', 'do_approved',
     ];
@@ -42,8 +46,14 @@ class RequestOrder extends Model
     protected $casts = [
         'order_date'        => 'date',
         'pickup_date'       => 'date',
+        'rescheduled_for'   => 'date',
         'estimated_arrival' => 'date',
         'verified_at'       => 'datetime',
+        'operational_status_changed_at' => 'datetime',
+        'dp_amount'          => 'decimal:0',
+        'dp_request_active'  => 'boolean',
+        'dp_reviewed_at'     => 'datetime',
+        'cancelled_at'       => 'datetime',
         'tgl_muat'          => 'date',
         'tgl_bongkar'       => 'date',
         'do_approved'       => 'boolean',
@@ -53,11 +63,26 @@ class RequestOrder extends Model
     public const FLOW = [
         'draft'      => 'Draft / Request',
         'verifikasi' => 'Verifikasi Sales Admin',
+        'finance'    => 'Review Finance & DP',
         'dispatch'   => 'Transport Planner',
         'approval'   => 'Menunggu Approval',
         'assigned'   => 'Disetujui (DO Terbit)',
         'rejected'   => 'Ditolak',
         'cancelled'  => 'Dibatalkan',
+    ];
+
+    /** Status pelaksanaan DO, terpisah dari tahap approval/fulfillment. */
+    public const OPERATIONAL_STATUSES = [
+        'running'     => 'Jalan / Aktif',
+        'pending'     => 'Pending',
+        'rescheduled' => 'Reschedule',
+        'cancelled'   => 'Cancel',
+    ];
+
+    public const DP_STATUSES = [
+        'pending'   => 'Belum Direview',
+        'taken'     => 'DP Terambil',
+        'not_taken' => 'DP Tidak Terambil',
     ];
 
     public const DELIVERY_TYPES = [
@@ -72,8 +97,24 @@ class RequestOrder extends Model
     public function lead(): BelongsTo      { return $this->belongsTo(Lead::class); }
     public function salesUser(): BelongsTo { return $this->belongsTo(User::class, 'user_id'); }
     public function verifier(): BelongsTo  { return $this->belongsTo(User::class, 'verified_by'); }
+    public function operationalStatusChanger(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'operational_status_changed_by');
+    }
+    public function dpReviewer(): BelongsTo { return $this->belongsTo(User::class, 'dp_reviewed_by'); }
+    public function canceller(): BelongsTo { return $this->belongsTo(User::class, 'cancelled_by'); }
     public function items(): HasMany       { return $this->hasMany(RequestOrderItem::class); }
-    public function jobDetails(): HasMany  { return $this->hasMany(OrderJobDetail::class); }
+    public function jobDetails(): HasMany
+    {
+        $relation = $this->hasMany(OrderJobDetail::class);
+
+        // Perlindungan tambahan untuk database hasil impor yang pernah memakai ulang ID.
+        if ($this->created_at) {
+            $relation->where('order_job_details.created_at', '>=', $this->created_at);
+        }
+
+        return $relation;
+    }
     public function invoiceItems(): HasMany { return $this->hasMany(InvoiceItem::class); }
     public function assignment(): HasMany  { return $this->hasMany(OrderAssignment::class)->latest(); }
     public function deliveryOrder(): HasMany { return $this->hasMany(DeliveryOrder::class); }
@@ -128,12 +169,64 @@ class RequestOrder extends Model
         return match($this->request_status) {
             'draft'      => 'secondary',
             'verifikasi' => 'warning',
+            'finance'    => 'info',
             'dispatch'   => 'primary',
             'approval'   => 'purple',
             'assigned'   => 'success',
             'rejected', 'cancelled' => 'danger',
             default      => 'secondary',
         };
+    }
+
+    public function getDpStatusLabelAttribute(): string
+    {
+        return self::DP_STATUSES[$this->dp_status ?? 'pending'] ?? ucfirst((string) $this->dp_status);
+    }
+
+    public function getDpStatusColorAttribute(): string
+    {
+        return match($this->dp_status ?? 'pending') {
+            'taken'     => 'success',
+            'not_taken' => 'secondary',
+            default     => 'warning',
+        };
+    }
+
+    public function getOperationalStatusLabelAttribute(): string
+    {
+        return self::OPERATIONAL_STATUSES[$this->operational_status ?? 'running'] ?? ucfirst((string) $this->operational_status);
+    }
+
+    public function getOperationalStatusColorAttribute(): string
+    {
+        return match($this->operational_status ?? 'running') {
+            'running'     => 'success',
+            'pending'     => 'warning',
+            'rescheduled' => 'info',
+            'cancelled'   => 'danger',
+            default       => 'secondary',
+        };
+    }
+
+    public function getIsOperationallyInactiveAttribute(): bool
+    {
+        return ($this->operational_status ?? 'running') !== 'running';
+    }
+
+    /** Label untuk timeline yang memuat tahap flow dan perubahan status operasional. */
+    public static function statusLogLabel(?string $status): string
+    {
+        if (!$status) return '-';
+
+        if (str_starts_with($status, 'operational_')) {
+            $key = substr($status, strlen('operational_'));
+            return 'Status DO: ' . (self::OPERATIONAL_STATUSES[$key] ?? ucfirst($key));
+        }
+
+        if ($status === 'dp_activated') return 'Request DP Diaktifkan';
+        if ($status === 'dp_deactivated') return 'Request DP Dinonaktifkan';
+
+        return self::FLOW[$status] ?? ($status === 'do_approved' ? 'DO Disetujui' : ucfirst($status));
     }
 
     public static function generateDoNumber(): string
