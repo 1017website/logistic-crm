@@ -109,6 +109,12 @@
                                     {{ $actStage === 'Won' ? 'Won/Closing' : $actStage }}
                                 </span>
                                 @endif
+                                @if($act->potensi_revenue !== null)
+                                <span title="Potensi revenue yang dicatat pada aktivitas ini"
+                                    style="background:#dcfce7;color:#166534;padding:1px 6px;border-radius:10px;font-size:.65rem;margin-left:4px;font-weight:700">
+                                    {{ idrm($act->potensi_revenue) }}
+                                </span>
+                                @endif
                             </div>
                             @endif
 

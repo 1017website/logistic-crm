@@ -45,7 +45,11 @@
     .sign .col .role { color:var(--muted); }
     .sign .col .signature-space { height:54px; display:flex; align-items:flex-end; justify-content:center; }
     .sign .col .line { border-top:1px solid var(--ink); padding-top:5px; font-weight:600; }
-    .sign .digital { width:92mm; flex-shrink:0; }
+    .sign .tracking { width:50mm; flex-shrink:0; }
+    .tracking-card { border:1.2px solid var(--accent); padding:8px; text-align:center; page-break-inside:avoid; }
+    .tracking-card img { width:25mm; height:25mm; display:block; margin:0 auto 5px; }
+    .tracking-card .tracking-title { font-size:9.5px; font-weight:800; color:var(--accent); }
+    .tracking-card .tracking-copy { margin-top:3px; font-size:7.5px; line-height:1.35; color:var(--muted); }
 
     .foot { margin-top:18px; padding-top:10px; border-top:1px dashed var(--line); font-size:9px; color:var(--muted); display:flex; justify-content:space-between; }
 
@@ -146,15 +150,19 @@
                 <div class="line">( Penerima )</div>
             </div>
         </div>
-        <div class="digital">
-            <x-verified-signature :signature-qr="$signature['signatureQr']" :verification-url="$signature['verificationUrl']"
-                :signer-name="$company['signatory_name']" :signer-title="$company['signatory_title']"
-                :company-name="$company['name']" />
+        <div class="tracking">
+            <div class="tracking-card">
+                <a href="{{ $tracking['trackingUrl'] }}" target="_blank" rel="noopener">
+                    <img src="{{ $tracking['trackingQr'] }}" alt="QR tracking Surat Jalan {{ $do->do_number }}">
+                </a>
+                <div class="tracking-title">SCAN UNTUK TRACKING</div>
+                <div class="tracking-copy">Gunakan kamera ponsel untuk melihat status terbaru Surat Jalan.</div>
+            </div>
         </div>
     </div>
 
     <div class="foot">
-        <span>Dokumen sah disertai QR Code {{ $do->do_number }}.</span>
+        <span>QR digunakan untuk tracking Surat Jalan {{ $do->do_number }}.</span>
         <span>Dicetak {{ now()->format('d M Y H:i') }}</span>
     </div>
 

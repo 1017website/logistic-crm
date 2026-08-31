@@ -454,6 +454,7 @@
                 <div class="col-12"><div style="font-size:.78rem;font-weight:600;color:var(--primary)"><i class="fas fa-building me-1"></i> Info Perusahaan</div></div>
                 <div class="col-md-6"><label class="form-label">Company Name <span class="text-danger">*</span></label><input type="text" name="company_name" class="form-control" required></div>
                 <div class="col-md-3"><label class="form-label">Kode Invoice</label><input type="text" name="invoice_code" class="form-control" placeholder="Contoh: HMS" style="text-transform:uppercase"><div class="form-text" style="font-size:.68rem">Dipakai di nomor invoice.</div></div>
+                <div class="col-md-3"><label class="form-label">TOP (hari)</label><input type="number" name="top_days" min="1" max="365" class="form-control" placeholder="{{ \App\Models\Customer::defaultTopDays() }}"><div class="form-text" style="font-size:.68rem">Tempo pembayaran. Kosong = ikut default {{ \App\Models\Customer::defaultTopDays() }} hari.</div></div>
                 <div class="col-md-3"><label class="form-label">Industry</label><input type="text" name="industry" class="form-control" placeholder="Manufaktur, Retail, dll"></div>
                 <div class="col-md-6"><label class="form-label">Lokasi</label><input type="text" name="location" class="form-control" placeholder="Kota/Wilayah"></div>
                 <div class="col-md-6"><label class="form-label">Customer Since</label><input type="date" name="customer_since" class="form-control"></div>
@@ -502,6 +503,7 @@
             <div class="modal-body"><div class="row g-3">
                 <div class="col-md-6"><label class="form-label">Company Name</label><input type="text" name="company_name" id="editCompanyName" class="form-control" required></div>
                 <div class="col-md-3"><label class="form-label">Kode Invoice</label><input type="text" name="invoice_code" id="editInvoiceCode" class="form-control" placeholder="Contoh: HMS" style="text-transform:uppercase"><div class="form-text" style="font-size:.68rem">Untuk format nomor invoice.</div></div>
+                <div class="col-md-3"><label class="form-label">TOP (hari)</label><input type="number" name="top_days" id="editTopDays" min="1" max="365" class="form-control" placeholder="{{ \App\Models\Customer::defaultTopDays() }}"><div class="form-text" style="font-size:.68rem">Kosong = ikut default {{ \App\Models\Customer::defaultTopDays() }} hari.</div></div>
                 <div class="col-md-3"><label class="form-label">Industry</label><input type="text" name="industry" id="editIndustry" class="form-control"></div>
                 <div class="col-md-6"><label class="form-label">PIC Name</label><input type="text" name="pic_name" id="editPicName" class="form-control" required></div>
                 <div class="col-md-6"><label class="form-label">Jabatan PIC</label><input type="text" name="pic_position" id="editPicPosition" class="form-control"></div>
@@ -548,6 +550,7 @@
     'activityContextId' => $selectedCustomer->id,
     'activityContextLabel' => $selectedCustomer->company_name.' (Customer)',
     'activityContextStage' => 'Maintaining',
+    'activityContextRevenue' => \App\Models\Lead::where('customer_id', $selectedCustomer->id)->orderByDesc('updated_at')->value('potensi_revenue'),
 ])
 @endif
 
@@ -590,6 +593,7 @@
                 'id' => $c->id,
                 'company_name' => $c->company_name,
                 'invoice_code' => $c->invoice_code,
+                'top_days' => $c->top_days,
                 'pic_name' => $c->pic_name,
                 'pic_position' => $c->pic_position,
                 'phone' => $c->phone,
@@ -724,6 +728,7 @@ function openEditModal(id) {
     form.action = `/customers/${id}`;
     document.getElementById('editCompanyName').value = safeValue(data.company_name);
     if (document.getElementById('editInvoiceCode')) document.getElementById('editInvoiceCode').value = safeValue(data.invoice_code);
+    if (document.getElementById('editTopDays')) document.getElementById('editTopDays').value = safeValue(data.top_days);
     document.getElementById('editPicName').value = safeValue(data.pic_name);
     document.getElementById('editPicPosition').value = safeValue(data.pic_position);
     document.getElementById('editPhone').value = safeValue(data.phone);

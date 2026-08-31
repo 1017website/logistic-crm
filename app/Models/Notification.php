@@ -40,25 +40,19 @@ class Notification extends Model
         ]);
     }
 
-    /** Broadcast ke semua user Admin + Manager */
+    /** Kirim ke semua user aktif pada role tertentu. */
+    public static function sendToRoles(array $roles, string $type, string $title, string $message, ?string $url = null): void
+    {
+        User::whereIn('role', array_values(array_unique($roles)))
+            ->where('status', 'Active')
+            ->get()
+            ->each(fn(User $user) => self::send($user->id, $type, $title, $message, $url));
+    }
+
+    /** Broadcast ke semua user Admin + Manager. */
     public static function broadcast(string $type, string $title, string $message, ?string $url = null): void
     {
-        $settingKey = self::settingKey($type);
-        if ($settingKey && Setting::get($settingKey, '1') !== '1') return;
-
-        $managers = User::whereIn('role', ['Admin', 'Sales Manager'])->where('status', 'Active')->get();
-        foreach ($managers as $user) {
-            static::create([
-                'user_id'    => $user->id,
-                'type'       => $type,
-                'title'      => $title,
-                'message'    => $message,
-                'icon'       => self::icon($type),
-                'icon_color' => self::color($type),
-                'url'        => $url,
-                'is_read'    => false,
-            ]);
-        }
+        self::sendToRoles(['Super Admin', 'Admin', 'Sales Manager'], $type, $title, $message, $url);
     }
 
     /** Kirim ke semua user aktif */
@@ -110,6 +104,9 @@ class Notification extends Model
             'weekly'         => 'file-alt',
             'delete_request' => 'trash-alt',
             'request_do_pricing' => 'file-invoice-dollar',
+            'invoice_due_soon'   => 'clock',
+            'invoice_due_today'  => 'calendar-day',
+            'invoice_overdue'    => 'file-invoice-dollar',
             default          => 'bell',
         };
     }
@@ -126,6 +123,9 @@ class Notification extends Model
             'weekly'         => '#6b7280',
             'delete_request' => '#ef4444',
             'request_do_pricing' => '#f59e0b',
+            'invoice_due_soon'   => '#f59e0b',
+            'invoice_due_today'  => '#f97316',
+            'invoice_overdue'    => '#dc2626',
             default          => '#3b82f6',
         };
     }

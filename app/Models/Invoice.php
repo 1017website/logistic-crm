@@ -43,6 +43,7 @@ class Invoice extends Model
     public const STATUS = [
         'draft'   => 'Draft',
         'invoice' => 'Invoice',
+        'termin'  => 'Termin',
         'paid'    => 'Lunas',
     ];
 
@@ -57,6 +58,26 @@ class Invoice extends Model
     public function editRequester(): BelongsTo { return $this->belongsTo(User::class, 'edit_requested_by'); }
     public function editReviewer(): BelongsTo { return $this->belongsTo(User::class, 'edit_reviewed_by'); }
     public function items(): HasMany      { return $this->hasMany(InvoiceItem::class); }
+    public function payments(): HasMany   { return $this->hasMany(InvoicePayment::class); }
+
+    public function getTotalPaidAttribute(): float
+    {
+        $paid = $this->relationLoaded('payments')
+            ? (float) $this->payments->sum('amount')
+            : (float) $this->payments()->sum('amount');
+
+        // Menjaga kompatibilitas jika ada invoice lunas lama yang belum sempat dibackfill.
+        if ($paid <= 0 && $this->status === 'paid') {
+            return (float) ($this->grand_total ?: $this->total_jual);
+        }
+
+        return $paid;
+    }
+
+    public function getOutstandingAttribute(): float
+    {
+        return max(0, (float) ($this->grand_total ?: $this->total_jual) - $this->total_paid);
+    }
 
     public function getLabaAttribute(): float
     {
@@ -90,6 +111,7 @@ class Invoice extends Model
         return match($this->status) {
             'draft'   => 'secondary',
             'invoice' => 'warning',
+            'termin'  => 'info',
             'paid'    => 'success',
             default   => 'secondary',
         };

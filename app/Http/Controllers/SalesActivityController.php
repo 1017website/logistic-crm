@@ -81,6 +81,8 @@ class SalesActivityController extends Controller
             'status'         => 'required|in:Done,Pending,Planned,Overdue',
             'next_follow_up' => 'nullable|date',
             'pipeline_stage' => 'required|in:Identifying,Approaching,Follow Up,Won,Maintaining',
+            // Kosong = tidak mengubah nilai yang sekarang, bukan berarti nol.
+            'potensi_revenue' => 'nullable|numeric|min:0|max:999999999999999',
             'photo'          => 'nullable|image|mimes:jpg,jpeg,png,webp|max:3072',
         ]);
 
@@ -149,6 +151,16 @@ class SalesActivityController extends Controller
 
             $targetLead->update(['pipeline_stage' => $newStage]);
             LeadsController::syncToCustomer($targetLead->fresh());
+        }
+
+        // Potensi revenue diteruskan ke lead terkait agar kartu & total Pipeline
+        // ikut terbarui. Field yang dibiarkan kosong tidak menimpa nilai lama.
+        $revenueFilled = $request->filled('potensi_revenue');
+        if ($revenueFilled && $targetLead) {
+            $targetLead->update(['potensi_revenue' => (float) $validated['potensi_revenue']]);
+        }
+        if (!$revenueFilled) {
+            unset($validated['potensi_revenue']);
         }
 
         unset($validated['photo'], $validated['client_ref']);

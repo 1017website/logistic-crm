@@ -192,7 +192,7 @@
         @if($do->status === 'pod' && $u->canAccess('pod_field'))
         <div class="card mb-3" style="border-color:#7c3aed"><div class="card-body p-3">
             <h6 style="font-weight:700"><i class="fas fa-camera me-1" style="color:#7c3aed"></i> Menunggu POD (Bukti Terima)</h6>
-            <p class="text-muted mb-2" style="font-size:12px">Barang sudah sampai tujuan, tetapi POD belum diterima sistem. Unggah foto/PDF POD agar DO tersedia di menu Invoice.</p>
+            <p class="text-muted mb-2" style="font-size:12px">Barang sudah sampai tujuan, tetapi POD belum diterima sistem. Unggah foto/PDF POD untuk melanjutkan verifikasi dan penutupan DO.</p>
             <form method="POST" action="{{ route('delivery-orders.pod', $do->id) }}" enctype="multipart/form-data">
                 @csrf
                 <label class="form-label" style="font-size:12px">Foto/PDF POD (maks 5MB)</label>
@@ -210,6 +210,13 @@
             @if($do->pod_file)
             <a href="{{ asset('storage/'.$do->pod_file) }}" target="_blank" class="d-block mb-2" style="font-size:12px"><i class="fas fa-eye me-1"></i> Lihat POD</a>
             @endif
+            @if(!$do->requestOrder?->do_approved)
+                <div class="alert alert-warning py-2 mb-2" style="font-size:12px">
+                    Harga DO belum disetujui. Approve harga dari
+                    <a href="{{ route('request-orders.show', $do->requestOrder) }}" class="alert-link">Request DO {{ $do->requestOrder?->do_number }}</a>
+                    sebelum menutup DO.
+                </div>
+            @else
             <form method="POST" action="{{ route('delivery-orders.close', $do->id) }}">
                 @csrf
                 <label class="form-label" style="font-size:12px">Biaya Aktual (vendor/operasional)</label>
@@ -217,8 +224,9 @@
                 <label class="form-label" style="font-size:12px">Biaya Lain</label>
                 <input type="number" name="other_cost" class="form-control form-control-sm mb-2" min="0" value="{{ (int) $do->other_cost }}">
                 <textarea name="note" class="form-control form-control-sm mb-2" rows="2" placeholder="Catatan (opsional)"></textarea>
-                <button class="btn btn-success btn-sm w-100" onclick="return confirm('Verifikasi POD, simpan biaya, dan tutup DO?')"><i class="fas fa-lock me-1"></i> Verifikasi & Tutup DO</button>
+                <button class="btn btn-success btn-sm w-100" onclick="return confirm('Verifikasi POD, tutup DO, dan buat draft invoice otomatis?')"><i class="fas fa-lock me-1"></i> Verifikasi, Tutup & Buat Draft Invoice</button>
             </form>
+            @endif
         </div></div>
         @endif
 
@@ -228,7 +236,11 @@
             <h6 style="font-weight:700"><i class="fas fa-file-invoice-dollar me-1" style="color:#d97706"></i> Penagihan</h6>
             <p class="mb-2" style="font-size:12px">
                 Status: <b>{{ $do->invoice_status_label }}</b>.
-                Invoice tersedia sejak POD diterima dan pembayaran dikelola dari satu tempat.
+                @if(in_array($do->status, ['closed', 'invoiced', 'paid']))
+                    Draft invoice dibuat otomatis saat DO ditutup dan pembayaran dikelola dari satu tempat.
+                @else
+                    Draft invoice akan dibuat otomatis setelah POD diverifikasi dan DO ditutup.
+                @endif
             </p>
             @if($do->invoiceItems->isNotEmpty())
                 <div class="mb-2" style="font-size:12px">

@@ -27,6 +27,7 @@ class SettingsController extends Controller
             'company_document_city' => 'nullable|string|max:100',
             'company_signatory_name' => 'nullable|string|max:150',
             'company_signatory_title' => 'nullable|string|max:150',
+            'invoice_default_top_days' => 'nullable|integer|min:1|max:365',
         ]);
 
         $fields = [
@@ -38,6 +39,7 @@ class SettingsController extends Controller
             'company_document_city',
             'company_signatory_name',
             'company_signatory_title',
+            'invoice_default_top_days',
             'currency',
             'timezone',
             'date_format',

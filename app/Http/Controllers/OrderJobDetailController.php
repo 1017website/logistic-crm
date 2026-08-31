@@ -24,8 +24,9 @@ class OrderJobDetailController extends Controller
 
         OrderJobDetail::create($data);
         $requestOrder->update(['do_approved' => false]);
+        $resubmitted = $this->resubmitIfAwaitingManager($requestOrder, 'Rincian pekerjaan ditambahkan');
 
-        return back()->with('success', 'Rincian pekerjaan ditambahkan.');
+        return back()->with('success', 'Rincian pekerjaan ditambahkan.' . $resubmitted);
     }
 
     public function update(Request $request, OrderJobDetail $jobDetail)
@@ -36,8 +37,9 @@ class OrderJobDetailController extends Controller
         $data['updated_by'] = auth()->id();
         $jobDetail->update($data);
         $jobDetail->requestOrder->update(['do_approved' => false]);
+        $resubmitted = $this->resubmitIfAwaitingManager($jobDetail->requestOrder, 'Rincian pekerjaan diperbarui');
 
-        return back()->with('success', 'Rincian pekerjaan diperbarui.');
+        return back()->with('success', 'Rincian pekerjaan diperbarui.' . $resubmitted);
     }
 
     public function destroy(OrderJobDetail $jobDetail)
@@ -46,7 +48,8 @@ class OrderJobDetailController extends Controller
         $this->ensureEditable($requestOrder);
         $jobDetail->delete();
         $requestOrder->update(['do_approved' => false]);
-        return back()->with('success', 'Rincian pekerjaan dihapus.');
+        $resubmitted = $this->resubmitIfAwaitingManager($requestOrder, 'Rincian pekerjaan dihapus');
+        return back()->with('success', 'Rincian pekerjaan dihapus.' . $resubmitted);
     }
 
     private function validateData(Request $request): array
@@ -92,9 +95,30 @@ class OrderJobDetailController extends Controller
             'Rincian harga tidak dapat diubah karena Request DO sudah masuk invoice.'
         );
         abort_if(
-            $requestOrder->request_status !== 'finance',
+            !$requestOrder->pricing_editable,
             422,
-            'Rincian biaya hanya dapat diubah pada tahap review Finance.'
+            'Rincian biaya hanya dapat diubah pada tahap review Finance, saat menunggu approval Sales Manager, atau setelah Sales Manager membuka kunci koreksi harga.'
         );
+    }
+
+    private function resubmitIfAwaitingManager(RequestOrder $requestOrder, string $action): string
+    {
+        $actor = auth()->user()->name;
+
+        if ($requestOrder->resubmitManagerApproval(
+            $action . ' oleh ' . $actor . ' dan diajukan ulang ke Sales Manager.',
+            auth()->id()
+        )) {
+            return ' Perubahan diajukan ulang ke Sales Manager.';
+        }
+
+        if ($requestOrder->notifyPriceCorrection(
+            $action . ' oleh ' . $actor . ' lewat jalur koreksi harga.',
+            auth()->id()
+        )) {
+            return ' Harga menunggu approve ulang Sales Manager.';
+        }
+
+        return '';
     }
 }

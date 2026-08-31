@@ -29,6 +29,14 @@
                 </select>
             </div>
             <div class="col-md-2">
+                <label class="form-label" style="font-size:12px">Pelaksanaan</label>
+                <select name="operasional" class="form-select form-select-sm">
+                    <option value="aktif" @selected($operasional=='aktif')>Tanpa DO Cancel</option>
+                    <option value="all" @selected($operasional=='all')>Termasuk DO Cancel</option>
+                    <option value="cancelled" @selected($operasional=='cancelled')>Hanya DO Cancel</option>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label class="form-label" style="font-size:12px">Bulan</label>
                 <input type="month" name="month" class="form-control form-control-sm" value="{{ $month }}">
             </div>
@@ -45,14 +53,23 @@
 
     {{-- Ringkasan --}}
     @php
-        $sumHpp = $dos->getCollection()->sum(fn($d)=>(float)$d->total_cost);
-        $sumJual = $dos->getCollection()->sum(fn($d)=>(float)$d->total_revenue);
+        $rowsOnPage = $dos->getCollection();
+        $sumHpp = $rowsOnPage->sum(fn($d)=>(float)$d->total_cost);
+        $sumJual = $rowsOnPage->sum(fn($d)=>(float)$d->total_revenue);
+        // Hanya DO yang biaya realisasinya sudah diinput yang boleh masuk total aktual,
+        // supaya selisih tidak salah baca gara-gara DO yang belum ditutup.
+        $realized = $rowsOnPage->filter(fn($d)=>$d->actual_total_cost !== null);
+        $sumHppAktual = $realized->sum(fn($d)=>(float)$d->actual_total_cost);
+        $sumHppRencanaRealized = $realized->sum(fn($d)=>(float)$d->total_cost);
+        $variance = $sumHppAktual - $sumHppRencanaRealized;
     @endphp
     <div class="d-flex gap-3 mb-3 flex-wrap" style="font-size:13px">
         <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">Jumlah DO (halaman ini)</div><div style="font-weight:800">{{ $dos->total() }}</div></div></div>
-        <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">HPP</div><div style="font-weight:800">{{ idr($sumHpp) }}</div></div></div>
+        <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">HPP Rencana</div><div style="font-weight:800">{{ idr($sumHpp) }}</div></div></div>
+        <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">HPP Aktual <span title="Hanya DO yang biaya realisasinya sudah diinput">({{ $realized->count() }} DO)</span></div><div style="font-weight:800">{{ $realized->isEmpty() ? '-' : idr($sumHppAktual) }}</div></div></div>
+        <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">Selisih HPP</div><div style="font-weight:800;color:{{ $variance > 0 ? '#dc2626' : ($variance < 0 ? '#16a34a' : '#6b7280') }}">{{ $realized->isEmpty() ? '-' : ($variance > 0 ? '+' : '') . idr($variance) }}</div></div></div>
         <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">Jual</div><div style="font-weight:800;color:var(--primary)">{{ idr($sumJual) }}</div></div></div>
-        <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">Laba</div><div style="font-weight:800;color:#16a34a">{{ idr($sumJual-$sumHpp) }}</div></div></div>
+        <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">Laba Rencana</div><div style="font-weight:800;color:#16a34a">{{ idr($sumJual-$sumHpp) }}</div></div></div>
     </div>
 
     {{-- Tabel --}}
@@ -61,7 +78,9 @@
             <thead style="background:#f8f9fa"><tr>
                 <th class="px-3 py-2">DO</th><th class="py-2">Tanggal</th><th class="py-2">Client</th>
                 <th class="py-2">Container</th><th class="py-2">Kota/Tujuan</th><th class="py-2">Truck/Nopol</th>
-                <th class="py-2 text-end">HPP</th><th class="py-2 text-end">Jual</th><th class="py-2">Tagih</th>
+                <th class="py-2 text-end">HPP Rencana</th><th class="py-2 text-end">HPP Aktual</th><th class="py-2 text-end">Selisih</th>
+                <th class="py-2 text-end">Jual</th><th class="py-2 text-end">Laba Rencana</th>
+                <th class="py-2">Pelaksanaan</th><th class="py-2">Tagih</th>
             </tr></thead>
             <tbody>
                 @forelse($dos as $do)
@@ -73,18 +92,43 @@
                     <td class="py-2">{{ $do->kota ?? '-' }} / {{ $do->tujuan ?? '-' }}</td>
                     <td class="py-2">{{ $do->no_pol ?? '-' }} <span class="text-muted">{{ $do->jenis_truck }}</span></td>
                     <td class="py-2 text-end">{{ idr($do->total_cost) }}</td>
+                    @php $aktual = $do->actual_total_cost; $selisih = $do->cost_variance; @endphp
+                    <td class="py-2 text-end">{{ $aktual === null ? '-' : idr($aktual) }}</td>
+                    <td class="py-2 text-end">
+                        @if($selisih === null)
+                            <span class="text-muted">-</span>
+                        @elseif((int) $selisih === 0)
+                            <span class="text-muted">0</span>
+                        @else
+                            <span style="color:{{ $selisih > 0 ? '#dc2626' : '#16a34a' }};font-weight:600">{{ $selisih > 0 ? '+' : '' }}{{ idr($selisih) }}</span>
+                        @endif
+                    </td>
                     <td class="py-2 text-end">{{ idr($do->total_revenue) }}</td>
+                    <td class="py-2 text-end" style="color:#16a34a">{{ idr($do->gross_profit) }}</td>
+                    <td class="py-2">
+                        @if($do->is_operationally_inactive)
+                            <span class="badge bg-{{ $do->operational_status_color }}">{{ $do->operational_status_label }}</span>
+                        @else
+                            <span class="text-muted" style="font-size:11px">Jalan</span>
+                        @endif
+                    </td>
                     <td class="py-2">
                         @php $cmap=['uninvoiced'=>['secondary','Belum'],'partial'=>['info','Sebagian'],'invoiced'=>['warning','Ditagih'],'paid'=>['success','Lunas']]; $cm=$cmap[$do->invoice_status]??['secondary','-']; @endphp
                         <span class="badge bg-{{ $cm[0] }}">{{ $cm[1] }}</span>
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="9" class="text-center py-4 text-muted">Tidak ada data.</td></tr>
+                <tr><td colspan="13" class="text-center py-4 text-muted">Tidak ada data.</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div></div></div>
     <div class="mt-3">{{ $dos->links() }}</div>
+    <p class="text-muted mt-2" style="font-size:11px">
+        <b>HPP Rencana</b> = rincian pekerjaan (riil biaya) yang disetujui Sales Manager — ini yang dipakai invoice.
+        <b>HPP Aktual</b> = biaya aktual + biaya lain yang diinput saat DO final ditutup, tampil "-" bila DO belum ditutup.
+        <b>Selisih</b> positif berarti realisasi lebih mahal dari rencana.
+        DO yang dibatalkan operasional tidak ikut dihitung kecuali filter <b>Pelaksanaan</b> diubah, karena pekerjaannya tidak pernah jalan.
+    </p>
 </div></div>
 @endsection

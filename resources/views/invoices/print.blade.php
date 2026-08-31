@@ -17,6 +17,7 @@
     .document-title .badge { display:inline-block; font-size:10px; font-weight:700; padding:3px 12px; border-radius:99px; }
     .badge.s-draft { background:#f3f4f6; color:#6b7280; }
     .badge.s-invoice { background:#dbeafe; color:#1d4ed8; }
+    .badge.s-termin { background:#cffafe; color:#0e7490; }
     .badge.s-paid { background:#d1fae5; color:#047857; }
 
     /* Bill-to & meta */
@@ -87,8 +88,8 @@
 <body>
 
 @php
-    $statusClass = ['draft'=>'s-draft','invoice'=>'s-invoice','paid'=>'s-paid'][$invoice->status] ?? 's-draft';
-    $statusText  = ['draft'=>'DRAFT','invoice'=>'INVOICE','paid'=>'LUNAS'][$invoice->status] ?? strtoupper($invoice->status);
+    $statusClass = ['draft'=>'s-draft','invoice'=>'s-invoice','termin'=>'s-termin','paid'=>'s-paid'][$invoice->status] ?? 's-draft';
+    $statusText  = ['draft'=>'DRAFT','invoice'=>'INVOICE','termin'=>'TERMIN','paid'=>'LUNAS'][$invoice->status] ?? strtoupper($invoice->status);
 @endphp
 
 <div class="toolbar" @if($isPdf ?? false) style="display:none" @endif>
@@ -124,6 +125,10 @@
             <div class="r"><span class="k">Tipe Cetak</span><span class="v">{{ $printType === 'all' ? $invoice->jenis_label : \App\Models\Invoice::TYPES[$printType] }}</span></div>
             @if($invoice->status === 'paid' && $invoice->tgl_pencairan)
             <div class="r"><span class="k">Tgl Cair</span><span class="v">{{ $invoice->tgl_pencairan?->format('d M Y') }}</span></div>
+            @endif
+            @if($invoice->payments()->exists())
+            <div class="r"><span class="k">Terbayar</span><span class="v">Rp {{ number_format($invoice->total_paid, 0, ',', '.') }}</span></div>
+            <div class="r"><span class="k">Sisa Tagihan</span><span class="v">Rp {{ number_format($invoice->outstanding, 0, ',', '.') }}</span></div>
             @endif
         </div>
     </div>

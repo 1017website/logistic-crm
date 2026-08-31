@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class OperationalAccessWorkflowTest extends TestCase
@@ -83,6 +84,38 @@ class OperationalAccessWorkflowTest extends TestCase
         $deliveryOrder->refresh();
         $this->assertSame('pickup', $deliveryOrder->status);
         $this->assertNull($deliveryOrder->surat_jalan_file);
+    }
+
+    public function test_internal_surat_jalan_qr_opens_public_tracking_with_phone_camera_url(): void
+    {
+        [$salesAdmin, $customer, $requestOrder] = $this->makeOrder('assigned');
+        $deliveryOrder = $this->makeDeliveryOrder($salesAdmin, $customer, $requestOrder, 'internal');
+        $trackingPath = URL::signedRoute('delivery-orders.track', [
+            'deliveryOrder' => $deliveryOrder,
+        ], absolute: false);
+
+        $this->actingAs($salesAdmin)
+            ->get(route('delivery-orders.surat-jalan.print', $deliveryOrder))
+            ->assertOk()
+            ->assertSee('SCAN UNTUK TRACKING')
+            ->assertSee('Gunakan kamera ponsel')
+            ->assertSee('http://localhost' . $trackingPath)
+            ->assertDontSee('Dokumen ini ditandatangani secara elektronik oleh:')
+            ->assertDontSee('Pindai QR untuk memverifikasi keaslian dokumen.');
+
+        auth()->logout();
+
+        $this->get($trackingPath)
+            ->assertOk()
+            ->assertSee('TRACKING SURAT JALAN')
+            ->assertSee($deliveryOrder->do_number)
+            ->assertSee('Surat Jalan')
+            ->assertSee($requestOrder->origin)
+            ->assertSee($requestOrder->destination)
+            ->assertSee('Tidak diperlukan aplikasi scanner khusus.');
+
+        $this->get(route('delivery-orders.track', $deliveryOrder, absolute: false))
+            ->assertForbidden();
     }
 
     public function test_external_fleet_still_requires_uploaded_surat_jalan(): void
@@ -239,6 +272,7 @@ class OperationalAccessWorkflowTest extends TestCase
         $this->assertDatabaseHas('delivery_orders', [
             'request_order_id' => $requestOrder->id,
             'customer_id' => $requestOrder->customer_id,
+            'do_number' => $requestOrder->do_number,
         ]);
 
         $this->actingAs($finance)
@@ -419,6 +453,92 @@ class OperationalAccessWorkflowTest extends TestCase
             ->assertSee('Rp 1.750.000');
     }
 
+    public function test_finance_dp_edit_while_awaiting_manager_is_recorded_as_resubmission(): void
+    {
+        [, , $requestOrder] = $this->makeOrder('approval');
+        $finance = $this->makeUser('Finance');
+        $manager = $this->makeUser('Sales Manager');
+
+        $this->actingAs($finance)
+            ->get(route('request-orders.show', $requestOrder))
+            ->assertOk()
+            ->assertSee('Perubahan akan dicatat dan diajukan ulang ke Sales Manager.')
+            ->assertSee('Simpan & Ajukan Ulang');
+
+        $this->actingAs($finance)
+            ->post(route('request-orders.dp.update', $requestOrder), [
+                'dp_status' => 'taken',
+                'dp_amount' => 950000,
+                'dp_note' => 'Nominal DP diperbarui sebelum approval.',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Data DP berhasil diperbarui & diajukan ulang ke Sales Manager.');
+
+        $requestOrder->refresh();
+        $this->assertSame('approval', $requestOrder->request_status);
+        $this->assertSame('950000', $requestOrder->dp_amount);
+        $this->assertDatabaseHas('order_status_logs', [
+            'loggable_type' => $requestOrder->getMorphClass(),
+            'loggable_id' => $requestOrder->id,
+            'from_status' => 'approval',
+            'to_status' => 'approval',
+            'user_id' => $finance->id,
+        ]);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $manager->id,
+            'type' => 'request_do_manager_approval',
+            'title' => 'Request DO diajukan ulang',
+        ]);
+    }
+
+    public function test_finance_can_edit_pricing_details_while_awaiting_manager_and_resubmit(): void
+    {
+        [, , $requestOrder] = $this->makeOrder('approval');
+        $finance = $this->makeUser('Finance');
+        $manager = $this->makeUser('Sales Manager');
+        $item = $requestOrder->items()->create([
+            'service_name' => 'Trucking',
+            'unit' => 'rit',
+            'qty' => 1,
+            'buy_price' => 800000,
+            'sell_price' => 1000000,
+        ]);
+
+        $this->actingAs($finance)
+            ->put(route('request-order-items.update', $item), [
+                'service_name' => 'Trucking',
+                'unit' => 'rit',
+                'qty' => 1,
+                'buy_price' => 850000,
+                'sell_price' => 1100000,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Item layanan dan harga berhasil diperbarui. Perubahan diajukan ulang ke Sales Manager.');
+
+        $this->assertSame('approval', $requestOrder->fresh()->request_status);
+        $this->assertSame('1100000', $item->fresh()->sell_price);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $manager->id,
+            'type' => 'request_do_manager_approval',
+            'title' => 'Request DO diajukan ulang',
+        ]);
+
+        $this->actingAs($finance)
+            ->post(route('job-details.store', $requestOrder), [
+                'job_name' => 'Biaya trucking revisi',
+                'riil_biaya' => 850000,
+                'riil_jual' => 1100000,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Rincian pekerjaan ditambahkan. Perubahan diajukan ulang ke Sales Manager.');
+
+        $this->assertDatabaseHas('order_job_details', [
+            'request_order_id' => $requestOrder->id,
+            'job_name' => 'Biaya trucking revisi',
+            'updated_by' => $finance->id,
+        ]);
+    }
+
     public function test_request_dp_can_be_disabled_and_finance_can_continue_without_dp_input(): void
     {
         [, , $requestOrder] = $this->makeOrder('finance');
@@ -563,6 +683,62 @@ class OperationalAccessWorkflowTest extends TestCase
             ->assertForbidden();
 
         $this->assertTrue($requestOrder->fresh()->do_approved);
+    }
+
+    public function test_sales_manager_can_reject_incorrect_do_price_and_return_it_to_finance(): void
+    {
+        [, , $requestOrder] = $this->makeOrder('approval');
+        $salesManager = $this->makeUser('Sales Manager');
+        $finance = $this->makeUser('Finance');
+
+        $requestOrder->items()->create([
+            'service_name' => 'Trucking',
+            'unit' => 'rit',
+            'qty' => 1,
+            'buy_price' => 1000000,
+            'sell_price' => 800000,
+        ]);
+
+        $this->actingAs($salesManager)
+            ->get(route('request-orders.show', $requestOrder))
+            ->assertOk()
+            ->assertSee('Reject DO')
+            ->assertSee('Alasan harga tidak benar')
+            ->assertSee('Reject & Kembalikan ke Finance', false);
+
+        $this->actingAs($salesManager)
+            ->from(route('request-orders.show', $requestOrder))
+            ->post(route('request-orders.approve-do', $requestOrder), [
+                'action' => 'reject',
+            ])
+            ->assertRedirect(route('request-orders.show', $requestOrder))
+            ->assertSessionHasErrors('note');
+
+        $this->assertSame('approval', $requestOrder->fresh()->request_status);
+
+        $this->actingAs($salesManager)
+            ->post(route('request-orders.approve-do', $requestOrder), [
+                'action' => 'reject',
+                'note' => 'Harga jual lebih rendah dari HPP, mohon koreksi.',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'DO ditolak karena harga tidak benar dan dikembalikan ke Finance.');
+
+        $requestOrder->refresh();
+        $this->assertSame('finance', $requestOrder->request_status);
+        $this->assertFalse($requestOrder->do_approved);
+        $this->assertDatabaseHas('order_status_logs', [
+            'loggable_type' => $requestOrder->getMorphClass(),
+            'loggable_id' => $requestOrder->id,
+            'from_status' => 'approval',
+            'to_status' => 'finance',
+            'user_id' => $salesManager->id,
+        ]);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $finance->id,
+            'type' => 'request_do_price_rejected',
+            'title' => 'Harga Request DO perlu diperbaiki',
+        ]);
     }
 
     private function makeOrder(string $requestStatus): array

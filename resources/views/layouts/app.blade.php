@@ -700,6 +700,11 @@
             flex: 1;
         }
 
+        /* Modal tetap dapat digulir dengan sentuhan pada layar kecil/panjang. */
+        .modal {
+            -webkit-overflow-scrolling: touch;
+        }
+
         /* CARDS */
         .card {
             border: none;
@@ -1788,6 +1793,31 @@
             document.body.classList.remove('sidebar-mobile-open');
             document.getElementById('sidebarOverlay')?.classList.remove('show');
         }
+
+        // Bootstrap mengunci scroll body saat modal terbuka. Pada navigasi kembali
+        // (BFCache) atau modal yang terhenti di tengah transisi, lock tersebut dapat
+        // tertinggal walaupun modalnya sudah tidak terlihat.
+        function recoverPageScroll() {
+            const hasVisibleModal = Array.from(document.querySelectorAll('.modal.show'))
+                .some((modal) => window.getComputedStyle(modal).display !== 'none');
+
+            if (hasVisibleModal) return;
+
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+            document.documentElement.style.removeProperty('overflow');
+            document.querySelectorAll('.modal-backdrop').forEach((backdrop) => backdrop.remove());
+        }
+
+        document.addEventListener('hidden.bs.modal', function() {
+            requestAnimationFrame(recoverPageScroll);
+        });
+        document.addEventListener('DOMContentLoaded', recoverPageScroll);
+        window.addEventListener('pageshow', function(event) {
+            recoverPageScroll();
+            if (event.persisted) closeMobileSidebar();
+        });
         // Tutup sidebar saat klik menu (mobile) & saat layar dilebarkan
         document.querySelectorAll('.sidebar-nav .sidebar-item').forEach(function(el) {
             el.addEventListener('click', function() {
@@ -1906,7 +1936,7 @@
             }
         }
 
-        // Polling setiap 60 detik untuk update badge
+        // Polling singkat agar permintaan approval baru cepat terlihat.
         function pollNotifCount() {
             fetch('/notifications/unread-count', {
                     headers: {
@@ -1919,10 +1949,10 @@
                 .catch(() => {});
         }
 
-        // Init: load badge saat halaman dibuka, poll setiap 60 detik
+        // Init: load badge saat halaman dibuka, lalu perbarui setiap 15 detik.
         document.addEventListener('DOMContentLoaded', function() {
             pollNotifCount();
-            setInterval(pollNotifCount, 60000);
+            setInterval(pollNotifCount, 15000);
         });
 
         // ── User dropdown ──

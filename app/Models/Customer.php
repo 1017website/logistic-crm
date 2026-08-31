@@ -13,11 +13,14 @@ class Customer extends Model
 {
     use SoftDeletes;
     protected $fillable = [
-        'customer_code','invoice_code','company_name','pic_name','pic_position','phone','email','address',
+        'customer_code','invoice_code','top_days','company_name','pic_name','pic_position','phone','email','address',
         'industry','location','status','value_tag','user_id','customer_since','logo','notes','products'
     ];
 
     protected $casts = ['customer_since' => 'date'];
+
+    /** Default TOP bila customer maupun setting global belum diisi. */
+    public const FALLBACK_TOP_DAYS = 30;
 
     public function user(): BelongsTo         { return $this->belongsTo(User::class, 'user_id'); }
     public function salesUser(): BelongsTo    { return $this->belongsTo(User::class, 'user_id'); }
@@ -59,6 +62,31 @@ class Customer extends Model
     public function getInvoiceNumberCodeAttribute(): string
     {
         return $this->invoice_code ?: ($this->customer_code ?: 'CUST');
+    }
+
+    /**
+     * TOP yang berlaku untuk customer ini: pakai TOP customer bila diisi,
+     * kalau tidak ikut default global yang diatur di menu Pengaturan.
+     */
+    public function getEffectiveTopDaysAttribute(): int
+    {
+        return (int) ($this->top_days ?: static::defaultTopDays());
+    }
+
+    /** Due date invoice untuk customer ini dari tanggal invoice tertentu. */
+    public function dueDateFrom(\DateTimeInterface|string $invoiceDate): string
+    {
+        return \Illuminate\Support\Carbon::parse($invoiceDate)
+            ->addDays($this->effective_top_days)
+            ->toDateString();
+    }
+
+    /** Default TOP global (hari). Minimal 1 hari agar due date tidak sama dengan tanggal invoice. */
+    public static function defaultTopDays(): int
+    {
+        $days = (int) Setting::get('invoice_default_top_days', self::FALLBACK_TOP_DAYS);
+
+        return $days > 0 ? $days : self::FALLBACK_TOP_DAYS;
     }
 
     public static function normalizeInvoiceCode(?string $code): ?string

@@ -395,6 +395,7 @@
     'activityContextId' => $lead->id,
     'activityContextLabel' => $lead->company_name.' (Lead)',
     'activityContextStage' => $lead->pipeline_stage,
+    'activityContextRevenue' => $lead->potensi_revenue,
 ])
 
 {{-- 3. Edit Catatan Internal Modal --}}

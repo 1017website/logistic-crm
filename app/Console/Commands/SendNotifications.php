@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Activity;
+use App\Models\Invoice;
 use App\Models\Lead;
 use App\Models\Notification;
 use App\Models\User;
@@ -19,6 +20,7 @@ class SendNotifications extends Command
         $this->checkOverdue();
         $this->checkFollowUpReminders();
         $this->checkTaskReminders();
+        $this->checkInvoiceDueDates();
         $this->checkTargetWarnings();
 
         $this->info('[' . now()->format('Y-m-d H:i') . '] CRM notifications processed.');
@@ -107,6 +109,92 @@ class SendNotifications extends Command
         }
 
         $this->line("  Task Reminders: {$sent} sent");
+    }
+
+    /**
+     * Reminder jatuh tempo invoice untuk Finance & Admin.
+     *
+     * Command ini berjalan tiap menit, jadi bagian ini dibatasi sekali sehari
+     * pada jam 07:00 supaya tidak membanjiri notifikasi. Titik kirimnya:
+     *   H-3          → peringatan dini, sekali per invoice
+     *   Hari-H       → jatuh tempo hari ini, sekali per invoice
+     *   Lewat tempo  → diulang tiap 7 hari, bukan tiap hari
+     *
+     * Hanya invoice terbit/termin yang masih menyisakan tagihan yang diproses.
+     */
+    private function checkInvoiceDueDates(): void
+    {
+        $now = now();
+        if ($now->format('H:i') < '07:00' || $now->format('H:i') > '07:04') {
+            return;
+        }
+
+        $today = $now->copy()->startOfDay();
+        $invoices = Invoice::with(['customer', 'payments'])
+            ->whereIn('status', ['invoice', 'termin'])
+            ->whereNotNull('tgl_tempo')
+            ->get()
+            ->filter(fn(Invoice $invoice) => $invoice->outstanding > 0);
+
+        $sent = 0;
+        foreach ($invoices as $invoice) {
+            $daysOverdue = (int) $invoice->tgl_tempo->copy()->startOfDay()->diffInDays($today, false);
+            $plan = $this->invoiceDuePlan($invoice, $daysOverdue);
+            if (!$plan || $this->alreadySent($plan['tag'])) {
+                continue;
+            }
+
+            Notification::sendToRoles(
+                ['Finance', 'Admin', 'Super Admin'],
+                $plan['type'],
+                $plan['title'],
+                $plan['message'],
+                route('invoices.show', $invoice) . '#' . $plan['tag']
+            );
+            $sent++;
+        }
+
+        $this->line("  Invoice Due Reminders: {$sent} sent");
+    }
+
+    /**
+     * Tentukan apakah invoice perlu diingatkan hari ini, beserta penanda
+     * anti-dobelnya. Null berarti tidak ada yang perlu dikirim.
+     *
+     * @return array{tag:string,type:string,title:string,message:string}|null
+     */
+    private function invoiceDuePlan(Invoice $invoice, int $daysOverdue): ?array
+    {
+        $number   = $invoice->invoice_number ?: $invoice->invoice_id;
+        $customer = $invoice->customer?->company_name ?? '-';
+        $amount   = idr($invoice->outstanding);
+        $dueDate  = $invoice->tgl_tempo->format('d M Y');
+
+        // Belum masuk H-3, atau di antara H-2 dan H-1 (sudah diingatkan di H-3).
+        if ($daysOverdue < 0) {
+            return $daysOverdue === -3 ? [
+                'tag'     => 'invoice-due-h3-' . $invoice->id,
+                'type'    => 'invoice_due_soon',
+                'title'   => 'Invoice jatuh tempo 3 hari lagi',
+                'message' => $number . ' — ' . $customer . ' jatuh tempo ' . $dueDate . '. Sisa tagihan ' . $amount . '.',
+            ] : null;
+        }
+
+        if ($daysOverdue === 0) {
+            return [
+                'tag'     => 'invoice-due-today-' . $invoice->id,
+                'type'    => 'invoice_due_today',
+                'title'   => 'Invoice jatuh tempo hari ini',
+                'message' => $number . ' — ' . $customer . ' jatuh tempo hari ini. Sisa tagihan ' . $amount . '.',
+            ];
+        }
+
+        return [
+            'tag'     => 'invoice-overdue-' . $invoice->id . '-w' . intdiv($daysOverdue, 7),
+            'type'    => 'invoice_overdue',
+            'title'   => 'Invoice lewat jatuh tempo',
+            'message' => $number . ' — ' . $customer . ' sudah ' . $daysOverdue . ' hari lewat tempo (' . $dueDate . '). Sisa tagihan ' . $amount . '.',
+        ];
     }
 
     /** URL tujuan task + penanda anti-dobel (#tag). */

@@ -6,6 +6,7 @@ use App\Models\DeletionRequest;
 use App\Models\Notification;
 use App\Models\Lead;
 use App\Models\Customer;
+use App\Models\DeliveryOrder;
 use App\Models\Invoice;
 use App\Models\RequestOrder;
 use App\Services\InvoiceBillingService;
@@ -51,9 +52,9 @@ class DeletionRequestController extends Controller
                     ->get()->each(fn($l) => $l->delete());
                 $model->delete();
             } elseif ($model instanceof Invoice) {
-                if ($model->status === 'paid') {
+                if (in_array($model->status, ['termin', 'paid'], true)) {
                     throw ValidationException::withMessages([
-                        'delete' => 'Invoice yang sudah lunas tidak dapat dihapus.',
+                        'delete' => 'Invoice yang sudah memiliki pembayaran tidak dapat dihapus.',
                     ]);
                 }
                 $doIds = $model->items()->pluck('delivery_order_id')->filter()->unique();
@@ -62,13 +63,26 @@ class DeletionRequestController extends Controller
                     ->pluck('request_order_id')
                     ->filter()
                     ->unique();
+                $invoiceNumber = $model->invoice_number;
                 $model->items()->delete();
                 $model->delete();
                 RequestOrder::whereIn('id', $legacyRequestOrderIds)
                     ->update(['invoice_status' => 'uninvoiced']);
-                app(InvoiceBillingService::class)->sync($doIds);
+                app(InvoiceBillingService::class)->sync(
+                    $doIds,
+                    "Invoice {$invoiceNumber} dihapus. DO dibuka kembali untuk ditagih."
+                );
+            } elseif ($model instanceof DeliveryOrder) {
+                // Sama seperti hapus langsung: DO yang sudah ditagih akan
+                // meninggalkan invoice menggantung tanpa DO.
+                if ($model->invoiceItems()->exists()) {
+                    throw ValidationException::withMessages([
+                        'delete' => 'DO ' . $model->do_number . ' sudah masuk invoice dan tidak dapat dihapus. Hapus invoicenya lebih dulu.',
+                    ]);
+                }
+                $model->delete();
             } else {
-                // Modul lain (vendor, delivery order): hapus apa adanya.
+                // Modul lain (vendor, dll): hapus apa adanya.
                 $model->delete();
             }
         });
@@ -105,8 +119,9 @@ class DeletionRequestController extends Controller
 
         $dr = DeletionRequest::request($model, auth()->id(), $request->reason);
 
-        // Notifikasi ke admin
-        Notification::broadcast(
+        // Hanya Admin/Super Admin yang dapat memproses permintaan hapus.
+        Notification::sendToRoles(
+            ['Super Admin', 'Admin'],
             'delete_request',
             'Permintaan Hapus: ' . ($dr->module_title),
             auth()->user()->name . ' meminta hapus "' . ($dr->model_label ?? '#' . $dr->model_id) . '"',
@@ -167,7 +182,7 @@ class DeletionRequestController extends Controller
                 'delete_request',
                 'Permintaan Hapus Disetujui',
                 'Permintaan hapus "' . ($deletionRequest->model_label ?? '#' . $deletionRequest->model_id) . '" telah disetujui.',
-                route('deletion-requests.index')
+                $this->moduleIndexUrl($deletionRequest)
             );
         });
 
@@ -195,9 +210,15 @@ class DeletionRequestController extends Controller
             'delete_request',
             'Permintaan Hapus Ditolak',
             'Permintaan hapus "' . ($deletionRequest->model_label ?? '#' . $deletionRequest->model_id) . '" ditolak administrator.',
-            route('deletion-requests.index')
+            $this->moduleIndexUrl($deletionRequest)
         );
 
         return back()->with('success', 'Permintaan hapus ditolak.');
+    }
+
+    private function moduleIndexUrl(DeletionRequest $deletionRequest): string
+    {
+        $routeName = $deletionRequest->moduleConfig()['route'] ?? 'dashboard';
+        return route($routeName);
     }
 }

@@ -6,7 +6,10 @@
 @section('content')
 @php
     $u = auth()->user();
-    $canEditInvoice = $u->isSuperAdmin() || ($u->isFinance() && $invoice->edit_request_status === 'approved');
+    $hasPayment = in_array($invoice->status, ['termin', 'paid'], true);
+    $canEditInvoice = !$hasPayment && ($u->isSuperAdmin() || ($u->isFinance() && $invoice->edit_request_status === 'approved'));
+    $canEditPpn = !$hasPayment && ($canEditInvoice
+        || ($invoice->status === 'draft' && ($u->isFinance() || $u->isAdmin())));
 @endphp
 <div class="row g-3">
     <div class="col-lg-8">
@@ -30,7 +33,7 @@
                     </form>
                     <a href="{{ route('invoices.pdf', $invoice) }}" class="btn btn-sm btn-outline-danger text-nowrap"><i class="fas fa-file-pdf me-1"></i> PDF</a>
                     <a href="{{ route('invoices.excel', $invoice) }}" class="btn btn-sm btn-outline-success text-nowrap"><i class="fas fa-file-excel me-1"></i> Excel</a>
-                    <a href="{{ route('invoices.index', ['tab'=>$invoice->status]) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Kembali</a>
+                    <a href="{{ route('invoices.index', ['tab'=>$hasPayment ? 'paid' : $invoice->status]) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Kembali</a>
                 </div>
             </div>
             <div class="row g-2" style="font-size:13px">
@@ -68,13 +71,29 @@
                     <tr><td colspan="6" class="text-end text-muted">PPN {{ rtrim(rtrim(number_format($invoice->ppn_persen,2),'0'),'.') }}%</td><td class="text-end">{{ idr($invoice->ppn_nominal) }}</td>@if($canEditInvoice)<td></td>@endif</tr>
                     @endif
                     <tr style="font-weight:800"><td colspan="6" class="text-end">Grand Total</td><td class="text-end" style="color:var(--primary)">{{ idr($invoice->grand_total ?: $invoice->total_jual) }}</td>@if($canEditInvoice)<td></td>@endif</tr>
+                    @if($invoice->payments->isNotEmpty())
+                    <tr><td colspan="6" class="text-end text-success">Total Terbayar</td><td class="text-end text-success">{{ idr($invoice->total_paid) }}</td>@if($canEditInvoice)<td></td>@endif</tr>
+                    <tr style="font-weight:800"><td colspan="6" class="text-end text-danger">Sisa Tagihan</td><td class="text-end text-danger">{{ idr($invoice->outstanding) }}</td>@if($canEditInvoice)<td></td>@endif</tr>
+                    @endif
                 </tfoot>
             </table>
         </div></div>
+
+        @if($invoice->payments->isNotEmpty())
+        <div class="card mt-3"><div class="card-body p-3">
+            <h6 style="font-weight:700;font-size:13px;text-transform:uppercase;color:#6b7280">Riwayat Pembayaran</h6>
+            <div class="table-responsive"><table class="table table-sm mb-0" style="font-size:12px">
+                <thead><tr><th>Tanggal</th><th>Jenis</th><th class="text-end">Nominal</th><th>Catatan</th><th>Dicatat oleh</th></tr></thead>
+                <tbody>@foreach($invoice->payments->sortByDesc('payment_date') as $payment)
+                    <tr><td>{{ $payment->payment_date?->format('d M Y') }}</td><td>{{ $payment->type_label }}</td><td class="text-end">{{ idr($payment->amount) }}</td><td>{{ $payment->note ?: '-' }}</td><td>{{ $payment->recorder?->name ?? '-' }}</td></tr>
+                @endforeach</tbody>
+            </table></div>
+        </div></div>
+        @endif
     </div>
 
     <div class="col-lg-4">
-        @if($u->isFinance() && !$canEditInvoice && $invoice->status !== 'paid')
+        @if($u->isFinance() && !$canEditInvoice && !$hasPayment)
         <div class="card mb-3 border-warning"><div class="card-body p-3">
             <h6 style="font-weight:700">Permintaan Edit Invoice</h6>
             @if($invoice->edit_request_status === 'pending')
@@ -114,14 +133,42 @@
                 <button class="btn btn-sm btn-outline-primary w-100">Simpan Nomor</button>
             </form>
         </div></div>
-        <div class="card mb-3"><div class="card-body p-3">
+        @endif
+
+        @if($canEditPpn)
+        @php
+            $selectedTaxTypes = $taxInvoices->filter(fn($taxInvoice) => (float)$taxInvoice->ppn_persen > 0)->keys();
+            $selectedTaxRate = (float)($taxInvoices->first(fn($taxInvoice) => (float)$taxInvoice->ppn_persen > 0)?->ppn_persen ?? 11);
+        @endphp
+        <div class="card mb-3 border-info"><div class="card-body p-3">
             <h6 style="font-weight:700;font-size:13px">PPN</h6>
-            <form method="POST" action="{{ route('invoices.ppn', $invoice->id) }}">@csrf @method('PUT')
-                <div class="input-group input-group-sm mb-2">
-                    <input type="number" step="0.01" name="ppn_persen" class="form-control" value="{{ $invoice->ppn_persen }}" min="0" max="100">
-                    <span class="input-group-text">%</span>
+            <p class="text-muted mb-2" style="font-size:11px">Centang jenis invoice yang dikenakan PPN. Jenis yang tidak dicentang menjadi Non-PPN.</p>
+            <form method="POST" action="{{ route('invoices.ppn', $invoice->id) }}" id="invoicePpnForm">@csrf @method('PUT')
+                <label class="form-label mb-1" style="font-size:12px"><b>Pilih jenis invoice</b></label>
+                <div class="d-flex gap-3 border rounded p-2 mb-2">
+                    @foreach(['TR' => 'Trucking (TR)', 'NTR' => 'Non-Trucking (Non-TR)'] as $type => $label)
+                        @if($taxInvoices->has($type))
+                        <div class="form-check">
+                            <input class="form-check-input invoice-ppn-type" type="checkbox" name="ppn_types[]" id="invoicePpnType{{ $type }}" value="{{ $type }}" @checked($selectedTaxTypes->contains($type))>
+                            <label class="form-check-label" for="invoicePpnType{{ $type }}">{{ $label }}</label>
+                        </div>
+                        @endif
+                    @endforeach
                 </div>
-                <button class="btn btn-sm btn-outline-primary w-100">Terapkan PPN</button>
+                <div id="invoicePpnRateWrap" class="border rounded p-2 mb-2" style="{{ $selectedTaxTypes->isEmpty() ? 'display:none' : '' }}">
+                    <label class="form-label mb-1" style="font-size:12px">Pilih tarif PPN</label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input invoice-ppn-rate" type="radio" name="ppn_persen" id="invoicePpn11" value="11" @checked($selectedTaxRate === 11.0)>
+                            <label class="form-check-label" for="invoicePpn11">11%</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input invoice-ppn-rate" type="radio" name="ppn_persen" id="invoicePpn11Kecil" value="1.1" @checked($selectedTaxRate === 1.1)>
+                            <label class="form-check-label" for="invoicePpn11Kecil">1,1%</label>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-info w-100">Simpan Pengaturan PPN</button>
             </form>
         </div></div>
         @endif
@@ -130,18 +177,52 @@
             <h6 style="font-weight:700;font-size:13px">Status</h6>
             @if($invoice->status==='draft')
             <form method="POST" action="{{ route('invoices.submit',$invoice->id) }}">@csrf<button class="btn btn-success btn-sm w-100"><i class="fas fa-paper-plane me-1"></i> Terbitkan Invoice</button></form>
-            @elseif($invoice->status==='invoice')
+            @elseif(in_array($invoice->status, ['invoice', 'termin'], true))
             <div class="alert alert-info py-2" style="font-size:11px">Invoice sudah terbit dan tetap dapat menunggu pembayaran sampai pengiriman selesai.</div>
             <form method="POST" action="{{ route('invoices.pay',$invoice->id) }}" class="mb-2">@csrf
-                <label class="form-label" style="font-size:12px">Tgl Pencairan</label>
+                <div class="row g-1 mb-2" style="font-size:11px"><div class="col-4">Tagihan<br><b>{{ idr($invoice->grand_total ?: $invoice->total_jual) }}</b></div><div class="col-4">Terbayar<br><b class="text-success">{{ idr($invoice->total_paid) }}</b></div><div class="col-4">Sisa<br><b class="text-danger">{{ idr($invoice->outstanding) }}</b></div></div>
+                <label class="form-label" style="font-size:12px">Jenis Pembayaran</label>
+                <select name="payment_type" id="detailPaymentType" class="form-select form-select-sm mb-2" required><option value="termin">Pembayaran Titip / Termin</option><option value="pelunasan">Pelunasan seluruh sisa</option></select>
+                <div id="detailPaymentAmount">
+                    <label class="form-label" style="font-size:12px">Nominal Termin</label>
+                    <input type="number" name="amount" min="1" max="{{ max(1, $invoice->outstanding - 1) }}" class="form-control form-control-sm mb-1" required>
+                    <small class="text-muted d-block mb-2">Harus lebih kecil dari sisa tagihan.</small>
+                </div>
+                <label class="form-label" style="font-size:12px">Tanggal Pembayaran</label>
                 <input type="date" name="tgl_pencairan" class="form-control form-control-sm mb-2" value="{{ now()->toDateString() }}" required>
-                <button class="btn btn-success btn-sm w-100"><i class="fas fa-money-bill-wave me-1"></i> Tandai Lunas</button>
+                <label class="form-label" style="font-size:12px">Catatan</label>
+                <textarea name="note" class="form-control form-control-sm mb-2" rows="2" placeholder="Opsional"></textarea>
+                <button class="btn btn-success btn-sm w-100"><i class="fas fa-money-bill-wave me-1"></i> Simpan Pembayaran</button>
             </form>
+            @if($invoice->status === 'invoice')
             <form method="POST" action="{{ route('invoices.unsubmit',$invoice->id) }}">@csrf<button class="btn btn-link btn-sm text-danger w-100" style="font-size:11px">Kembalikan ke draft</button></form>
+            @endif
             @else
             <div class="alert alert-success mb-0" style="font-size:13px"><i class="fas fa-check-circle me-1"></i> Lunas {{ $invoice->tgl_pencairan?->format('d M Y') }}</div>
             @endif
         </div></div>
     </div>
 </div>
+<script>
+const invoicePpnTypes = [...document.querySelectorAll('.invoice-ppn-type')];
+const toggleInvoicePpnRate = () => {
+    const taxable = invoicePpnTypes.some(input => input.checked);
+    const wrap = document.getElementById('invoicePpnRateWrap');
+    if (wrap) wrap.style.display = taxable ? '' : 'none';
+    document.querySelectorAll('.invoice-ppn-rate').forEach(input => input.required = taxable);
+};
+invoicePpnTypes.forEach(input => input.addEventListener('change', toggleInvoicePpnRate));
+toggleInvoicePpnRate();
+
+const detailPaymentType = document.getElementById('detailPaymentType');
+const toggleDetailPaymentAmount = () => {
+    const wrap = document.getElementById('detailPaymentAmount');
+    const input = wrap?.querySelector('input[name="amount"]');
+    const isTermin = detailPaymentType?.value === 'termin';
+    if (wrap) wrap.style.display = isTermin ? '' : 'none';
+    if (input) input.required = isTermin;
+};
+detailPaymentType?.addEventListener('change', toggleDetailPaymentAmount);
+toggleDetailPaymentAmount();
+</script>
 @endsection

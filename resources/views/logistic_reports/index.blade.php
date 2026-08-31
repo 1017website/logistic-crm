@@ -31,5 +31,18 @@
             </div>
         </a>
     </div>
+    <div class="col-md-3 col-6">
+        <a href="{{ route('logistic-reports.outstanding') }}" class="text-decoration-none">
+            <div class="card h-100" style="transition:.15s" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='none'">
+                <div class="card-body text-center p-4">
+                    <div style="width:56px;height:56px;border-radius:14px;background:#fee2e2;display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
+                        <i class="fas fa-hand-holding-usd" style="font-size:24px;color:#dc2626"></i>
+                    </div>
+                    <div style="font-weight:700">Laporan Outstanding</div>
+                    <div style="font-size:12px;color:#6b7280">Piutang belum terbayar & aging per client</div>
+                </div>
+            </div>
+        </a>
+    </div>
 </div>
 @endsection

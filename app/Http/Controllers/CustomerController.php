@@ -71,6 +71,7 @@ class CustomerController extends Controller
         $validated = $request->validate([
             'company_name'   => 'required|string|max:255',
             'invoice_code'   => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('customers', 'invoice_code')],
+            'top_days'       => ['nullable', 'integer', 'min:1', 'max:365'],
             'pic_name'       => 'required|string|max:255',
             'pic_position'   => 'nullable|string|max:100',
             'phone'          => 'required|string|max:20',
@@ -189,6 +190,7 @@ class CustomerController extends Controller
         $validated = $request->validate([
             'company_name'   => 'sometimes|string|max:255',
             'invoice_code'   => ['nullable', 'string', 'max:30', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('customers', 'invoice_code')->ignore($customer->id)],
+            'top_days'       => ['nullable', 'integer', 'min:1', 'max:365'],
             'pic_name'       => 'sometimes|string|max:255',
             'pic_position'   => 'nullable|string|max:100',
             'phone'          => 'nullable|string|max:20',
@@ -354,9 +356,9 @@ class CustomerController extends Controller
         }
 
         $customers = $query->orderBy('company_name')->get();
-        $headers   = ['Customer Code','Invoice Code','Company Name','PIC Name','Position','Phone','Email','Industry','Location','Status','Sales PIC','Customer Since'];
+        $headers   = ['Customer Code','Invoice Code','TOP (Hari)','Company Name','PIC Name','Position','Phone','Email','Industry','Location','Status','Sales PIC','Customer Since'];
         $rows      = $customers->map(fn($c) => [
-            $c->customer_code, $c->invoice_code,
+            $c->customer_code, $c->invoice_code, $c->top_days,
             $c->company_name, $c->pic_name, $c->pic_position,
             $c->phone, $c->email, $c->industry, $c->location,
             $c->status, $c->salesUser?->name,
@@ -370,13 +372,13 @@ class CustomerController extends Controller
     {
         $headers = [
             'Company Name', 'PIC Name', 'Position', 'Phone', 'Email', 'Industry',
-            'Location', 'Address', 'Kode Invoice', 'Sales PIC Email/Name',
+            'Location', 'Address', 'Kode Invoice', 'TOP (Hari)', 'Sales PIC Email/Name',
             'Customer Since', 'Notes', 'Service Name', 'Unit', 'Tonnage', 'Shipping Zone',
         ];
         $rows = [[
             'PT Contoh Logistik', 'Budi Santoso', 'Purchasing Manager', '0812-1234-5678',
             'budi@contoh.co.id', 'Manufacturing', 'Surabaya', 'Jl. Contoh No. 10',
-            'PCL', 'sales@crm.com', now()->format('Y-m-d'), 'Customer existing',
+            'PCL', 30, 'sales@crm.com', now()->format('Y-m-d'), 'Customer existing',
             'Trucking', 'trip', 10, 'Surabaya - Jakarta',
         ]];
 
@@ -399,6 +401,7 @@ class CustomerController extends Controller
             'location' => ['Location', 'Lokasi'],
             'address' => ['Address', 'Alamat'],
             'invoice_code' => ['Kode Invoice', 'Invoice Code'],
+            'top_days' => ['TOP (Hari)', 'TOP', 'Top Days'],
             'sales_key' => ['Sales PIC Email/Name', 'Sales PIC', 'Sales Email'],
             'customer_since' => ['Customer Since', 'Tanggal Customer'],
             'notes' => ['Notes', 'Catatan'],
@@ -419,6 +422,7 @@ class CustomerController extends Controller
             $data['phone'] = trim((string) $data['phone']);
             $data['email'] = trim((string) $data['email']) ?: null;
             $data['invoice_code'] = Customer::normalizeInvoiceCode((string) $data['invoice_code']);
+            $data['top_days'] = ($data['top_days'] ?? '') === '' ? null : (int) $data['top_days'];
             $data['customer_since'] = $this->normalizeImportDate($data['customer_since']);
 
             $validator = Validator::make($data, [
@@ -431,6 +435,7 @@ class CustomerController extends Controller
                 'location' => 'nullable|string|max:255',
                 'address' => 'nullable|string',
                 'invoice_code' => ['nullable', 'string', 'max:30', 'regex:/^[A-Z0-9_-]+$/'],
+                'top_days' => ['nullable', 'integer', 'min:1', 'max:365'],
                 'customer_since' => 'nullable|date_format:Y-m-d',
                 'notes' => 'nullable|string',
                 'service_name' => 'nullable|string|max:255',

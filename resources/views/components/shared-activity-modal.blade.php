@@ -3,6 +3,7 @@
     $activityContextId = $activityContextId ?? null;
     $activityContextLabel = $activityContextLabel ?? null;
     $activityContextStage = $activityContextStage ?? null;
+    $activityContextRevenue = $activityContextRevenue ?? null;
     $activityModalTitle = $activityModalTitle ?? 'Add Activity';
     $activityDefaultDate = $activityDefaultDate ?? now()->format('Y-m-d\\TH:i');
     $activityModalId = $activityModalId ?? 'addActivityModal';
@@ -35,15 +36,19 @@
                                     $existingCustomerCompanyNames = \App\Models\Customer::where('status','Existing')->pluck('company_name')->map(fn($n) => strtolower(trim($n)))->toArray();
                                     $leadsNotExisting = \App\Models\Lead::orderBy('company_name')->get()->filter(fn($l) => !in_array(strtolower(trim($l->company_name)), $existingCustomerCompanyNames));
                                     $existingCustomers = \App\Models\Customer::where('status','Existing')->orderBy('company_name')->get();
+                                    // Potensi revenue customer diambil dari lead terkait paling akhir diperbarui.
+                                    $revenueByCustomer = \App\Models\Lead::whereNotNull('customer_id')
+                                        ->orderBy('updated_at')
+                                        ->pluck('potensi_revenue', 'customer_id');
                                 @endphp
                                 <optgroup label="— Leads —">
                                     @foreach($leadsNotExisting as $lead)
-                                        <option value="lead:{{ $lead->id }}" data-type="lead" data-stage="{{ $lead->pipeline_stage }}">{{ $lead->company_name }} (Lead)</option>
+                                        <option value="lead:{{ $lead->id }}" data-type="lead" data-stage="{{ $lead->pipeline_stage }}" data-revenue="{{ (int) $lead->potensi_revenue }}">{{ $lead->company_name }} (Lead)</option>
                                     @endforeach
                                 </optgroup>
                                 <optgroup label="— Customer Existing —">
                                     @foreach($existingCustomers as $cust)
-                                        <option value="customer:{{ $cust->id }}" data-type="customer" data-stage="Maintaining">{{ $cust->company_name }} (Existing)</option>
+                                        <option value="customer:{{ $cust->id }}" data-type="customer" data-stage="Maintaining" data-revenue="{{ (int) ($revenueByCustomer[$cust->id] ?? 0) }}">{{ $cust->company_name }} (Existing)</option>
                                     @endforeach
                                 </optgroup>
                             </select>
@@ -58,6 +63,16 @@
                             @endforeach
                         </select>
                         <div class="form-text">Stage ini akan tersimpan di activity dan ikut mengupdate pipeline Lead/Customer terkait.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Potensi Revenue (Rp)</label>
+                        <input type="number" name="potensi_revenue" class="form-control shared-revenue-input"
+                            min="0" step="1" placeholder="Contoh: 50000000"
+                            value="{{ $activityContextRevenue !== null ? (int) $activityContextRevenue : '' }}">
+                        <div class="form-text shared-revenue-hint">
+                            Ikut memperbarui nilai Rp pada kartu &amp; total Pipeline. Kosongkan bila tidak ingin mengubah nilai yang sekarang.
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -121,6 +136,32 @@
 @push('scripts')
 <script>
 (function () {
+    /**
+     * Isi Potensi Revenue dengan nilai client terpilih supaya user melihat angka
+     * yang berlaku sekarang. Nilai yang sudah diketik manual tidak ditimpa.
+     */
+    function applyRevenue(form, option) {
+        var input = form.querySelector('.shared-revenue-input');
+        var hint = form.querySelector('.shared-revenue-hint');
+        if (!input) return;
+
+        if (!option) {
+            if (!input.dataset.touched) input.value = '';
+            return;
+        }
+
+        var current = option.dataset ? option.dataset.revenue : null;
+        if (current !== null && current !== undefined && !input.dataset.touched) {
+            input.value = parseInt(current, 10) > 0 ? parseInt(current, 10) : '';
+        }
+        if (hint) {
+            var nilai = parseInt(current || '0', 10);
+            hint.textContent = nilai > 0
+                ? 'Nilai sekarang Rp ' + nilai.toLocaleString('id-ID') + '. Ubah untuk memperbarui, atau kosongkan agar tetap.'
+                : 'Belum ada nilai. Isi untuk mulai menghitung potensi revenue client ini di Pipeline.';
+        }
+    }
+
     function applyStage(form) {
         if (!form) return;
         var $ = window.jQuery;
@@ -173,7 +214,10 @@
                     ? 'Customer existing: pilihan stage terbatas (Follow Up, Won, Maintaining).'
                     : 'Otomatis mengikuti pipeline terakhir client, tetapi masih bisa Anda ubah.';
             }
+
+            applyRevenue(form, opt);
         } else {
+            applyRevenue(form, null);
             // Reset: tampilkan kembali semua opsi.
             Array.prototype.forEach.call(stageSelect.options, function (o) {
                 o.hidden = false;
@@ -218,6 +262,11 @@
                 radio.addEventListener('change', togglePhoto);
             });
             togglePhoto();
+        });
+
+        // Tandai bila user mengetik sendiri, agar tidak ditimpa saat client diganti.
+        document.querySelectorAll('.shared-revenue-input').forEach(function (input) {
+            input.addEventListener('input', function () { input.dataset.touched = '1'; });
         });
 
         document.querySelectorAll('.shared-photo-input').forEach(function (input) {

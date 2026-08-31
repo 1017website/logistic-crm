@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\Lead;
 use App\Models\Customer;
 use App\Models\Activity;
+use App\Models\Invoice;
 use App\Models\RequestOrder;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -29,6 +30,19 @@ class DashboardController extends Controller
         $dealClosed  = Lead::where('pipeline_stage','Won')->whereBetween('updated_at', [$startMonth, $endMonth])->count();
         $totalLeads  = Lead::count();
         $conversionRate = $totalLeads > 0 ? round(($dealClosed / max($totalLeads, 1)) * 100, 1) : 0;
+
+        // Ringkasan keuangan keseluruhan hanya memakai invoice yang sudah diterbitkan.
+        // Draft tidak dihitung sebagai omzet/piutang, sedangkan piutang memakai grand
+        // total (termasuk PPN) setelah dikurangi seluruh pembayaran yang tercatat.
+        $totalTurnover = (float) Invoice::whereIn('status', ['invoice', 'termin', 'paid'])
+            ->sum('total_jual');
+        $receivableInvoices = Invoice::withSum('payments', 'amount')
+            ->whereIn('status', ['invoice', 'termin'])
+            ->get(['id', 'total_jual', 'grand_total']);
+        $totalReceivables = (float) $receivableInvoices->sum(function (Invoice $invoice) {
+            $invoiceTotal = (float) ($invoice->grand_total ?: $invoice->total_jual);
+            return max(0, $invoiceTotal - (float) ($invoice->payments_sum_amount ?? 0));
+        });
 
         // ── KPI bulan lalu (growth %) ──
         $doneDOsPrev    = RequestOrder::with('items')->whereBetween('order_date', [$startPrev, $endPrev])->where('status','Done')->where('currency','IDR')->get();
@@ -119,7 +133,7 @@ class DashboardController extends Controller
         }
 
         return view('dashboard.index', compact(
-            'revenue','totalDo','activeLeads','dealClosed','conversionRate',
+            'revenue','totalTurnover','totalReceivables','totalDo','activeLeads','dealClosed','conversionRate',
             'revenueGrowth','doGrowth','dealGrowth','leadsGrowth','prevLabel',
             'pipelineStages','todayReminders','recentActivities','topSales',
             'revenueChart','volumeChart','trendWon','trendLost'

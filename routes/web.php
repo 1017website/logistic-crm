@@ -52,6 +52,12 @@ Route::get('/documents/verify/{kind}/{id}', [DocumentVerificationController::cla
     ->middleware('signed:relative')
     ->name('documents.verify');
 
+// Tujuan publik QR tracking Surat Jalan. Signed URL mencegah ID diubah manual.
+Route::get('/tracking/surat-jalan/{deliveryOrder}', [DeliveryOrderController::class, 'track'])
+    ->whereNumber('deliveryOrder')
+    ->middleware('signed:relative')
+    ->name('delivery-orders.track');
+
 // ── Auth required ──────────────────────────────────
 Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
 
@@ -246,6 +252,8 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
         Route::get('/laporan-logistik/do/export', [LogisticReportController::class, 'doExport'])->name('logistic-reports.do.export');
         Route::get('/laporan-logistik/invoice', [LogisticReportController::class, 'invoice'])->name('logistic-reports.invoice');
         Route::get('/laporan-logistik/invoice/export', [LogisticReportController::class, 'invoiceExport'])->name('logistic-reports.invoice.export');
+        Route::get('/laporan-logistik/outstanding', [LogisticReportController::class, 'outstanding'])->name('logistic-reports.outstanding');
+        Route::get('/laporan-logistik/outstanding/export', [LogisticReportController::class, 'outstandingExport'])->name('logistic-reports.outstanding.export');
     });
 
     // ── Manager & Admin only ───────────────────────

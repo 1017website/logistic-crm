@@ -6,16 +6,27 @@
 @section('content')
 @php
     $u = auth()->user();
-    $canEditRequestPricing = $u->canAccess('request_item_pricing')
-        && $requestOrder->invoice_status === 'uninvoiced'
-        && $requestOrder->request_status === 'finance';
-    $canEditJobDetails = $u->canAccess('job_details')
-        && $requestOrder->invoice_status === 'uninvoiced'
-        && $requestOrder->request_status === 'finance';
+    // Aturan boleh-edit harga dipusatkan di model agar controller dan tampilan
+    // tidak pernah berbeda pendapat.
+    $canEditRequestPricing = $u->canAccess('request_item_pricing') && $requestOrder->pricing_editable;
+    $canEditJobDetails = $u->canAccess('job_details') && $requestOrder->pricing_editable;
     $itemRevenue = $requestOrder->items->sum(fn ($item) => $item->subtotal_revenue);
 @endphp
 @if(session('success'))<div class="alert alert-success py-2" style="font-size:13px">{{ session('success') }}</div>@endif
+@if(session('warning'))<div class="alert alert-warning py-2" style="font-size:13px"><i class="fas fa-exclamation-triangle me-2"></i>{{ session('warning') }}</div>@endif
 @foreach($errors->all() as $e)<div class="alert alert-danger py-2" style="font-size:13px">{{ $e }}</div>@endforeach
+@if($requestOrder->price_correction_open && $requestOrder->request_status === 'assigned')
+<div class="alert alert-warning py-2" style="font-size:13px">
+    <i class="fas fa-unlock me-2"></i><b>Koreksi harga dibuka.</b>
+    Finance dapat memperbaiki item layanan &amp; rincian pekerjaan. Setelah selesai, harga perlu di-approve ulang Sales Manager
+    karena DO tidak dapat ditutup selama harga belum disetujui.
+</div>
+@elseif($requestOrder->request_status === 'assigned' && !$requestOrder->do_approved)
+<div class="alert alert-warning py-2" style="font-size:13px">
+    <i class="fas fa-exclamation-triangle me-2"></i><b>Harga DO belum disetujui.</b>
+    DO tidak dapat ditutup sebelum harga di-approve. Bila harganya keliru, Sales Manager dapat menekan Unapprove untuk membuka koreksi harga.
+</div>
+@endif
 <div class="row g-3">
     {{-- ─────────── Kolom kiri: info & item ─────────── --}}
     <div class="col-lg-7">
@@ -116,6 +127,8 @@
                 @endif
                 @if($requestOrder->invoice_status !== 'uninvoiced')
                 <div class="alert alert-light border mt-2 mb-0 py-2" style="font-size:11px">Item dikunci karena Request DO sudah masuk invoice.</div>
+                @elseif($requestOrder->request_status === 'approval' && $canEditRequestPricing)
+                <div class="alert alert-warning mt-2 mb-0 py-2" style="font-size:11px"><i class="fas fa-rotate me-1"></i>Perubahan harga akan dicatat dan diajukan ulang ke Sales Manager.</div>
                 @endif
             </div>
         </div>
@@ -203,6 +216,7 @@
                 {{-- Approval DO --}}
                 @if($u->canAccess('approve_do'))
                 <div class="mt-3 pt-2 border-top">
+                    <div class="d-flex align-items-center flex-wrap gap-2">
                     @if($requestOrder->do_approved)
                         <span class="badge bg-success"><i class="fas fa-check me-1"></i> DO Disetujui (siap invoice)</span>
                         <form method="POST" action="{{ route('request-orders.approve-do', $requestOrder->id) }}" class="d-inline">
@@ -215,8 +229,30 @@
                             <button class="btn btn-sm btn-success" {{ $jobs->isEmpty() && $requestOrder->items->isEmpty() ? 'disabled' : '' }}>
                                 <i class="fas fa-check-double me-1"></i> Approve DO (Jual {{ idr($sumJual) }} / HPP {{ idr($sumBiaya) }})
                             </button>
-                            @if($jobs->isEmpty() && $requestOrder->items->isEmpty())<small class="text-muted ms-2">Accounting perlu mengisi layanan & harga dulu</small>@endif
                         </form>
+                    @endif
+                    @if($requestOrder->request_status === 'approval')
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#rejectDoPriceForm" aria-expanded="false" aria-controls="rejectDoPriceForm">
+                            <i class="fas fa-times-circle me-1"></i> Reject DO
+                        </button>
+                    @endif
+                    </div>
+                    @if(!$requestOrder->do_approved && $jobs->isEmpty() && $requestOrder->items->isEmpty())
+                        <small class="text-muted d-block mt-1">Accounting perlu mengisi layanan & harga dulu</small>
+                    @endif
+
+                    @if($requestOrder->request_status === 'approval')
+                    <div class="collapse mt-2 {{ old('action') === 'reject' ? 'show' : '' }}" id="rejectDoPriceForm">
+                        <form method="POST" action="{{ route('request-orders.approve-do', $requestOrder->id) }}" class="border rounded p-2 bg-light">
+                            @csrf
+                            <input type="hidden" name="action" value="reject">
+                            <label class="form-label mb-1" style="font-size:12px;font-weight:700">Alasan harga tidak benar <span class="text-danger">*</span></label>
+                            <textarea name="note" class="form-control form-control-sm mb-2" rows="2" maxlength="1000" required placeholder="Jelaskan harga/HPP yang harus diperbaiki oleh Finance">{{ old('action') === 'reject' ? old('note') : '' }}</textarea>
+                            <button class="btn btn-sm btn-danger" onclick="return confirm('Reject DO dan kembalikan ke Finance untuk perbaikan harga?')">
+                                <i class="fas fa-undo me-1"></i> Reject & Kembalikan ke Finance
+                            </button>
+                        </form>
+                    </div>
                     @endif
                 </div>
                 @endif
@@ -332,12 +368,18 @@
         </div>
         @endif
 
-        {{-- UPDATE DP setelah tahap Finance, tanpa mengubah flow Request DO --}}
+        {{-- UPDATE DP setelah tahap Finance; saat approval perubahan diajukan ulang --}}
         @if(in_array($requestOrder->request_status, ['approval', 'assigned']) && $u->canAccess('finance_dp_review') && $requestOrder->dp_request_active)
         <div class="card mb-3 border-info" id="dp-management">
             <div class="card-body p-3" x-data="{ dpStatus: '{{ old('dp_status', $requestOrder->dp_status === 'pending' ? '' : $requestOrder->dp_status) }}' }">
                 <h6 style="font-weight:700"><i class="fas fa-coins me-1 text-info"></i> {{ $requestOrder->dp_status === 'pending' ? 'Input DP' : 'Update DP' }}</h6>
-                <p class="text-muted" style="font-size:12px">Isi atau perbarui data DP. Penyimpanan ini tidak mengubah tahap flow Request DO.</p>
+                <p class="text-muted" style="font-size:12px">
+                    @if($requestOrder->request_status === 'approval')
+                        Isi atau perbarui data DP. Perubahan akan dicatat dan diajukan ulang ke Sales Manager.
+                    @else
+                        Isi atau perbarui data DP. Penyimpanan ini tidak mengubah tahap flow Request DO.
+                    @endif
+                </p>
                 <form method="POST" action="{{ route('request-orders.dp.update', $requestOrder) }}">
                     @csrf
                     <label class="form-label">Status DP <span class="text-danger">*</span></label>
@@ -353,7 +395,7 @@
                     </div>
                     <label class="form-label">Catatan Finance</label>
                     <textarea name="dp_note" class="form-control form-control-sm mb-2" rows="2" maxlength="1000" placeholder="Keterangan DP">{{ old('dp_note', $requestOrder->dp_note) }}</textarea>
-                    <button class="btn btn-info btn-sm w-100"><i class="fas fa-save me-1"></i> Simpan Data DP</button>
+                    <button class="btn btn-info btn-sm w-100"><i class="fas fa-save me-1"></i> {{ $requestOrder->request_status === 'approval' ? 'Simpan & Ajukan Ulang' : 'Simpan Data DP' }}</button>
                 </form>
             </div>
         </div>
@@ -531,7 +573,7 @@
                 </div>
                 <div><label class="form-label">Keterangan</label><textarea name="description" id="itemDescription" class="form-control form-control-sm" rows="2"></textarea></div>
             </div>
-            <div class="modal-footer"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button><button class="btn btn-sm btn-primary">Simpan</button></div>
+            <div class="modal-footer"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button><button class="btn btn-sm btn-primary">{{ $requestOrder->request_status === 'approval' ? 'Simpan & Ajukan Ulang' : 'Simpan' }}</button></div>
         </form>
     </div></div>
 </div>
@@ -611,7 +653,7 @@ function openEditItem(item) {
           <div class="mb-2"><label class="form-label">Catatan</label><textarea name="catatan" id="jobCatatan" class="form-control form-control-sm" rows="2"></textarea></div>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
-          <button class="btn btn-sm btn-primary">Simpan</button></div>
+          <button class="btn btn-sm btn-primary">{{ $requestOrder->request_status === 'approval' ? 'Simpan & Ajukan Ulang' : 'Simpan' }}</button></div>
       </form>
     </div>
   </div>

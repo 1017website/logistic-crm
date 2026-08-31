@@ -15,13 +15,40 @@ function growthBadge($val, $prev_label) {
 }
 @endphp
 <div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="kpi-card h-100">
+            <div class="kpi-icon" style="background:#e0f2fe">
+                <i class="fas fa-chart-line" style="color:#0369a1"></i>
+            </div>
+            <div>
+                <div class="kpi-label">Omzet Keseluruhan</div>
+                <div class="kpi-value">{{ idrm($totalTurnover) }}</div>
+                <div style="font-size:10px;color:#9ca3af;margin-top:2px">Nilai jual seluruh invoice terbit, sebelum PPN</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="kpi-card h-100">
+            <div class="kpi-icon" style="background:#fef3c7">
+                <i class="fas fa-file-invoice-dollar" style="color:#b45309"></i>
+            </div>
+            <div>
+                <div class="kpi-label">Total Piutang Keseluruhan</div>
+                <div class="kpi-value">{{ idrm($totalReceivables) }}</div>
+                <div style="font-size:10px;color:#9ca3af;margin-top:2px">Grand total invoice terbit dikurangi pembayaran masuk</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
     <div class="col-xl col-md-6">
         <div class="kpi-card">
             <div class="kpi-icon" style="background:#e5e5e5">
                 <i class="fas fa-dollar-sign" style="color:#111111"></i>
             </div>
             <div>
-                <div class="kpi-label">Revenue (Omzet)</div>
+                <div class="kpi-label">Omzet Bulan Ini</div>
                 <div class="kpi-value">{{ idrm($revenue) }}</div>
                 <div>{!! growthBadge($revenueGrowth, $prevLabel) !!}</div>
                 <div style="font-size:10px;color:#9ca3af;margin-top:2px">dari PO berstatus Done</div>

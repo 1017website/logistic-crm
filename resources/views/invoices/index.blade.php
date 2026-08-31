@@ -13,7 +13,7 @@
     {{-- Tabs + Tambah --}}
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <ul class="nav nav-pills" style="gap:6px">
-            @foreach(['draft'=>'Draft','invoice'=>'Invoice','paid'=>'Paid'] as $key=>$label)
+            @foreach(['draft'=>'Draft','invoice'=>'Invoice','paid'=>'Paid / Termin'] as $key=>$label)
             <li class="nav-item">
                 <a class="nav-link {{ $tab === $key ? 'active' : '' }}" style="padding:5px 16px;font-size:13px"
                    href="{{ route('invoices.index', array_merge(request()->query(), ['tab'=>$key])) }}">{{ $label }}</a>
@@ -48,71 +48,111 @@
         </div></div></div>
     </form>
 
-    {{-- Tabel --}}
+    {{-- Bundle invoice per customer --}}
     <div class="card"><div class="card-body p-0"><div class="table-responsive">
         <table class="table table-hover mb-0" style="font-size:13px">
             <thead style="background:#f8f9fa"><tr>
-                <th class="px-3 py-2">ID / No Invoice</th><th class="py-2">Buat / Tempo</th><th class="py-2">Customer</th><th class="py-2">Tipe / Pajak</th>
-                <th class="py-2 text-end">HPP</th><th class="py-2 text-end">Jual</th><th class="py-2 text-end">Laba</th>
-                <th class="py-2">Status</th>@if($tab==='invoice')<th class="py-2">Umur</th>@endif<th class="py-2"></th>
+                <th class="px-3 py-2">Customer</th>
+                <th class="py-2 text-center">Jumlah Invoice</th>
+                <th class="py-2 text-end">Total Tagihan</th>
+                <th class="py-2 text-end">Sudah Terbayar</th>
+                <th class="py-2 text-end">Belum Terbayar</th>
+                <th class="py-2 text-end">Total HPP</th>
+                <th class="py-2 text-center">Rincian</th>
             </tr></thead>
             <tbody>
-                @forelse($invoices as $inv)
-                <tr>
-                    <td class="px-3 py-2"><span style="font-weight:700;color:var(--primary)">{{ $inv->invoice_id }}</span><br>
-                        <span style="font-size:11px;color:#6b7280">{{ $inv->invoice_number }}</span></td>
-                    <td class="py-2" style="font-size:12px">{{ $inv->tgl_buat?->format('d M Y') }}<br>
-                        <span class="text-muted">Tempo: {{ $inv->tgl_tempo?->format('d M Y') ?? '-' }}</span></td>
-                    <td class="py-2">{{ $inv->customer?->company_name ?? '-' }}</td>
-                    <td class="py-2"><span class="badge bg-dark">{{ $inv->jenis_label }}</span><br>
-                        <small class="text-muted">{{ $inv->do_count }} DO · {{ $inv->items->count() }} komponen</small><br>
-                        <small class="text-muted">{{ (float)$inv->ppn_persen > 0 ? 'PPN '.rtrim(rtrim(number_format($inv->ppn_persen,2),'0'),'.').'%' : 'Non-PPN' }}</small></td>
-                    <td class="py-2 text-end">{{ idr($inv->total_hpp) }}</td>
-                    <td class="py-2 text-end">{{ idr($inv->total_jual) }}</td>
-                    <td class="py-2 text-end" style="color:#10b981">{{ idr($inv->laba) }}</td>
-                    <td class="py-2"><span class="badge bg-{{ $inv->status_color }}">{{ $inv->status_label }}</span></td>
-                    @if($tab==='invoice')
-                    <td class="py-2" style="font-size:12px">
-                        @php $um = $inv->umur_hari; @endphp
-                        @if($um !== null)<span style="color:{{ $um < 0 ? '#dc2626' : '#6b7280' }}">{{ $um }} hr</span>@else - @endif
+                @forelse($invoiceBundles as $bundle)
+                @php $collapseId = 'invoiceBundle'.$loop->index; @endphp
+                <tr style="background:#fff">
+                    <td class="px-3 py-3">
+                        <div style="font-weight:800;color:#111827">{{ $bundle['customer']?->company_name ?? 'Customer tidak tersedia' }}</div>
+                        <small class="text-muted">{{ $bundle['customer']?->customer_code ?? '-' }}</small>
                     </td>
-                    @endif
-                    <td class="py-2 text-nowrap">
-                        <a href="{{ route('invoices.show', $inv->id) }}" class="btn btn-sm btn-outline-primary" style="padding:3px 7px" title="Detail"><i class="fas fa-list"></i></a>
-                        <a href="{{ route('invoices.print', $inv->id) }}" target="_blank" class="btn btn-sm btn-outline-secondary" style="padding:3px 7px" title="Cetak"><i class="fas fa-print"></i></a>
-                        <a href="{{ route('invoices.pdf', $inv->id) }}" class="btn btn-sm btn-outline-danger" style="padding:3px 7px" title="Unduh PDF"><i class="fas fa-file-pdf"></i></a>
-                        <a href="{{ route('invoices.excel', $inv->id) }}" class="btn btn-sm btn-outline-success" style="padding:3px 7px" title="Unduh Excel rincian"><i class="fas fa-file-excel"></i></a>
-                        @if($inv->status==='draft')
-                        <form method="POST" action="{{ route('invoices.submit',$inv->id) }}" class="d-inline">@csrf<button class="btn btn-sm btn-outline-success" style="padding:3px 7px" title="Terbitkan"><i class="fas fa-paper-plane"></i></button></form>
-                        @elseif($inv->status==='invoice')
-                        <button class="btn btn-sm btn-outline-success" style="padding:3px 7px" title="Pencairan" data-bs-toggle="modal" data-bs-target="#payModal{{ $inv->id }}"><i class="fas fa-money-bill-wave"></i></button>
-                        @endif
-                        @if($u->canAccess('finance'))
-                        @include('components.delete-request-button', ['module'=>'invoices','id'=>$inv->id,'label'=>$inv->invoice_number ?? $inv->invoice_id,'pending'=>in_array($inv->id,$pendingDeletionIds ?? [])])
-                        @endif
+                    <td class="py-3 text-center"><span class="badge bg-dark">{{ $bundle['invoice_count'] }} invoice</span></td>
+                    <td class="py-3 text-end" style="font-weight:700">{{ idr($bundle['total_invoice']) }}</td>
+                    <td class="py-3 text-end" style="font-weight:700;color:#059669">{{ idr($bundle['total_paid']) }}</td>
+                    <td class="py-3 text-end" style="font-weight:700;color:{{ $bundle['outstanding'] > 0 ? '#dc2626' : '#059669' }}">{{ idr($bundle['outstanding']) }}</td>
+                    <td class="py-3 text-end">{{ idr($bundle['total_hpp']) }}</td>
+                    <td class="py-3 text-center">
+                        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#{{ $collapseId }}" aria-expanded="false" aria-controls="{{ $collapseId }}">
+                            <i class="fas fa-chevron-down me-1"></i> Lihat Invoice
+                        </button>
                     </td>
                 </tr>
+                <tr class="collapse" id="{{ $collapseId }}"><td colspan="7" class="p-0" style="background:#f8fafc">
+                    <div class="p-3">
+                        <div class="table-responsive"><table class="table table-sm table-bordered bg-white mb-0" style="font-size:12px">
+                            <thead><tr>
+                                <th>ID / No Invoice</th><th>Buat / Tempo</th><th>Tipe / Pajak</th>
+                                <th class="text-end">HPP</th><th class="text-end">Tagihan</th><th class="text-end">Laba</th>
+                                <th>Status Pembayaran</th><th>Umur</th><th>Aksi</th>
+                            </tr></thead>
+                            <tbody>@foreach($bundle['invoices'] as $inv)
+                            <tr>
+                                <td><a href="{{ route('invoices.show', $inv) }}" style="font-weight:700">{{ $inv->invoice_id }}</a><br><small class="text-muted">{{ $inv->invoice_number }}</small></td>
+                                <td>{{ $inv->tgl_buat?->format('d M Y') ?? '-' }}<br><small class="text-muted">Tempo: {{ $inv->tgl_tempo?->format('d M Y') ?? '-' }}</small></td>
+                                <td><span class="badge bg-dark">{{ $inv->jenis_label }}</span><br><small>{{ (float)$inv->ppn_persen > 0 ? 'PPN '.rtrim(rtrim(number_format($inv->ppn_persen,2),'0'),'.').'%' : 'Non-PPN' }} · {{ $inv->do_count }} DO</small></td>
+                                <td class="text-end">{{ idr($inv->total_hpp) }}</td>
+                                <td class="text-end" style="font-weight:700">{{ idr($inv->grand_total ?: $inv->total_jual) }}</td>
+                                <td class="text-end text-success">{{ idr($inv->laba) }}</td>
+                                <td><span class="badge bg-{{ $inv->status_color }}">{{ $inv->status_label }}</span><br><small class="text-success">Terbayar {{ idr($inv->total_paid) }}</small><br><small class="text-danger">Sisa {{ idr($inv->outstanding) }}</small></td>
+                                <td>@php $um = $inv->umur_hari; @endphp @if($um !== null)<span style="color:{{ $um < 0 ? '#dc2626' : '#6b7280' }}">{{ $um }} hr</span>@else - @endif</td>
+                                <td class="text-nowrap">
+                                    <a href="{{ route('invoices.show', $inv) }}" class="btn btn-sm btn-outline-primary" style="padding:3px 7px" title="Detail"><i class="fas fa-list"></i></a>
+                                    <a href="{{ route('invoices.print', $inv) }}" target="_blank" class="btn btn-sm btn-outline-secondary" style="padding:3px 7px" title="Cetak"><i class="fas fa-print"></i></a>
+                                    <a href="{{ route('invoices.pdf', $inv) }}" class="btn btn-sm btn-outline-danger" style="padding:3px 7px" title="Unduh PDF"><i class="fas fa-file-pdf"></i></a>
+                                    <a href="{{ route('invoices.excel', $inv) }}" class="btn btn-sm btn-outline-success" style="padding:3px 7px" title="Unduh Excel"><i class="fas fa-file-excel"></i></a>
+                                    @if($inv->status==='draft')
+                                    <form method="POST" action="{{ route('invoices.submit',$inv) }}" class="d-inline">@csrf<button class="btn btn-sm btn-outline-success" style="padding:3px 7px" title="Terbitkan"><i class="fas fa-paper-plane"></i></button></form>
+                                    @elseif(in_array($inv->status, ['invoice', 'termin'], true))
+                                    <button class="btn btn-sm btn-outline-success" style="padding:3px 7px" title="Catat pembayaran" data-bs-toggle="modal" data-bs-target="#payModal{{ $inv->id }}"><i class="fas fa-money-bill-wave"></i></button>
+                                    @endif
+                                    @if($u->canAccess('finance'))
+                                    @include('components.delete-request-button', ['module'=>'invoices','id'=>$inv->id,'label'=>$inv->invoice_number ?? $inv->invoice_id,'pending'=>in_array($inv->id,$pendingDeletionIds ?? [])])
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach</tbody>
+                        </table></div>
+                    </div>
+                </td></tr>
                 @empty
-                <tr><td colspan="{{ $tab === 'invoice' ? 10 : 9 }}" class="text-center py-4 text-muted">Tidak ada invoice pada tab ini.</td></tr>
+                <tr><td colspan="7" class="text-center py-4 text-muted">Tidak ada invoice pada tab ini.</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div></div></div>
-    <div class="mt-3">{{ $invoices->links() }}</div>
+    <div class="mt-3">{{ $invoiceBundles->links() }}</div>
 </div></div>
 
-{{-- Modal pencairan per invoice --}}
-@foreach($invoices as $inv)
-@if($inv->status==='invoice')
+{{-- Modal pembayaran per invoice --}}
+@foreach($listedInvoices as $inv)
+@if(in_array($inv->status, ['invoice', 'termin'], true))
 <div class="modal fade" id="payModal{{ $inv->id }}" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
     <form method="POST" action="{{ route('invoices.pay',$inv->id) }}">@csrf
-        <div class="modal-header"><h6 class="modal-title">Pencairan {{ $inv->invoice_number }}</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-header"><h6 class="modal-title">Pembayaran {{ $inv->invoice_number }}</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body" style="font-size:13px">
-            <p>Nilai: <b>{{ idr($inv->grand_total ?: $inv->total_jual) }}</b></p>
-            <label class="form-label">Tanggal Pencairan</label>
-            <input type="date" name="tgl_pencairan" class="form-control form-control-sm" value="{{ now()->toDateString() }}" required>
+            <div class="row g-2 mb-3">
+                <div class="col-4">Tagihan<br><b>{{ idr($inv->grand_total ?: $inv->total_jual) }}</b></div>
+                <div class="col-4">Terbayar<br><b class="text-success">{{ idr($inv->total_paid) }}</b></div>
+                <div class="col-4">Sisa<br><b class="text-danger">{{ idr($inv->outstanding) }}</b></div>
+            </div>
+            <label class="form-label">Jenis Pembayaran</label>
+            <select name="payment_type" class="form-select form-select-sm mb-2 payment-type" data-amount-target="payAmount{{ $inv->id }}" required>
+                <option value="termin">Pembayaran Titip / Termin</option>
+                <option value="pelunasan">Pelunasan seluruh sisa</option>
+            </select>
+            <div id="payAmount{{ $inv->id }}" class="payment-amount-wrap">
+                <label class="form-label">Nominal Termin</label>
+                <input type="number" name="amount" min="1" max="{{ max(1, $inv->outstanding - 1) }}" class="form-control form-control-sm mb-2" placeholder="Masukkan nominal pembayaran" required>
+                <small class="text-muted d-block mb-2">Harus lebih kecil dari sisa tagihan. Untuk membayar seluruh sisa, pilih Pelunasan.</small>
+            </div>
+            <label class="form-label">Tanggal Pembayaran</label>
+            <input type="date" name="tgl_pencairan" class="form-control form-control-sm mb-2" value="{{ now()->toDateString() }}" required>
+            <label class="form-label">Catatan</label>
+            <textarea name="note" class="form-control form-control-sm" rows="2" placeholder="Opsional"></textarea>
         </div>
-        <div class="modal-footer"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button><button class="btn btn-sm btn-success">Tandai Lunas</button></div>
+        <div class="modal-footer"><button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button><button class="btn btn-sm btn-success">Simpan Pembayaran</button></div>
     </form>
 </div></div></div>
 @endif
@@ -126,12 +166,16 @@
             <div class="row g-2 mb-2">
                 <div class="col-md-5"><label class="form-label">Customer</label>
                     <select name="customer_id" id="invCustomer" class="form-select form-select-sm no-select2" required>
-                        <option value="">— Pilih Customer —</option>
-                        @foreach($customers as $c)<option value="{{ $c->id }}">{{ $c->company_name }} @if($c->invoice_code)({{ $c->invoice_code }})@elseif($c->customer_code)({{ $c->customer_code }})@endif</option>@endforeach
+                        <option value="">{{ $invoiceCustomers->isEmpty() ? '— Belum ada customer dengan DO Closed siap tagih —' : '— Pilih Customer —' }}</option>
+                        @foreach($invoiceCustomers as $c)<option value="{{ $c->id }}" data-top-days="{{ $c->effective_top_days }}">{{ $c->company_name }} @if($c->invoice_code)({{ $c->invoice_code }})@elseif($c->customer_code)({{ $c->customer_code }})@endif</option>@endforeach
                     </select>
+                    <small class="text-muted">Hanya customer dengan DO Closed yang masih memiliki komponen belum diinvoice.</small>
                 </div>
-                <div class="col-md-3"><label class="form-label">Tgl Buat</label><input type="date" name="tgl_buat" class="form-control form-control-sm" value="{{ now()->toDateString() }}" required></div>
-                <div class="col-md-4"><label class="form-label">Tgl Tempo</label><input type="date" name="tgl_tempo" class="form-control form-control-sm" value="{{ now()->addDays(30)->toDateString() }}"></div>
+                <div class="col-md-3"><label class="form-label">Tgl Buat</label><input type="date" name="tgl_buat" id="invTglBuat" class="form-control form-control-sm" value="{{ now()->toDateString() }}" required></div>
+                <div class="col-md-4"><label class="form-label">Tgl Tempo</label>
+                    <input type="date" name="tgl_tempo" id="invTglTempo" class="form-control form-control-sm" value="{{ now()->addDays(\App\Models\Customer::defaultTopDays())->toDateString() }}">
+                    <small class="text-muted" id="invTopHint">Terisi otomatis dari TOP customer. Bisa diubah manual.</small>
+                </div>
             </div>
             <div class="row g-2 mb-3">
                 <div class="col-md-4">
@@ -140,13 +184,24 @@
                     <div class="form-control form-control-sm bg-light">Otomatis dipisah: Invoice TR dan Invoice Non-TR</div>
                     <small class="text-muted">Masing-masing invoice tetap dapat berisi banyak DO customer yang sama.</small>
                 </div>
-                <div class="col-md-3"><label class="form-label">Pajak</label><select name="ppn_mode" id="ppnMode" class="form-select form-select-sm" required><option value="non_ppn">Non-PPN</option><option value="ppn">PPN</option></select></div>
-                <div class="col-md-2" id="ppnPercentWrap" style="display:none"><label class="form-label">PPN</label><div class="input-group input-group-sm"><input type="number" step="0.01" min="0.01" max="100" name="ppn_persen" id="ppnPercent" class="form-control" value="11"><span class="input-group-text">%</span></div></div>
+                <div class="col-md-3">
+                    <label class="form-label">Jenis yang dikenakan PPN</label>
+                    <div class="d-flex gap-3 pt-1">
+                        <div class="form-check"><input class="form-check-input ppn-type" type="checkbox" name="ppn_types[]" id="ppnTypeTR" value="TR"><label class="form-check-label" for="ppnTypeTR">TR</label></div>
+                        <div class="form-check"><input class="form-check-input ppn-type" type="checkbox" name="ppn_types[]" id="ppnTypeNTR" value="NTR"><label class="form-check-label" for="ppnTypeNTR">Non-TR</label></div>
+                    </div>
+                </div>
+                <div class="col-md-2" id="ppnPercentWrap" style="display:none"><label class="form-label">Tarif PPN</label>
+                    <div class="d-flex gap-2 pt-1">
+                        <div class="form-check"><input class="form-check-input ppn-percent" type="radio" name="ppn_persen" id="ppn11" value="11" checked><label class="form-check-label" for="ppn11">11%</label></div>
+                        <div class="form-check"><input class="form-check-input ppn-percent" type="radio" name="ppn_persen" id="ppn11Kecil" value="1.1"><label class="form-check-label" for="ppn11Kecil">1,1%</label></div>
+                    </div>
+                </div>
                 <div class="col-md-3"><label class="form-label">Catatan</label><input type="text" name="notes" class="form-control form-control-sm" placeholder="Opsional"></div>
             </div>
             <div class="mb-2">
                 <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
-                    <label class="form-label mb-0">Pilih beberapa DO siap tagih <small class="text-muted">(customer yang sama, setelah file POD diunggah)</small></label>
+                    <label class="form-label mb-0">Pilih beberapa DO siap tagih <small class="text-muted">(customer yang sama, setelah DO ditutup)</small></label>
                     <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllDosBtn" disabled>Pilih Semua DO</button>
                 </div>
                 <div id="doListWrap" class="border rounded p-2" style="max-height:320px;overflow:auto">
@@ -165,6 +220,18 @@
 </div></div></div>
 
 <script>
+document.querySelectorAll('.payment-type').forEach(select => {
+    const toggleAmount = () => {
+        const wrap = document.getElementById(select.dataset.amountTarget);
+        const input = wrap?.querySelector('input[name="amount"]');
+        const isTermin = select.value === 'termin';
+        if (wrap) wrap.style.display = isTermin ? '' : 'none';
+        if (input) input.required = isTermin;
+    };
+    select.addEventListener('change', toggleAmount);
+    toggleAmount();
+});
+
 const availUrl = "{{ route('invoices.available-dos') }}";
 const fmtRp = n => 'Rp ' + Number(n||0).toLocaleString('id-ID');
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -183,7 +250,7 @@ async function loadAvailableDos(customerId){
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const dos = await res.json();
         if (!dos.length) {
-            wrap.innerHTML = '<div class="text-muted small">Tidak ada komponen DO siap tagih.<br>DO baru muncul setelah harga disetujui dan <b>file POD sudah diunggah</b>. Status Sampai Tujuan atau Menunggu Upload POD belum dapat ditagih. Komponen yang sudah masuk invoice tidak dapat dipilih ulang.</div>';
+            wrap.innerHTML = '<div class="text-muted small">Tidak ada komponen DO siap tagih.<br>Draft invoice normalnya dibuat otomatis setelah harga disetujui dan <b>DO ditutup</b>. Komponen yang sudah masuk invoice tidak dapat dipilih ulang.</div>';
             const selectAll = document.getElementById('selectAllDosBtn'); if (selectAll) selectAll.disabled = true;
             recalcInv(); return;
         }
@@ -218,17 +285,38 @@ async function loadAvailableDos(customerId){
 // #invCustomer kini native (no-select2) → event change pasti jalan.
 const _invCust = document.getElementById('invCustomer');
 if (_invCust) {
-    _invCust.addEventListener('change', function(){ loadAvailableDos(this.value); });
+    _invCust.addEventListener('change', function(){
+        loadAvailableDos(this.value);
+        applyCustomerTop();
+    });
 }
-const _ppnMode = document.getElementById('ppnMode');
+
+// Tgl Tempo mengikuti TOP customer terpilih; tetap dapat ditimpa manual.
+function applyCustomerTop() {
+    const select = document.getElementById('invCustomer');
+    const tglBuat = document.getElementById('invTglBuat');
+    const tglTempo = document.getElementById('invTglTempo');
+    const hint = document.getElementById('invTopHint');
+    if (!select || !tglBuat || !tglTempo) return;
+
+    const option = select.options[select.selectedIndex];
+    const topDays = parseInt(option?.dataset?.topDays ?? '', 10);
+    if (!tglBuat.value || isNaN(topDays)) return;
+
+    const due = new Date(tglBuat.value + 'T00:00:00');
+    due.setDate(due.getDate() + topDays);
+    tglTempo.value = due.toISOString().slice(0, 10);
+    if (hint) hint.textContent = 'TOP ' + topDays + ' hari dari tanggal invoice. Bisa diubah manual.';
+}
+document.getElementById('invTglBuat')?.addEventListener('change', applyCustomerTop);
+const _ppnTypes = [...document.querySelectorAll('.ppn-type')];
 function togglePpnInput(){
-    const taxable = _ppnMode?.value === 'ppn';
+    const taxable = _ppnTypes.some(input => input.checked);
     const wrap = document.getElementById('ppnPercentWrap');
-    const input = document.getElementById('ppnPercent');
     if (wrap) wrap.style.display = taxable ? '' : 'none';
-    if (input) input.required = taxable;
+    document.querySelectorAll('.ppn-percent').forEach(input => input.required = taxable);
 }
-_ppnMode?.addEventListener('change', togglePpnInput);
+_ppnTypes.forEach(input => input.addEventListener('change', togglePpnInput));
 togglePpnInput();
 // Saat modal dibuka, muat ulang sesuai customer yang sedang terpilih.
 if (window.jQuery) {

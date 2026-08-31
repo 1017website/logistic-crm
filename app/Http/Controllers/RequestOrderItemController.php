@@ -13,8 +13,9 @@ class RequestOrderItemController extends Controller
         $this->ensureEditable($requestOrder);
         $requestOrder->items()->create($this->validateData($request));
         $requestOrder->update(['do_approved' => false]);
+        $resubmitted = $this->resubmitIfAwaitingManager($requestOrder, 'Item layanan dan harga ditambahkan');
 
-        return back()->with('success', 'Item layanan dan harga berhasil ditambahkan.');
+        return back()->with('success', 'Item layanan dan harga berhasil ditambahkan.' . $resubmitted);
     }
 
     public function update(Request $request, RequestOrderItem $requestOrderItem)
@@ -23,8 +24,9 @@ class RequestOrderItemController extends Controller
         $this->ensureEditable($requestOrder);
         $requestOrderItem->update($this->validateData($request));
         $requestOrder->update(['do_approved' => false]);
+        $resubmitted = $this->resubmitIfAwaitingManager($requestOrder, 'Item layanan dan harga diperbarui');
 
-        return back()->with('success', 'Item layanan dan harga berhasil diperbarui.');
+        return back()->with('success', 'Item layanan dan harga berhasil diperbarui.' . $resubmitted);
     }
 
     public function destroy(RequestOrderItem $requestOrderItem)
@@ -33,8 +35,9 @@ class RequestOrderItemController extends Controller
         $this->ensureEditable($requestOrder);
         $requestOrderItem->delete();
         $requestOrder->update(['do_approved' => false]);
+        $resubmitted = $this->resubmitIfAwaitingManager($requestOrder, 'Item layanan dihapus');
 
-        return back()->with('success', 'Item layanan berhasil dihapus.');
+        return back()->with('success', 'Item layanan berhasil dihapus.' . $resubmitted);
     }
 
     private function validateData(Request $request): array
@@ -58,9 +61,30 @@ class RequestOrderItemController extends Controller
             'Item layanan tidak dapat diubah karena Request DO sudah masuk invoice.'
         );
         abort_if(
-            $requestOrder->request_status !== 'finance',
+            !$requestOrder->pricing_editable,
             422,
-            'Item layanan dan harga hanya dapat diubah pada tahap review Finance.'
+            'Item layanan dan harga hanya dapat diubah pada tahap review Finance, saat menunggu approval Sales Manager, atau setelah Sales Manager membuka kunci koreksi harga.'
         );
+    }
+
+    private function resubmitIfAwaitingManager(RequestOrder $requestOrder, string $action): string
+    {
+        $actor = auth()->user()->name;
+
+        if ($requestOrder->resubmitManagerApproval(
+            $action . ' oleh ' . $actor . ' dan diajukan ulang ke Sales Manager.',
+            auth()->id()
+        )) {
+            return ' Perubahan diajukan ulang ke Sales Manager.';
+        }
+
+        if ($requestOrder->notifyPriceCorrection(
+            $action . ' oleh ' . $actor . ' lewat jalur koreksi harga.',
+            auth()->id()
+        )) {
+            return ' Harga menunggu approve ulang Sales Manager.';
+        }
+
+        return '';
     }
 }

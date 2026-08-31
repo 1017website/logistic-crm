@@ -197,6 +197,14 @@
                             <input type="text" name="company_signatory_title" class="form-control"
                                 value="{{ $settings['company_signatory_title'] ?? 'Direktur' }}" placeholder="Direktur">
                         </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Default TOP Invoice (hari)</label>
+                            <input type="number" name="invoice_default_top_days" class="form-control" min="1" max="365"
+                                value="{{ $settings['invoice_default_top_days'] ?? \App\Models\Customer::FALLBACK_TOP_DAYS }}">
+                            <div class="form-text" style="font-size:.7rem">
+                                Dipakai saat customer belum punya TOP sendiri. Menentukan jatuh tempo invoice &amp; umur piutang.
+                            </div>
+                        </div>
                     </div>
 
                     {{-- Branding --}}

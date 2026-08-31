@@ -13,7 +13,9 @@
                 <i class="fas fa-download me-1"></i> Export Excel
             </a>
             <div class="d-flex gap-3 flex-wrap">
-                @foreach([[$volumeDo, 'Volume DO', '#111'], [$revenue, 'Revenue', '#111'], [$grossProfit, 'Gross Profit', '#10b981']] as $s)
+                {{-- KPI di sini memakai biaya aktual DO final; Laporan DO memisahkan
+                     HPP Rencana & HPP Aktual, jadi labelnya dibuat eksplisit. --}}
+                @foreach([[$volumeDo, 'Volume DO', '#111'], [$revenue, 'Revenue', '#111'], [$totalCost, 'HPP Aktual', '#111'], [$grossProfit, 'Gross Profit (Aktual)', '#10b981']] as $s)
                 <div class="text-center {{ !$loop->first ? 'ps-3' : '' }}" style="{{ !$loop->first ? 'border-left:1px solid var(--border-color)' : '' }}">
                     <div style="font-size:{{ $loop->index >= 1 ? '1rem' : '1.2rem' }};font-weight:800;color:{{ $s[2] }}">
                         {{ $loop->index >= 1 ? idr($s[0]) : $s[0] }}

@@ -38,17 +38,13 @@
     </form>
 
     {{-- Ringkasan --}}
-    @php
-        $col = $invoices->getCollection();
-        $sumJual = $col->sum(fn($i)=>(float)$i->total_jual);
-        $sumHpp  = $col->sum(fn($i)=>(float)$i->total_hpp);
-        $sumLaba = $sumJual - $sumHpp;
-    @endphp
     <div class="d-flex gap-3 mb-3 flex-wrap" style="font-size:13px">
-        <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">Jml Invoice</div><div style="font-weight:800">{{ $invoices->total() }}</div></div></div>
-        <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">Harga Jual</div><div style="font-weight:800;color:var(--primary)">{{ idr($sumJual) }}</div></div></div>
+        <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">Jml Invoice</div><div style="font-weight:800">{{ $invoiceCount }}</div></div></div>
         <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">HPP</div><div style="font-weight:800">{{ idr($sumHpp) }}</div></div></div>
+        <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">Harga Jual</div><div style="font-weight:800;color:var(--primary)">{{ idr($sumJual) }}</div></div></div>
         <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">Laba</div><div style="font-weight:800;color:#16a34a">{{ idr($sumLaba) }}</div></div></div>
+        <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">Terbayar</div><div style="font-weight:800;color:#16a34a">{{ idr($sumPaid) }}</div></div></div>
+        <div class="card flex-fill"><div class="card-body py-2 text-center"><div class="text-muted" style="font-size:11px">Outstanding Belum Terbayar</div><div style="font-weight:800;color:#dc2626">{{ idr($sumOutstanding) }}</div></div></div>
     </div>
 
     {{-- Tabel --}}
@@ -56,8 +52,8 @@
         <table class="table table-hover mb-0" style="font-size:12px">
             <thead style="background:#f8f9fa"><tr>
                 <th class="px-3 py-2">No Urut Inv</th><th class="py-2">Submit</th><th class="py-2">No Invoice</th>
-                <th class="py-2">Customer</th><th class="py-2 text-end">Harga Jual</th><th class="py-2 text-end">HPP</th>
-                <th class="py-2 text-end">Laba</th><th class="py-2">Due Date</th><th class="py-2 text-center">Hari</th><th class="py-2">Status</th>
+                <th class="py-2">Customer</th><th class="py-2 text-end">HPP</th><th class="py-2 text-end">Harga Jual</th>
+                <th class="py-2 text-end">Laba</th><th class="py-2 text-end">Terbayar</th><th class="py-2 text-end">Outstanding</th><th class="py-2">Due Date</th><th class="py-2 text-center">Hari</th><th class="py-2">Status</th>
             </tr></thead>
             <tbody>
                 @forelse($invoices as $inv)
@@ -66,9 +62,11 @@
                     <td class="py-2">{{ $inv->tgl_buat?->format('d M Y') }}</td>
                     <td class="py-2" style="font-size:11px">{{ $inv->invoice_number }}</td>
                     <td class="py-2">{{ $inv->customer?->company_name ?? '-' }}</td>
-                    <td class="py-2 text-end">{{ idr($inv->total_jual) }}</td>
                     <td class="py-2 text-end">{{ idr($inv->total_hpp) }}</td>
+                    <td class="py-2 text-end">{{ idr($inv->total_jual) }}</td>
                     <td class="py-2 text-end" style="color:#16a34a">{{ idr($inv->laba) }}</td>
+                    <td class="py-2 text-end text-success">{{ idr($inv->total_paid) }}</td>
+                    <td class="py-2 text-end text-danger">{{ idr($inv->outstanding) }}</td>
                     <td class="py-2">{{ $inv->tgl_tempo?->format('d M Y') ?? '-' }}</td>
                     <td class="py-2 text-center">
                         @php $um = $inv->umur_hari; @endphp
@@ -79,12 +77,12 @@
                     <td class="py-2"><span class="badge bg-{{ $inv->status_color }}">{{ $inv->status_label }}</span></td>
                 </tr>
                 @empty
-                <tr><td colspan="10" class="text-center py-4 text-muted">Tidak ada data.</td></tr>
+                <tr><td colspan="12" class="text-center py-4 text-muted">Tidak ada data.</td></tr>
                 @endforelse
             </tbody>
         </table>
     </div></div></div>
     <div class="mt-3">{{ $invoices->links() }}</div>
-    <p class="text-muted mt-2" style="font-size:11px">Kolom "Hari" = sisa hari ke jatuh tempo (negatif = lewat tempo).</p>
+    <p class="text-muted mt-2" style="font-size:11px">Outstanding = grand total invoice (termasuk PPN) dikurangi pembayaran masuk. Kolom "Hari" = sisa hari ke jatuh tempo (negatif = lewat tempo).</p>
 </div></div>
 @endsection

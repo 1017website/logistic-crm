@@ -188,7 +188,7 @@
                                                 <i class="fas fa-stream"></i>
                                             </a>
                                             @if(!in_array($po->request_status, ['assigned']))
-                                            <button class="btn btn-sm btn-outline-secondary" style="padding:3px 7px" onclick="openEditPo({{ $po->id }})">
+                                            <button class="btn btn-sm btn-outline-secondary" style="padding:3px 7px" onclick="openEditPo({{ $po->id }})" title="{{ $po->request_status === 'approval' ? 'Edit & ajukan ulang' : 'Edit Request DO' }}">
                                                 <i class="fas fa-pencil-alt"></i>
                                             </button>
                                             @endif
@@ -556,7 +556,7 @@
                 <div class="modal-header">
                     <div>
                         <h6 class="modal-title fw-bold mb-1">Edit Request DO — <span id="editPoNumber"></span></h6>
-                        <div class="text-muted" style="font-size:.75rem">Perbarui data utama, rute, atau detail operasional Request DO.</div>
+                        <div class="text-muted" id="editPoHelp" style="font-size:.75rem">Perbarui data utama, rute, atau detail operasional Request DO.</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -709,7 +709,7 @@
                     <div class="modal-footer">
                         <div class="request-footer-note"><i class="fas fa-circle-info me-1"></i>Item layanan dan harga dikelola Accounting dari halaman detail.</div>
                         <button type="button" class="btn btn-light btn-sm ms-auto" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-primary btn-sm">Simpan Perubahan</button>
+                        <button type="submit" class="btn btn-primary btn-sm" id="editPoSubmit">Simpan Perubahan</button>
                     </div>
                 </form>
             </div>
@@ -1070,6 +1070,15 @@
 
                 document.getElementById('editDoForm').action = `/request-orders/${id}`;
                 document.getElementById('editPoNumber').textContent = po.do_number;
+                const awaitingManager = po.request_status === 'approval';
+                const editForm = document.getElementById('editDoForm');
+                editForm.dataset.awaitingManager = awaitingManager ? '1' : '0';
+                document.getElementById('editPoHelp').textContent = awaitingManager
+                    ? 'Request sedang menunggu approval. Perubahan akan dicatat dan diajukan ulang ke Sales Manager.'
+                    : 'Perbarui data utama, rute, atau detail operasional Request DO.';
+                document.getElementById('editPoSubmit').textContent = awaitingManager
+                    ? 'Simpan & Ajukan Ulang'
+                    : 'Simpan Perubahan';
 
                 document.getElementById('epNotes').value    = po.notes || '';
                 if (document.getElementById('epOrigin')) document.getElementById('epOrigin').value = po.origin || '';

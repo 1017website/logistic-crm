@@ -188,7 +188,7 @@ class RequestOrderController extends Controller
 
         $request->validate($this->rules());
 
-        DB::transaction(function () use ($request, $requestOrder) {
+        $wasResubmitted = DB::transaction(function () use ($request, $requestOrder) {
             $requestOrder->update([
                 'customer_id'    => $request->customer_id,
                 'lead_id'        => $request->lead_id,
@@ -205,9 +205,18 @@ class RequestOrderController extends Controller
                 'notes'          => $request->notes,
             ] + $this->operationalFields($request));
 
+            return $requestOrder->resubmitManagerApproval(
+                'Data utama Request DO diperbarui oleh ' . auth()->user()->name . ' dan diajukan ulang ke Sales Manager.',
+                auth()->id()
+            );
         });
 
-        return redirect()->route('request-orders.index')->with('success', 'Request DO berhasil diperbarui.');
+        return redirect()->route('request-orders.index')->with(
+            'success',
+            $wasResubmitted
+                ? 'Request DO berhasil diperbarui & diajukan ulang ke Sales Manager.'
+                : 'Request DO berhasil diperbarui.'
+        );
     }
 
     // ─────────────────── VERIFIKASI (Sales Admin) ───────────────────
@@ -342,15 +351,27 @@ class RequestOrderController extends Controller
             ]);
         }
 
-        $requestOrder->update([
-            'dp_status'      => $validated['dp_status'],
-            'dp_amount'      => $validated['dp_amount'],
-            'dp_note'        => $validated['dp_note'] ?? null,
-            'dp_reviewed_by' => auth()->id(),
-            'dp_reviewed_at' => now(),
-        ]);
+        $wasResubmitted = DB::transaction(function () use ($requestOrder, $validated) {
+            $requestOrder->update([
+                'dp_status'      => $validated['dp_status'],
+                'dp_amount'      => $validated['dp_amount'],
+                'dp_note'        => $validated['dp_note'] ?? null,
+                'dp_reviewed_by' => auth()->id(),
+                'dp_reviewed_at' => now(),
+            ]);
 
-        return back()->with('success', 'Data DP berhasil diperbarui tanpa mengubah tahap flow Request DO.');
+            return $requestOrder->resubmitManagerApproval(
+                'Data DP diperbarui oleh ' . auth()->user()->name . ' dan diajukan ulang ke Sales Manager.',
+                auth()->id()
+            );
+        });
+
+        return back()->with(
+            'success',
+            $wasResubmitted
+                ? 'Data DP berhasil diperbarui & diajukan ulang ke Sales Manager.'
+                : 'Data DP berhasil diperbarui tanpa mengubah tahap flow Request DO.'
+        );
     }
 
     /** Aktif/nonaktifkan kebutuhan DP tanpa menghapus histori review Finance. */
@@ -362,24 +383,36 @@ class RequestOrderController extends Controller
         ]);
 
         $active = (bool) $data['active'];
-        $requestOrder->update([
-            'dp_request_active' => $active,
-            'dp_status' => $active ? ($requestOrder->dp_status ?: 'pending') : 'not_taken',
-            'dp_amount' => $active ? $requestOrder->dp_amount : 0,
-            'dp_note' => $data['note'] ?: ($active ? 'Request DP diaktifkan kembali.' : 'Request DP dinonaktifkan.'),
-            'dp_reviewed_by' => auth()->id(),
-            'dp_reviewed_at' => now(),
-        ]);
+        $wasResubmitted = DB::transaction(function () use ($requestOrder, $data, $active) {
+            $requestOrder->update([
+                'dp_request_active' => $active,
+                'dp_status' => $active ? ($requestOrder->dp_status ?: 'pending') : 'not_taken',
+                'dp_amount' => $active ? $requestOrder->dp_amount : 0,
+                'dp_note' => $data['note'] ?: ($active ? 'Request DP diaktifkan kembali.' : 'Request DP dinonaktifkan.'),
+                'dp_reviewed_by' => auth()->id(),
+                'dp_reviewed_at' => now(),
+            ]);
 
-        \App\Models\OrderStatusLog::record(
-            $requestOrder,
-            null,
-            $active ? 'dp_activated' : 'dp_deactivated',
-            auth()->id(),
-            $data['note'] ?: ($active ? 'Request DP diaktifkan.' : 'Request DP dinonaktifkan.')
-        );
+            \App\Models\OrderStatusLog::record(
+                $requestOrder,
+                null,
+                $active ? 'dp_activated' : 'dp_deactivated',
+                auth()->id(),
+                $data['note'] ?: ($active ? 'Request DP diaktifkan.' : 'Request DP dinonaktifkan.')
+            );
 
-        return back()->with('success', 'Request DP berhasil ' . ($active ? 'diaktifkan.' : 'dinonaktifkan.'));
+            return $requestOrder->resubmitManagerApproval(
+                'Pengaturan Request DP diperbarui oleh ' . auth()->user()->name . ' dan diajukan ulang ke Sales Manager.',
+                auth()->id()
+            );
+        });
+
+        $message = 'Request DP berhasil ' . ($active ? 'diaktifkan.' : 'dinonaktifkan.');
+        if ($wasResubmitted) {
+            $message .= ' Perubahan diajukan ulang ke Sales Manager.';
+        }
+
+        return back()->with('success', $message);
     }
 
     /** Batalkan request sebelum DO final diterbitkan. */
@@ -522,7 +555,8 @@ class RequestOrderController extends Controller
             $requestOrder->transition('assigned', $request->note ?: 'Penugasan disetujui.', auth()->id());
 
             $do = DeliveryOrder::create([
-                'do_number'        => DeliveryOrder::generateDoNumber(),
+                // Satu nomor dipakai dari Request DO sampai DO final agar mudah ditelusuri.
+                'do_number'        => $requestOrder->do_number,
                 'request_order_id' => $requestOrder->id,
                 'customer_id'      => $requestOrder->customer_id,
                 'vendor_id'        => $assignment?->vendor_id ?? $requestOrder->vendor_id,
@@ -556,29 +590,99 @@ class RequestOrderController extends Controller
             }
         });
 
-        return back()->with('success', 'Request DO disetujui Sales Manager & Delivery Order otomatis diterbitkan.');
+        $message = 'Request DO disetujui Sales Manager & Delivery Order otomatis diterbitkan.';
+        if (!$requestOrder->fresh()->do_approved) {
+            // DO tidak dapat ditutup selama harga belum disetujui, jadi diingatkan
+            // sekarang — bukan nanti saat POD sudah terverifikasi.
+            return back()
+                ->with('success', $message)
+                ->with('warning', 'Harga DO belum disetujui. Approve harga sebelum DO ditutup, karena penutupan DO akan ditolak selama harga belum disetujui.');
+        }
+
+        return back()->with('success', $message);
     }
 
     // ─────────────────── APPROVAL DO (bandingkan Jual vs HPP) ───────────────────
     public function approveDo(Request $request, RequestOrder $requestOrder)
     {
-        $request->validate([
-            'action' => 'required|in:approve,unapprove',
-            'note'   => 'nullable|string|max:1000',
+        $validated = $request->validate([
+            'action' => 'required|in:approve,reject,unapprove',
+            'note'   => 'required_if:action,reject|nullable|string|max:1000',
+        ], [
+            'note.required_if' => 'Alasan reject wajib diisi agar Finance mengetahui harga yang harus diperbaiki.',
         ]);
 
         $requestOrder->loadMissing('jobDetails', 'items');
 
-        if ($request->action === 'approve') {
-            $requestOrder->update(['do_approved' => true]);
+        if ($validated['action'] === 'reject') {
+            if ($requestOrder->request_status !== 'approval' || $requestOrder->deliveryOrder()->exists()) {
+                return back()->withErrors([
+                    'general' => 'Reject harga hanya dapat dilakukan saat Request DO menunggu approval dan DO final belum terbit.',
+                ]);
+            }
+
+            DB::transaction(function () use ($requestOrder, $validated) {
+                $requestOrder->update(['do_approved' => false]);
+                $requestOrder->transition(
+                    'finance',
+                    'Harga DO ditolak oleh ' . auth()->user()->name . '. Alasan: ' . $validated['note'],
+                    auth()->id()
+                );
+
+                User::where('role', 'Finance')->where('status', 'Active')->each(function (User $finance) use ($requestOrder, $validated) {
+                    Notification::send(
+                        $finance->id,
+                        'request_do_price_rejected',
+                        'Harga Request DO perlu diperbaiki',
+                        $requestOrder->do_number . ' ditolak karena harga belum benar. Alasan: ' . $validated['note'],
+                        route('request-orders.show', $requestOrder)
+                    );
+                });
+            });
+
+            return back()->with('success', 'DO ditolak karena harga tidak benar dan dikembalikan ke Finance.');
+        }
+
+        if ($validated['action'] === 'approve') {
+            // Approve sekaligus menutup kembali kunci koreksi harga.
+            $requestOrder->update(['do_approved' => true, 'price_correction_open' => false]);
             \App\Models\OrderStatusLog::record(
                 $requestOrder, null, 'do_approved', auth()->id(),
-                $request->note ?: 'DO disetujui. Jual ' . number_format($requestOrder->total_revenue) . ' / HPP ' . number_format($requestOrder->total_cost) . '.'
+                ($validated['note'] ?? null) ?: 'DO disetujui. Jual ' . number_format($requestOrder->total_revenue) . ' / HPP ' . number_format($requestOrder->total_cost) . '.'
             );
             $msg = 'DO disetujui & siap diinvoice.';
         } else {
-            $requestOrder->update(['do_approved' => false]);
+            // Unapprove setelah DO final terbit membuka jalur koreksi harga untuk
+            // Finance. Tanpa ini harga yang salah tidak dapat diperbaiki sama
+            // sekali dan DO akan tertahan permanen saat hendak ditutup.
+            $correctionOpen = $requestOrder->request_status === 'assigned'
+                && $requestOrder->invoice_status === 'uninvoiced'
+                && $requestOrder->deliveryOrder()->exists();
+
+            $requestOrder->update([
+                'do_approved' => false,
+                'price_correction_open' => $correctionOpen,
+            ]);
             $msg = 'Approval DO dibatalkan.';
+
+            if ($correctionOpen) {
+                \App\Models\OrderStatusLog::record(
+                    $requestOrder, null, 'price_correction_open', auth()->id(),
+                    ($validated['note'] ?? null) ?: 'Kunci koreksi harga dibuka oleh ' . auth()->user()->name . '. Finance dapat memperbaiki rincian harga.'
+                );
+
+                User::where('role', 'Finance')->where('status', 'Active')->each(function (User $finance) use ($requestOrder) {
+                    Notification::send(
+                        $finance->id,
+                        'request_do_price_correction_open',
+                        'Koreksi harga DO dibuka',
+                        $requestOrder->do_number . ' dibuka untuk perbaikan harga. Perbaiki rincian lalu minta approve ulang.',
+                        route('request-orders.show', $requestOrder)
+                    );
+                });
+
+                $msg = 'Approval DO dibatalkan & kunci koreksi harga dibuka untuk Finance.';
+            }
         }
 
         return back()->with('success', $msg);

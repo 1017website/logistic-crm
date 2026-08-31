@@ -40,7 +40,7 @@ class RequestOrder extends Model
         'no_pol', 'supir', 'hp_supir', 'empty_full', 'bongkar_empty_full',
         'kota', 'alamat', 'kecamatan', 'kelurahan', 'keterangan',
         // Penagihan & approval DO
-        'invoice_status', 'do_approved',
+        'invoice_status', 'do_approved', 'price_correction_open',
     ];
 
     protected $casts = [
@@ -57,6 +57,7 @@ class RequestOrder extends Model
         'tgl_muat'          => 'date',
         'tgl_bongkar'       => 'date',
         'do_approved'       => 'boolean',
+        'price_correction_open' => 'boolean',
     ];
 
     /** Tahapan alur Request DO */
@@ -153,6 +154,46 @@ class RequestOrder extends Model
         return $this->total_revenue - $this->total_cost;
     }
 
+    /**
+     * HPP realisasi lapangan: biaya aktual + biaya lain yang diinput saat DO
+     * final ditutup. Null bila belum ada realisasi yang tercatat.
+     *
+     * Dipisahkan dari total_cost (HPP rencana yang disetujui Sales Manager dan
+     * dipakai invoice) supaya selisihnya terlihat, bukan saling menimpa.
+     */
+    public function getActualTotalCostAttribute(): ?float
+    {
+        $orders = $this->relationLoaded('deliveryOrder')
+            ? $this->deliveryOrder
+            : $this->deliveryOrder()->get();
+
+        if ($orders->isEmpty()) {
+            return null;
+        }
+
+        $sum = (float) $orders->sum(
+            fn(DeliveryOrder $order) => (float) $order->actual_cost + (float) $order->other_cost
+        );
+
+        return $sum > 0 ? $sum : null;
+    }
+
+    /** Selisih HPP realisasi terhadap rencana. Positif = realisasi lebih mahal. */
+    public function getCostVarianceAttribute(): ?float
+    {
+        $actual = $this->actual_total_cost;
+
+        return $actual === null ? null : $actual - $this->total_cost;
+    }
+
+    /** Laba memakai HPP realisasi. Null bila realisasi belum tercatat. */
+    public function getActualGrossProfitAttribute(): ?float
+    {
+        $actual = $this->actual_total_cost;
+
+        return $actual === null ? null : $this->total_revenue - $actual;
+    }
+
     public function getGrossMarginAttribute(): float
     {
         if ($this->total_revenue == 0) return 0;
@@ -213,6 +254,25 @@ class RequestOrder extends Model
         return ($this->operational_status ?? 'running') !== 'running';
     }
 
+    /**
+     * Rincian harga (item layanan & rincian pekerjaan) boleh diubah bila:
+     *   - Request DO masih di tahap review Finance atau menunggu approval, ATAU
+     *   - DO final sudah terbit tetapi Sales Manager membuka kunci koreksi harga
+     *     lewat Unapprove.
+     *
+     * Apa pun tahapnya, harga tidak pernah dapat diubah setelah komponennya
+     * masuk invoice.
+     */
+    public function getPricingEditableAttribute(): bool
+    {
+        if ($this->invoice_status !== 'uninvoiced') {
+            return false;
+        }
+
+        return in_array($this->request_status, ['finance', 'approval'], true)
+            || ($this->request_status === 'assigned' && (bool) $this->price_correction_open);
+    }
+
     /** Label untuk timeline yang memuat tahap flow dan perubahan status operasional. */
     public static function statusLogLabel(?string $status): string
     {
@@ -225,6 +285,8 @@ class RequestOrder extends Model
 
         if ($status === 'dp_activated') return 'Request DP Diaktifkan';
         if ($status === 'dp_deactivated') return 'Request DP Dinonaktifkan';
+        if ($status === 'price_correction_open') return 'Koreksi Harga Dibuka';
+        if ($status === 'price_correction') return 'Harga DO Direvisi';
 
         return self::FLOW[$status] ?? ($status === 'do_approved' ? 'DO Disetujui' : ucfirst($status));
     }
@@ -244,5 +306,59 @@ class RequestOrder extends Model
         $from = $this->request_status;
         $this->update(['request_status' => $to]);
         OrderStatusLog::record($this, $from, $to, $userId, $note);
+    }
+
+    /**
+     * Catat dan beri tahu Sales Manager ketika data yang sedang menunggu
+     * approval diubah. Tahap tetap approval agar perubahan langsung menjadi
+     * pengajuan terbaru tanpa menerbitkan DO atau mengulang tahap sebelumnya.
+     */
+    public function resubmitManagerApproval(string $changeNote, ?int $userId = null): bool
+    {
+        if ($this->request_status !== 'approval') {
+            return false;
+        }
+
+        $actorId = $userId ?? auth()->id();
+        OrderStatusLog::record($this, 'approval', 'approval', $actorId, $changeNote);
+
+        User::where('role', 'Sales Manager')->where('status', 'Active')->each(function (User $manager) {
+            Notification::send(
+                $manager->id,
+                'request_do_manager_approval',
+                'Request DO diajukan ulang',
+                $this->do_number . ' telah diperbarui dan diajukan ulang untuk approval Sales Manager.',
+                route('request-orders.show', $this)
+            );
+        });
+
+        return true;
+    }
+
+    /**
+     * Beri tahu Sales Manager ketika harga direvisi lewat jalur koreksi setelah
+     * DO final terbit. Tahap flow tidak diubah — DO tetap berjalan, hanya harga
+     * yang menunggu persetujuan ulang.
+     */
+    public function notifyPriceCorrection(string $changeNote, ?int $userId = null): bool
+    {
+        if ($this->request_status !== 'assigned' || !$this->price_correction_open) {
+            return false;
+        }
+
+        $actorId = $userId ?? auth()->id();
+        OrderStatusLog::record($this, null, 'price_correction', $actorId, $changeNote);
+
+        User::where('role', 'Sales Manager')->where('status', 'Active')->each(function (User $manager) {
+            Notification::send(
+                $manager->id,
+                'request_do_price_correction',
+                'Harga DO direvisi',
+                $this->do_number . ' harganya direvisi dan menunggu approve ulang.',
+                route('request-orders.show', $this)
+            );
+        });
+
+        return true;
     }
 }

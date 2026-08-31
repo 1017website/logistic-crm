@@ -4,11 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Customer;
 use App\Models\DeliveryOrder;
+use App\Models\Notification;
 use App\Models\Vendor;
 use App\Models\User;
+use App\Services\AutomaticInvoiceDraftService;
+use App\Services\DeliveryOrderTrackingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 /**
  * DELIVERY ORDER (DO final) — tahap 2 alur fulfillment.
@@ -72,6 +76,19 @@ class DeliveryOrderController extends Controller
             'statusLogs.user',
         ]);
         return view('delivery_orders.show', compact('deliveryOrder'));
+    }
+
+    /** Halaman publik yang dibuka saat QR Surat Jalan dipindai. */
+    public function track(DeliveryOrder $deliveryOrder)
+    {
+        $deliveryOrder->load([
+            'customer',
+            'requestOrder',
+            'statusLogs',
+        ]);
+        $companyName = \App\Models\Setting::get('company_name', 'PT Firman Tangguh Logistik');
+
+        return view('delivery_orders.track', compact('deliveryOrder', 'companyName'));
     }
 
     // ─────────────────── SURAT JALAN (cetak internal / upload eksternal -> pickup) ───────────────────
@@ -161,10 +178,18 @@ class DeliveryOrderController extends Controller
             'note'        => 'nullable|string|max:1000',
         ]);
 
-        DB::transaction(function () use ($request, $deliveryOrder) {
+        $createdDrafts = collect();
+        DB::transaction(function () use ($request, $deliveryOrder, &$createdDrafts) {
+            Customer::query()->lockForUpdate()->findOrFail($deliveryOrder->customer_id);
             $locked = DeliveryOrder::query()->lockForUpdate()->findOrFail($deliveryOrder->id);
             if ($locked->status !== 'verifikasi_pod') {
                 abort(422, 'DO belum siap ditutup atau sudah pernah ditutup.');
+            }
+            $locked->load('requestOrder');
+            if (!$locked->requestOrder?->do_approved) {
+                throw ValidationException::withMessages([
+                    'general' => 'Harga DO belum disetujui. Approve harga terlebih dahulu sebelum menutup DO dan membuat invoice.',
+                ]);
             }
 
             $locked->update([
@@ -188,9 +213,29 @@ class DeliveryOrderController extends Controller
 
             // Tandai request order terkait sebagai Done.
             $locked->requestOrder?->update(['status' => 'Done']);
+
+            $createdDrafts = app(AutomaticInvoiceDraftService::class)
+                ->createForClosedDeliveryOrder($locked, auth()->id());
         });
 
-        return back()->with('success', 'DO ditutup. Siap diteruskan ke Finance.');
+        if ($createdDrafts->isNotEmpty()) {
+            User::where('role', 'Finance')->where('status', 'Active')->each(function (User $finance) use ($deliveryOrder, $createdDrafts) {
+                Notification::send(
+                    $finance->id,
+                    'invoice_auto_draft',
+                    'Draft invoice otomatis tersedia',
+                    $createdDrafts->count() . ' draft invoice dari DO ' . $deliveryOrder->do_number . ' telah dibuat.',
+                    route('invoices.index', ['tab' => 'draft'])
+                );
+            });
+        }
+
+        return back()->with(
+            'success',
+            $createdDrafts->isNotEmpty()
+                ? 'DO ditutup. Draft invoice otomatis sudah tersedia di tab Draft.'
+                : 'DO ditutup. Komponen DO sudah terhubung ke invoice yang ada.'
+        );
     }
 
     // ─────────────────── FINANCE: INVOICE ───────────────────
@@ -207,8 +252,8 @@ class DeliveryOrderController extends Controller
             ->with('warning', 'Pelunasan DO mengikuti pembayaran invoice terkait dan tidak dapat dilakukan terpisah.');
     }
 
-    // ─────────────────── CETAK SURAT JALAN INTERNAL (HTML + barcode) ───────────────────
-    public function printSuratJalan(DeliveryOrder $deliveryOrder, \App\Services\DocumentSignatureService $documentSignature)
+    // ─────────────────── CETAK SURAT JALAN INTERNAL (HTML + QR tracking) ───────────────────
+    public function printSuratJalan(DeliveryOrder $deliveryOrder, DeliveryOrderTrackingService $trackingService)
     {
         $deliveryOrder->load(['customer', 'vendor', 'salesUser', 'requestOrder.items']);
 
@@ -220,16 +265,22 @@ class DeliveryOrderController extends Controller
             'email'   => \App\Models\Setting::get('company_email', ''),
             'website' => \App\Models\Setting::get('company_website', ''),
             'logo'    => \App\Models\Setting::get('company_doc_logo') ?: \App\Models\Setting::get('company_logo', ''),
-            'signatory_name' => \App\Models\Setting::get('company_signatory_name') ?: $companyName,
-            'signatory_title' => \App\Models\Setting::get('company_signatory_title') ?: 'Direktur',
         ];
-        $signature = $documentSignature->make('delivery_order', $deliveryOrder->getKey());
+        $tracking = $trackingService->make($deliveryOrder);
 
-        return view('delivery_orders.surat_jalan_print', compact('deliveryOrder', 'company', 'signature'));
+        return view('delivery_orders.surat_jalan_print', compact('deliveryOrder', 'company', 'tracking'));
     }
 
     public function destroy(DeliveryOrder $deliveryOrder)
     {
+        // DO yang komponennya sudah masuk invoice tidak boleh dihapus: invoicenya
+        // akan menggantung tanpa DO dan nomor DO hilang dari cetakan.
+        if ($deliveryOrder->invoiceItems()->exists()) {
+            return back()->withErrors([
+                'general' => 'DO ' . $deliveryOrder->do_number . ' sudah masuk invoice dan tidak dapat dihapus. Hapus invoicenya lebih dulu.',
+            ]);
+        }
+
         $no = $deliveryOrder->do_number;
         // bersihkan file
         foreach (['surat_jalan_file', 'pod_file'] as $col) {
