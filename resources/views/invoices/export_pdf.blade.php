@@ -22,7 +22,7 @@
         <thead><tr><th>No Invoice / DO</th><th>Nama</th><th>Uraian</th><th>Jenis Truck</th><th class="r">Qty</th><th class="r">Harga</th><th class="r">Jumlah</th></tr></thead>
         <tbody>
         @forelse($invoices as $invoice)
-            <tr><td colspan="7" class="invoice-title">{{ $invoice->invoice_number }} · {{ $invoice->customer?->company_name }} · {{ $invoice->status_label }} · Terbayar Rp {{ number_format($invoice->total_paid, 0, ',', '.') }} · Sisa Rp {{ number_format($invoice->outstanding, 0, ',', '.') }}</td></tr>
+            <tr><td colspan="7" class="invoice-title">{{ $invoice->invoice_number }} · Periode {{ $invoice->periode_invoice?->translatedFormat('F Y') ?? '-' }} · {{ $invoice->customer?->company_name }} · {{ $invoice->status_label }} · Terbayar Rp {{ number_format($invoice->total_paid, 0, ',', '.') }} · Sisa Rp {{ number_format($invoice->outstanding, 0, ',', '.') }}</td></tr>
             @forelse($invoice->items as $item)
             <tr>
                 <td>{{ $item->deliveryOrder?->do_number ?? $item->requestOrder?->do_number ?? '-' }}</td>

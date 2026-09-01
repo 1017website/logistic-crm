@@ -43,8 +43,12 @@
                     @foreach(\App\Models\Invoice::TYPES as $key => $label)<option value="{{ $key }}" @selected($jenis === $key)>{{ $label }}</option>@endforeach
                 </select>
             </div>
-            <div class="col-md-4"><input type="text" name="search" class="form-control form-control-sm" placeholder="Cari no invoice / customer..." value="{{ $search }}"></div>
-            <div class="col-md-2"><button class="btn btn-primary btn-sm w-100"><i class="fas fa-search"></i></button></div>
+            <div class="col-md-2">
+                <label class="form-label mb-1" style="font-size:11px">Periode Invoice</label>
+                <input type="month" name="periode" class="form-control form-control-sm" value="{{ $periode }}">
+            </div>
+            <div class="col-md-3"><input type="text" name="search" class="form-control form-control-sm" placeholder="Cari no invoice / customer..." value="{{ $search }}"></div>
+            <div class="col-md-1"><button class="btn btn-primary btn-sm w-100"><i class="fas fa-search"></i></button></div>
         </div></div></div>
     </form>
 
@@ -83,14 +87,14 @@
                     <div class="p-3">
                         <div class="table-responsive"><table class="table table-sm table-bordered bg-white mb-0" style="font-size:12px">
                             <thead><tr>
-                                <th>ID / No Invoice</th><th>Buat / Tempo</th><th>Tipe / Pajak</th>
+                                <th>ID / No Invoice</th><th>Periode / Submit / Tempo</th><th>Tipe / Pajak</th>
                                 <th class="text-end">HPP</th><th class="text-end">Tagihan</th><th class="text-end">Laba</th>
                                 <th>Status Pembayaran</th><th>Umur</th><th>Aksi</th>
                             </tr></thead>
                             <tbody>@foreach($bundle['invoices'] as $inv)
                             <tr>
                                 <td><a href="{{ route('invoices.show', $inv) }}" style="font-weight:700">{{ $inv->invoice_id }}</a><br><small class="text-muted">{{ $inv->invoice_number }}</small></td>
-                                <td>{{ $inv->tgl_buat?->format('d M Y') ?? '-' }}<br><small class="text-muted">Tempo: {{ $inv->tgl_tempo?->format('d M Y') ?? '-' }}</small></td>
+                                <td><b>{{ $inv->periode_invoice?->translatedFormat('F Y') ?? '-' }}</b><br><small class="text-muted">Submit: {{ $inv->submitted_at?->format('d M Y') ?? ($inv->status === 'draft' ? 'Belum terbit' : ($inv->tgl_buat?->format('d M Y') ?? '-')) }}<br>Tempo: {{ $inv->tgl_tempo?->format('d M Y') ?? '-' }}</small></td>
                                 <td><span class="badge bg-dark">{{ $inv->jenis_label }}</span><br><small>{{ (float)$inv->ppn_persen > 0 ? 'PPN '.rtrim(rtrim(number_format($inv->ppn_persen,2),'0'),'.').'%' : 'Non-PPN' }} · {{ $inv->do_count }} DO</small></td>
                                 <td class="text-end">{{ idr($inv->total_hpp) }}</td>
                                 <td class="text-end" style="font-weight:700">{{ idr($inv->grand_total ?: $inv->total_jual) }}</td>
@@ -164,17 +168,21 @@
         <div class="modal-header"><h6 class="modal-title">Buat Invoice</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body" style="font-size:13px">
             <div class="row g-2 mb-2">
-                <div class="col-md-5"><label class="form-label">Customer</label>
+                <div class="col-md-4"><label class="form-label">Customer</label>
                     <select name="customer_id" id="invCustomer" class="form-select form-select-sm no-select2" required>
                         <option value="">{{ $invoiceCustomers->isEmpty() ? '— Belum ada customer dengan DO Closed siap tagih —' : '— Pilih Customer —' }}</option>
                         @foreach($invoiceCustomers as $c)<option value="{{ $c->id }}" data-top-days="{{ $c->effective_top_days }}">{{ $c->company_name }} @if($c->invoice_code)({{ $c->invoice_code }})@elseif($c->customer_code)({{ $c->customer_code }})@endif</option>@endforeach
                     </select>
                     <small class="text-muted">Hanya customer dengan DO Closed yang masih memiliki komponen belum diinvoice.</small>
                 </div>
+                <div class="col-md-2"><label class="form-label">Periode Invoice</label>
+                    <input type="month" name="periode_invoice" class="form-control form-control-sm" value="{{ now()->format('Y-m') }}" required>
+                    <small class="text-muted">Untuk laporan bulanan.</small>
+                </div>
                 <div class="col-md-3"><label class="form-label">Tgl Buat</label><input type="date" name="tgl_buat" id="invTglBuat" class="form-control form-control-sm" value="{{ now()->toDateString() }}" required></div>
-                <div class="col-md-4"><label class="form-label">Tgl Tempo</label>
+                <div class="col-md-3"><label class="form-label">Tgl Tempo</label>
                     <input type="date" name="tgl_tempo" id="invTglTempo" class="form-control form-control-sm" value="{{ now()->addDays(\App\Models\Customer::defaultTopDays())->toDateString() }}">
-                    <small class="text-muted" id="invTopHint">Terisi otomatis dari TOP customer. Bisa diubah manual.</small>
+                    <small class="text-muted" id="invTopHint">TOP otomatis dihitung ulang saat invoice diterbitkan. Bisa diubah manual.</small>
                 </div>
             </div>
             <div class="row g-2 mb-3">

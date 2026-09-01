@@ -4,7 +4,7 @@
 @section('page-subtitle', 'Alur lapangan: surat jalan, pickup, delivery, POD, tutup & finance')
 
 @section('content')
-@php $u = auth()->user(); $do = $deliveryOrder; @endphp
+@php $u = auth()->user(); $do = $deliveryOrder; $ro = $do->requestOrder; @endphp
 <div class="row g-3">
     {{-- ─────────── Kiri: info, item, dokumen, timeline ─────────── --}}
     <div class="col-lg-7">
@@ -29,9 +29,12 @@
                 <div class="col-md-6"><span class="text-muted">Customer</span><br><b>{{ $do->customer?->company_name ?? '-' }}</b></div>
                 <div class="col-md-6"><span class="text-muted">Jenis Armada</span><br><b>{{ $do->assignment_type === 'internal' ? 'Armada Internal' : 'Vendor Eksternal' }}</b></div>
                 <div class="col-md-6"><span class="text-muted">Armada / Vendor</span><br>{{ $do->fleet_info ?? ($do->vendor?->vendor_name ?? '-') }}</div>
-                <div class="col-md-6"><span class="text-muted">Driver</span><br>{{ $do->driver_name ?? '-' }} {{ $do->driver_phone ? '('.$do->driver_phone.')' : '' }}</div>
-                <div class="col-md-6"><span class="text-muted">Origin</span><br>{{ $do->origin ?? '-' }}</div>
-                <div class="col-md-6"><span class="text-muted">Destination</span><br>{{ $do->destination ?? '-' }}</div>
+                <div class="col-md-6"><span class="text-muted">Nama Driver</span><br><b>{{ $ro?->supir ?: ($do->driver_name ?: '-') }}</b> {{ $do->driver_phone ? '('.$do->driver_phone.')' : '' }}</div>
+                <div class="col-md-6"><span class="text-muted">No. Polisi</span><br><b>{{ $ro?->no_pol ?: '-' }}</b></div>
+                <div class="col-md-6"><span class="text-muted">Lokasi Muat</span><br><b>{{ $ro?->muat ?: ($do->origin ?: '-') }}</b></div>
+                <div class="col-md-6"><span class="text-muted">Lokasi Bongkar</span><br><b>{{ $ro?->bongkar ?: ($do->destination ?: '-') }}</b></div>
+                <div class="col-md-6"><span class="text-muted">No. Container</span><br><b>{{ $ro?->no_container ?: '-' }}</b></div>
+                <div class="col-md-6"><span class="text-muted">No. Seal</span><br><b>{{ $ro?->no_seal ?: '-' }}</b></div>
                 <div class="col-md-4"><span class="text-muted">Tgl DO</span><br>{{ $do->do_date?->format('d M Y') ?? '-' }}</div>
                 <div class="col-md-4"><span class="text-muted">Pickup</span><br>{{ $do->pickup_date?->format('d M Y') ?? '-' }}</div>
                 <div class="col-md-4"><span class="text-muted">Delivery</span><br>{{ $do->delivery_date?->format('d M Y') ?? '-' }}</div>

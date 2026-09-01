@@ -1773,6 +1773,16 @@
     <script src="https://cdn.jsdelivr.net/npm/air-datepicker@3.5.3/air-datepicker.js"></script>
 
     <script>
+        // Request latar belakang tidak boleh menggantung tanpa batas setelah
+        // laptop/ponsel bangun dari mode standby dan koneksi lama sudah putus.
+        function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+            const controller = new AbortController();
+            const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+
+            return fetch(url, { ...options, signal: controller.signal })
+                .finally(() => window.clearTimeout(timer));
+        }
+
         function toggleSidebar() {
             document.body.classList.toggle('sidebar-collapsed');
             const icon = document.getElementById('collapseIcon');
@@ -1816,7 +1826,10 @@
         document.addEventListener('DOMContentLoaded', recoverPageScroll);
         window.addEventListener('pageshow', function(event) {
             recoverPageScroll();
-            if (event.persisted) closeMobileSidebar();
+            if (event.persisted) {
+                closeMobileSidebar();
+                resetSubmissionLocks();
+            }
         });
         // Tutup sidebar saat klik menu (mobile) & saat layar dilebarkan
         document.querySelectorAll('.sidebar-nav .sidebar-item').forEach(function(el) {
@@ -1856,7 +1869,7 @@
         }
 
         function loadNotifications() {
-            fetch('/notifications', {
+            fetchWithTimeout('/notifications', {
                     headers: {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
@@ -1899,7 +1912,7 @@
 
         function clickNotif(id, url) {
             // Mark as read
-            fetch(`/notifications/${id}/read`, {
+            fetchWithTimeout(`/notifications/${id}/read`, {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
@@ -1912,7 +1925,7 @@
         }
 
         function markAllRead() {
-            fetch('/notifications/mark-all-read', {
+            fetchWithTimeout('/notifications/mark-all-read', {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
@@ -1937,8 +1950,20 @@
         }
 
         // Polling singkat agar permintaan approval baru cepat terlihat.
+        let notifPollTimer = null;
+        let notifPollInFlight = false;
+
+        function scheduleNotifPoll(delay = 15000) {
+            window.clearTimeout(notifPollTimer);
+            if (document.hidden) return;
+            notifPollTimer = window.setTimeout(pollNotifCount, delay);
+        }
+
         function pollNotifCount() {
-            fetch('/notifications/unread-count', {
+            if (document.hidden || notifPollInFlight) return;
+            notifPollInFlight = true;
+
+            fetchWithTimeout('/notifications/unread-count', {
                     headers: {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
@@ -1946,14 +1971,26 @@
                 })
                 .then(r => r.json())
                 .then(data => updateNotifBadge(data.unread_count))
-                .catch(() => {});
+                .catch(() => {})
+                .finally(() => {
+                    notifPollInFlight = false;
+                    scheduleNotifPoll();
+                });
         }
 
-        // Init: load badge saat halaman dibuka, lalu perbarui setiap 15 detik.
+        // Hanya satu polling boleh berjalan. Saat tab kembali aktif setelah
+        // standby, koneksi dan session langsung dihangatkan dengan request baru.
         document.addEventListener('DOMContentLoaded', function() {
             pollNotifCount();
-            setInterval(pollNotifCount, 15000);
         });
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                window.clearTimeout(notifPollTimer);
+                return;
+            }
+            scheduleNotifPoll(0);
+        });
+        window.addEventListener('online', () => scheduleNotifPoll(0));
 
         // ── User dropdown ──
         function toggleUserDrop() {
@@ -1987,7 +2024,7 @@
         }
 
         function fetchSearch(q) {
-            fetch(`/search?q=${encodeURIComponent(q)}`, {
+            fetchWithTimeout(`/search?q=${encodeURIComponent(q)}`, {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Accept': 'application/json'
@@ -2185,6 +2222,20 @@
                     ? crypto.randomUUID().replaceAll('-', '')
                     : `${Date.now()}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
                 form.appendChild(input);
+            });
+        }
+
+        // Browser menyimpan atribut DOM ketika halaman masuk back-forward cache.
+        // Tanpa reset ini, tombol dapat tetap tampak terkunci setelah standby/back.
+        function resetSubmissionLocks() {
+            document.querySelectorAll('form[data-submitting="1"]').forEach((form) => {
+                delete form.dataset.submitting;
+                form.removeAttribute('aria-busy');
+                form.querySelectorAll('button[type="submit"], input[type="submit"], button:not([type])').forEach((button) => {
+                    button.classList.remove('disabled');
+                    button.removeAttribute('aria-disabled');
+                    button.style.removeProperty('pointer-events');
+                });
             });
         }
 

@@ -453,6 +453,52 @@ class OperationalAccessWorkflowTest extends TestCase
             ->assertSee('Rp 1.750.000');
     }
 
+    public function test_operational_work_details_are_visible_in_request_and_delivery_order_views(): void
+    {
+        [$salesAdmin, $customer, $requestOrder] = $this->makeOrder('finance');
+        $requestOrder->update([
+            'muat' => 'Gudang Margomulyo',
+            'bongkar' => 'Terminal Tanjung Priok',
+            'no_container' => 'CONT-CRM-7788',
+            'no_seal' => 'SEAL-CRM-9911',
+            'no_pol' => 'L 8123 CRM',
+            'supir' => 'Budi Operasional',
+        ]);
+
+        $this->actingAs($salesAdmin)
+            ->get(route('request-orders.index'))
+            ->assertOk()
+            ->assertSeeInOrder(['Lokasi Muat', 'Lokasi Bongkar', 'No. Container', 'No. Seal'])
+            ->assertSee('Gudang Margomulyo')
+            ->assertSee('Terminal Tanjung Priok')
+            ->assertSee('CONT-CRM-7788')
+            ->assertSee('SEAL-CRM-9911')
+            ->assertDontSee('<th class="py-2">Revenue</th>', false)
+            ->assertDontSee('<th class="py-2">HPP</th>', false);
+
+        $this->actingAs($salesAdmin)
+            ->get(route('request-orders.show', $requestOrder))
+            ->assertOk()
+            ->assertSee('Gudang Margomulyo')
+            ->assertSee('Terminal Tanjung Priok')
+            ->assertSee('CONT-CRM-7788')
+            ->assertSee('SEAL-CRM-9911')
+            ->assertSee('L 8123 CRM')
+            ->assertSee('Budi Operasional');
+
+        $deliveryOrder = $this->makeDeliveryOrder($salesAdmin, $customer, $requestOrder, 'internal');
+
+        $this->actingAs($salesAdmin)
+            ->get(route('delivery-orders.show', $deliveryOrder))
+            ->assertOk()
+            ->assertSee('Gudang Margomulyo')
+            ->assertSee('Terminal Tanjung Priok')
+            ->assertSee('CONT-CRM-7788')
+            ->assertSee('SEAL-CRM-9911')
+            ->assertSee('L 8123 CRM')
+            ->assertSee('Budi Operasional');
+    }
+
     public function test_finance_dp_edit_while_awaiting_manager_is_recorded_as_resubmission(): void
     {
         [, , $requestOrder] = $this->makeOrder('approval');

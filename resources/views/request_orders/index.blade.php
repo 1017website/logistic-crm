@@ -102,10 +102,10 @@
                                     <th class="px-3 py-2">No. DO</th>
                                     <th class="py-2">Customer</th>
                                     <th class="py-2">Sales PIC</th>
-                                    <th class="py-2">Revenue</th>
-                                    <th class="py-2">HPP</th>
-                                    <th class="py-2">Gross Profit</th>
-                                    <th class="py-2">Margin</th>
+                                    <th class="py-2">Lokasi Muat</th>
+                                    <th class="py-2">Lokasi Bongkar</th>
+                                    <th class="py-2">No. Container</th>
+                                    <th class="py-2">No. Seal</th>
                                     <th class="py-2">Status DO</th>
                                     <th class="py-2">DP</th>
                                     <th class="py-2">Tahap Flow</th>
@@ -130,10 +130,10 @@
                                         <td class="px-3 py-2" style="font-weight:700;color:var(--primary)">{{ $po->do_number }}</td>
                                         <td class="py-2" style="font-size:12px">{{ $po->customer?->company_name ?? '-' }}</td>
                                         <td class="py-2" style="font-size:12px;font-weight:600">{{ $po->salesUser?->name ?? '-' }}</td>
-                                        <td class="py-2" style="font-weight:600;color:var(--primary);white-space:nowrap">{{ idr($po->total_revenue) }}</td>
-                                        <td class="py-2" style="color:#dc2626;font-size:12px;white-space:nowrap">{{ idr($po->total_cost) }}</td>
-                                        <td class="py-2" style="font-weight:600;color:#10b981;white-space:nowrap">{{ idr($po->gross_profit) }}</td>
-                                        <td class="py-2" style="font-size:12px;color:#6b7280">{{ $po->gross_margin }}%</td>
+                                        <td class="py-2" style="font-size:12px;min-width:120px">{{ $po->muat ?: ($po->origin ?: '-') }}</td>
+                                        <td class="py-2" style="font-size:12px;min-width:120px">{{ $po->bongkar ?: ($po->destination ?: '-') }}</td>
+                                        <td class="py-2" style="font-size:12px;white-space:nowrap">{{ $po->no_container ?: '-' }}</td>
+                                        <td class="py-2" style="font-size:12px;white-space:nowrap">{{ $po->no_seal ?: '-' }}</td>
                                         <td class="py-2" style="min-width:150px;max-width:190px">
                                             <span class="badge bg-{{ $po->operational_status_color }}">{{ $po->operational_status_label }}</span>
                                             @if($po->rescheduled_for)

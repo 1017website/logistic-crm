@@ -40,7 +40,9 @@
                 <div class="col-md-6"><span class="text-muted">Customer</span><br><b>{{ $invoice->customer?->company_name ?? '-' }}</b></div>
                 <div class="col-md-3"><span class="text-muted">Tipe Invoice</span><br><b>{{ $invoice->jenis_label }}</b></div>
                 <div class="col-md-3"><span class="text-muted">Pajak</span><br><b>{{ (float)$invoice->ppn_persen > 0 ? 'PPN '.rtrim(rtrim(number_format($invoice->ppn_persen,2),'0'),'.').'%' : 'Non-PPN' }}</b></div>
+                <div class="col-md-3"><span class="text-muted">Periode Invoice</span><br><b>{{ $invoice->periode_invoice?->translatedFormat('F Y') ?? '-' }}</b></div>
                 <div class="col-md-3"><span class="text-muted">Tgl Buat</span><br>{{ $invoice->tgl_buat?->format('d M Y') ?? '-' }}</div>
+                <div class="col-md-3"><span class="text-muted">Tgl Submit</span><br>{{ $invoice->submitted_at?->format('d M Y H:i') ?? 'Belum diterbitkan' }}</div>
                 <div class="col-md-3"><span class="text-muted">Tgl Tempo</span><br>{{ $invoice->tgl_tempo?->format('d M Y') ?? '-' }}</div>
                 <div class="col-md-3"><span class="text-muted">Operator</span><br>{{ $invoice->operator?->name ?? '-' }}</div>
                 @if($invoice->tgl_pencairan)<div class="col-md-3"><span class="text-muted">Tgl Cair</span><br>{{ $invoice->tgl_pencairan->format('d M Y') }}</div>@endif
@@ -176,7 +178,12 @@
         <div class="card"><div class="card-body p-3">
             <h6 style="font-weight:700;font-size:13px">Status</h6>
             @if($invoice->status==='draft')
-            <form method="POST" action="{{ route('invoices.submit',$invoice->id) }}">@csrf<button class="btn btn-success btn-sm w-100"><i class="fas fa-paper-plane me-1"></i> Terbitkan Invoice</button></form>
+            <form method="POST" action="{{ route('invoices.submit',$invoice->id) }}">@csrf
+                <label class="form-label" style="font-size:12px">Masukkan ke Periode Invoice</label>
+                <input type="month" name="periode_invoice" class="form-control form-control-sm mb-1" value="{{ ($invoice->periode_invoice ?: $invoice->tgl_buat ?: now())->format('Y-m') }}" required>
+                <small class="text-muted d-block mb-2">Hanya menentukan bulan laporan. TOP mengikuti tanggal invoice diterbitkan, kecuali jatuh tempo diatur manual.</small>
+                <button class="btn btn-success btn-sm w-100"><i class="fas fa-paper-plane me-1"></i> Terbitkan Invoice</button>
+            </form>
             @elseif(in_array($invoice->status, ['invoice', 'termin'], true))
             <div class="alert alert-info py-2" style="font-size:11px">Invoice sudah terbit dan tetap dapat menunggu pembayaran sampai pengiriman selesai.</div>
             <form method="POST" action="{{ route('invoices.pay',$invoice->id) }}" class="mb-2">@csrf

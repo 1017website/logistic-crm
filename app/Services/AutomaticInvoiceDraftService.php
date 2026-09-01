@@ -62,8 +62,10 @@ class AutomaticInvoiceDraftService
                     'customer_id' => $customer->id,
                     'status' => 'draft',
                     'tgl_buat' => $invoiceDate->toDateString(),
+                    'periode_invoice' => $invoiceDate->copy()->startOfMonth()->toDateString(),
                     // TOP mengikuti pengaturan customer, bukan angka tetap.
                     'tgl_tempo' => $customer->dueDateFrom($invoiceDate),
+                    'tgl_tempo_manual' => false,
                     'jenis' => $type,
                     'billing_mode' => 'separate',
                     'operator_id' => $operatorId,

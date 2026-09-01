@@ -32,6 +32,7 @@ class InvoiceController extends Controller
         $search = $request->get('search');
         $customerId = $request->get('customer_id');
         $jenis = $request->get('jenis', 'all');
+        $periode = $request->get('periode');
 
         $statusMap = ['draft' => 'draft', 'invoice' => 'invoice', 'paid' => 'settled'];
         $status = $statusMap[$tab] ?? 'draft';
@@ -46,6 +47,9 @@ class InvoiceController extends Controller
         }
         if (array_key_exists((string) $jenis, Invoice::TYPES)) {
             $query->where('jenis', $jenis);
+        }
+        if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $periode)) {
+            $query->whereDate('periode_invoice', $periode . '-01');
         }
         if ($search) {
             $query->where(fn($q) => $q
@@ -121,6 +125,7 @@ class InvoiceController extends Controller
             'invoiceCustomers',
             'customerId',
             'jenis',
+            'periode',
             'pendingDeletionIds'
         ));
     }
@@ -195,6 +200,7 @@ class InvoiceController extends Controller
         $data = $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'tgl_buat' => 'required|date',
+            'periode_invoice' => 'nullable|date_format:Y-m',
             'tgl_tempo' => 'nullable|date|after_or_equal:tgl_buat',
             'selections' => 'required|array|min:1',
             'selections.*' => ['required', 'string', 'regex:/^\d+:(TR|NTR)$/'],
@@ -282,6 +288,7 @@ class InvoiceController extends Controller
             $groups = $rows->groupBy('type');
 
             $createdInvoices = collect();
+            $defaultDueDate = Carbon::parse($customer->dueDateFrom($data['tgl_buat']))->toDateString();
             foreach ($groups as $groupRows) {
                 /** @var Collection<int, array> $groupRows */
                 $types = $groupRows->pluck('type')->unique()->values();
@@ -301,11 +308,16 @@ class InvoiceController extends Controller
                     'customer_id' => $customer->id,
                     'status' => 'draft',
                     'tgl_buat' => $data['tgl_buat'],
+                    'periode_invoice' => Carbon::parse(
+                        ($data['periode_invoice'] ?? Carbon::parse($data['tgl_buat'])->format('Y-m')) . '-01'
+                    )->startOfMonth()->toDateString(),
                     // Due date wajib ada; kalau kosong pakai TOP customer (atau
                     // default global). Invoice tanpa due date tidak akan pernah
                     // terhitung menua di laporan piutang.
                     'tgl_tempo' => ($data['tgl_tempo'] ?? null)
                         ?: $customer->dueDateFrom($data['tgl_buat']),
+                    'tgl_tempo_manual' => !empty($data['tgl_tempo'])
+                        && $data['tgl_tempo'] !== $defaultDueDate,
                     'jenis' => $jenis,
                     'billing_mode' => 'separate',
                     'operator_id' => auth()->id(),
@@ -356,13 +368,28 @@ class InvoiceController extends Controller
 
     public function submit(Request $request, Invoice $invoice)
     {
-        DB::transaction(function () use ($invoice) {
+        $data = $request->validate([
+            'periode_invoice' => 'nullable|date_format:Y-m',
+        ]);
+
+        DB::transaction(function () use ($invoice, $data) {
             $locked = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
             if ($locked->status !== 'draft') {
                 throw ValidationException::withMessages(['general' => 'Hanya draft yang bisa diterbitkan.']);
             }
 
-            $locked->update(['status' => 'invoice']);
+            $period = !empty($data['periode_invoice'])
+                ? Carbon::parse($data['periode_invoice'] . '-01')->startOfMonth()
+                : ($locked->periode_invoice ?: $locked->tgl_buat ?: $locked->created_at)->copy()->startOfMonth();
+            $submittedAt = now();
+            $locked->update([
+                'status' => 'invoice',
+                'periode_invoice' => $period->toDateString(),
+                'submitted_at' => $submittedAt,
+                'tgl_tempo' => $locked->tgl_tempo_manual
+                    ? $locked->tgl_tempo
+                    : $locked->customer->dueDateFrom($submittedAt),
+            ]);
             $doIds = $locked->items()->pluck('delivery_order_id')->filter()->unique();
 
             DeliveryOrder::whereIn('id', $doIds)->where('status', 'closed')->get()
@@ -384,7 +411,7 @@ class InvoiceController extends Controller
             if ($locked->status !== 'invoice') {
                 throw ValidationException::withMessages(['general' => 'Hanya invoice terbit yang bisa dikembalikan ke draft.']);
             }
-            $locked->update(['status' => 'draft']);
+            $locked->update(['status' => 'draft', 'submitted_at' => null]);
 
             // Tanpa sinkronisasi ini DO tetap tercatat "Invoice Terbit" padahal
             // tagihannya sudah kembali menjadi draft.
@@ -712,6 +739,7 @@ class InvoiceController extends Controller
         $status = $request->get('status');
         $customerId = $request->get('customer_id');
         $jenis = $request->get('jenis');
+        $periode = $request->get('periode');
 
         $query = Invoice::with(['customer', 'items.deliveryOrder', 'items.requestOrder', 'payments']);
         if ($status === 'settled') {
@@ -725,9 +753,12 @@ class InvoiceController extends Controller
         if (array_key_exists((string) $jenis, Invoice::TYPES)) {
             $query->where('jenis', $jenis);
         }
+        if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $periode)) {
+            $query->whereDate('periode_invoice', $periode . '-01');
+        }
 
         $headers = [
-            'Invoice ID', 'No Invoice', 'Customer', 'Status', 'Tgl Buat', 'No DO',
+            'Invoice ID', 'No Invoice', 'Customer', 'Status', 'Periode Invoice', 'Tgl Buat', 'Tgl Submit', 'No DO',
             'Nama', 'Uraian', 'Jenis Truck', 'Qty', 'Harga', 'Jumlah', 'PPN Invoice',
             'Grand Total Invoice', 'Total Terbayar', 'Sisa Tagihan',
         ];
@@ -738,7 +769,9 @@ class InvoiceController extends Controller
                     $inv->invoice_number,
                     $inv->customer?->company_name ?? '-',
                     $inv->status_label,
+                    $inv->periode_invoice?->format('Y-m'),
                     $inv->tgl_buat?->format('Y-m-d'),
+                    $inv->submitted_at?->format('Y-m-d H:i:s'),
                     '-',
                     $inv->jenis_label ?: 'Invoice',
                     $inv->notes ?: 'Ringkasan invoice (rincian DO tidak tersedia)',
@@ -755,7 +788,9 @@ class InvoiceController extends Controller
                 $inv->invoice_number,
                 $inv->customer?->company_name ?? '-',
                 $inv->status_label,
+                $inv->periode_invoice?->format('Y-m'),
                 $inv->tgl_buat?->format('Y-m-d'),
+                $inv->submitted_at?->format('Y-m-d H:i:s'),
                 $item->deliveryOrder?->do_number ?? $item->requestOrder?->do_number ?? '-',
                 $item->item_name,
                 $item->description,
@@ -785,6 +820,9 @@ class InvoiceController extends Controller
         elseif ($request->filled('status') && $request->status !== 'all') $query->where('status', $request->status);
         if ($request->filled('customer_id')) $query->where('customer_id', $request->integer('customer_id'));
         if (array_key_exists((string) $request->jenis, Invoice::TYPES)) $query->where('jenis', $request->jenis);
+        if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $request->periode)) {
+            $query->whereDate('periode_invoice', $request->periode . '-01');
+        }
         $invoices = $query->orderByDesc('tgl_buat')->get();
         $customer = $request->filled('customer_id') ? Customer::find($request->integer('customer_id')) : null;
 

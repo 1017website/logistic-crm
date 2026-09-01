@@ -18,7 +18,7 @@
                     @foreach($customers as $c)<option value="{{ $c->id }}" @selected($customerId == $c->id)>{{ $c->company_name }}</option>@endforeach
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label" style="font-size:12px">Jenis Invoice</label>
                 <select name="jenis" class="form-select form-select-sm">
                     <option value="all" @selected($jenis=='all')>Semua</option>
@@ -26,11 +26,15 @@
                     <option value="paid" @selected($jenis=='paid')>Sudah Cair</option>
                 </select>
             </div>
+            <div class="col-md-2">
+                <label class="form-label" style="font-size:12px">Periode Invoice</label>
+                <input type="month" name="periode" class="form-control form-control-sm" value="{{ $periode }}">
+            </div>
             <div class="col-md-3">
                 <label class="form-label" style="font-size:12px">S/D Tgl Kirim Invoice</label>
                 <input type="date" name="sd_tanggal" class="form-control form-control-sm" value="{{ $sdTanggal }}">
             </div>
-            <div class="col-md-3 d-flex gap-2">
+            <div class="col-md-2 d-flex gap-2">
                 <button class="btn btn-primary btn-sm flex-fill"><i class="fas fa-search me-1"></i> Filter</button>
                 <a href="{{ route('logistic-reports.invoice.export', request()->query()) }}" class="btn btn-success btn-sm flex-fill"><i class="fas fa-download me-1"></i> Excel</a>
             </div>
@@ -51,7 +55,7 @@
     <div class="card"><div class="card-body p-0"><div class="table-responsive">
         <table class="table table-hover mb-0" style="font-size:12px">
             <thead style="background:#f8f9fa"><tr>
-                <th class="px-3 py-2">No Urut Inv</th><th class="py-2">Submit</th><th class="py-2">No Invoice</th>
+                <th class="px-3 py-2">No Urut Inv</th><th class="py-2">Periode</th><th class="py-2">Submit</th><th class="py-2">No Invoice</th>
                 <th class="py-2">Customer</th><th class="py-2 text-end">HPP</th><th class="py-2 text-end">Harga Jual</th>
                 <th class="py-2 text-end">Laba</th><th class="py-2 text-end">Terbayar</th><th class="py-2 text-end">Outstanding</th><th class="py-2">Due Date</th><th class="py-2 text-center">Hari</th><th class="py-2">Status</th>
             </tr></thead>
@@ -59,7 +63,8 @@
                 @forelse($invoices as $inv)
                 <tr>
                     <td class="px-3 py-2" style="font-weight:700;color:var(--primary)">{{ $inv->invoice_id }}</td>
-                    <td class="py-2">{{ $inv->tgl_buat?->format('d M Y') }}</td>
+                    <td class="py-2"><b>{{ $inv->periode_invoice?->translatedFormat('M Y') ?? '-' }}</b></td>
+                    <td class="py-2">{{ $inv->submitted_at?->format('d M Y') ?? $inv->tgl_buat?->format('d M Y') }}</td>
                     <td class="py-2" style="font-size:11px">{{ $inv->invoice_number }}</td>
                     <td class="py-2">{{ $inv->customer?->company_name ?? '-' }}</td>
                     <td class="py-2 text-end">{{ idr($inv->total_hpp) }}</td>
@@ -77,7 +82,7 @@
                     <td class="py-2"><span class="badge bg-{{ $inv->status_color }}">{{ $inv->status_label }}</span></td>
                 </tr>
                 @empty
-                <tr><td colspan="12" class="text-center py-4 text-muted">Tidak ada data.</td></tr>
+                <tr><td colspan="13" class="text-center py-4 text-muted">Tidak ada data.</td></tr>
                 @endforelse
             </tbody>
         </table>

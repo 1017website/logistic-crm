@@ -596,7 +596,7 @@ class InvoiceWorkflowTest extends TestCase
             $sheet = IOFactory::load($path)->getActiveSheet();
             $this->assertSame($invoice->invoice_id, $sheet->getCell('A2')->getValue());
             $this->assertSame('LEGACY/EXPORT/VIII/2026', $sheet->getCell('B2')->getValue());
-            $this->assertSame(1000000.0, $sheet->getCell('L2')->getValue());
+            $this->assertSame(1000000.0, $sheet->getCell('N2')->getValue());
         } finally {
             @unlink($path);
         }

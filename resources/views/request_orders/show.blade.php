@@ -48,8 +48,12 @@
                 <div class="row g-2" style="font-size:13px">
                     <div class="col-md-6"><span class="text-muted">Customer</span><br><b>{{ $requestOrder->customer?->company_name ?? '-' }}</b></div>
                     <div class="col-md-6"><span class="text-muted">Sales PIC</span><br><b>{{ $requestOrder->salesUser?->name ?? '-' }}</b></div>
-                    <div class="col-md-6"><span class="text-muted">Origin</span><br>{{ $requestOrder->origin ?? '-' }}</div>
-                    <div class="col-md-6"><span class="text-muted">Destination</span><br>{{ $requestOrder->destination ?? '-' }}</div>
+                    <div class="col-md-6"><span class="text-muted">Lokasi Muat</span><br><b>{{ $requestOrder->muat ?: ($requestOrder->origin ?: '-') }}</b></div>
+                    <div class="col-md-6"><span class="text-muted">Lokasi Bongkar</span><br><b>{{ $requestOrder->bongkar ?: ($requestOrder->destination ?: '-') }}</b></div>
+                    <div class="col-md-3"><span class="text-muted">No. Container</span><br><b>{{ $requestOrder->no_container ?: '-' }}</b></div>
+                    <div class="col-md-3"><span class="text-muted">No. Seal</span><br><b>{{ $requestOrder->no_seal ?: '-' }}</b></div>
+                    <div class="col-md-3"><span class="text-muted">No. Polisi</span><br><b>{{ $requestOrder->no_pol ?: '-' }}</b></div>
+                    <div class="col-md-3"><span class="text-muted">Nama Driver</span><br><b>{{ $requestOrder->supir ?: '-' }}</b></div>
                     <div class="col-md-6"><span class="text-muted">Tipe Pengiriman</span><br>{{ $requestOrder->delivery_type ?? '-' }}</div>
                     <div class="col-md-6"><span class="text-muted">Tgl Order</span><br>{{ $requestOrder->order_date?->format('d M Y') ?? '-' }}</div>
                     @if($requestOrder->notes)

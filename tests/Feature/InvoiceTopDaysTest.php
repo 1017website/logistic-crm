@@ -10,6 +10,7 @@ use App\Models\RequestOrder;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\AutomaticInvoiceDraftService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
@@ -24,6 +25,7 @@ class InvoiceTopDaysTest extends TestCase
 
     protected function tearDown(): void
     {
+        Carbon::setTestNow();
         Cache::forget('setting_invoice_default_top_days');
         parent::tearDown();
     }
@@ -102,6 +104,56 @@ class InvoiceTopDaysTest extends TestCase
 
         $invoice = Invoice::where('customer_id', $customer->id)->latest('id')->firstOrFail();
         $this->assertSame('2026-08-10', $invoice->tgl_tempo?->toDateString());
+    }
+
+    public function test_invoice_period_can_use_previous_month_without_changing_top_dates(): void
+    {
+        Carbon::setTestNow('2026-09-10 10:00:00');
+        $this->setDefaultTop(30);
+        [$user, $customer, $do] = $this->makeClosedDo(topDays: 30);
+
+        $this->actingAs($user)->post(route('invoices.store'), [
+            'customer_id' => $customer->id,
+            'tgl_buat' => '2026-09-02',
+            'periode_invoice' => '2026-09',
+            'selections' => [$do->id . ':TR'],
+            'ppn_mode' => 'non_ppn',
+        ])->assertSessionHas('success');
+
+        $invoice = Invoice::where('customer_id', $customer->id)->latest('id')->firstOrFail();
+        $this->assertSame('2026-09-02', $invoice->tgl_buat?->toDateString());
+        $this->assertSame('2026-10-02', $invoice->tgl_tempo?->toDateString());
+        $this->assertSame('2026-09-01', $invoice->periode_invoice?->toDateString());
+
+        $this->actingAs($user)->post(route('invoices.submit', $invoice), [
+            'periode_invoice' => '2026-08',
+        ])->assertSessionHas('success');
+
+        $invoice->refresh();
+        $this->assertSame('invoice', $invoice->status);
+        $this->assertSame('2026-08-01', $invoice->periode_invoice?->toDateString());
+        $this->assertSame('2026-09-02', $invoice->tgl_buat?->toDateString());
+        $this->assertSame('2026-09-10 10:00:00', $invoice->submitted_at?->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-10-10', $invoice->tgl_tempo?->toDateString());
+
+        $this->actingAs($user)
+            ->get(route('logistic-reports.invoice', [
+                'customer_id' => $customer->id,
+                'periode' => '2026-08',
+            ]))
+            ->assertOk()
+            ->assertViewHas('invoiceCount', 1)
+            ->assertSee($invoice->invoice_number);
+
+        $this->actingAs($user)
+            ->get(route('logistic-reports.invoice', [
+                'customer_id' => $customer->id,
+                'periode' => '2026-09',
+            ]))
+            ->assertOk()
+            ->assertViewHas('invoiceCount', 0)
+            ->assertDontSee($invoice->invoice_number);
+
     }
 
     public function test_top_can_be_saved_from_customer_form_and_global_default_from_settings(): void

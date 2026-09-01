@@ -20,7 +20,7 @@ class Invoice extends Model
 
     protected $fillable = [
         'invoice_id', 'invoice_number', 'customer_seq', 'customer_id', 'status',
-        'tgl_buat', 'tgl_tempo', 'tgl_pencairan',
+        'tgl_buat', 'periode_invoice', 'submitted_at', 'tgl_tempo', 'tgl_tempo_manual', 'tgl_pencairan',
         'total_hpp', 'total_jual', 'ppn_persen', 'ppn_nominal', 'grand_total',
         'jenis', 'billing_mode', 'operator_id', 'notes',
         'edit_request_status', 'edit_request_reason', 'edit_requested_by', 'edit_requested_at',
@@ -29,7 +29,10 @@ class Invoice extends Model
 
     protected $casts = [
         'tgl_buat'      => 'date',
+        'periode_invoice' => 'date',
+        'submitted_at'  => 'datetime',
         'tgl_tempo'     => 'date',
+        'tgl_tempo_manual' => 'boolean',
         'tgl_pencairan' => 'date',
         'total_hpp'     => 'decimal:0',
         'total_jual'    => 'decimal:0',

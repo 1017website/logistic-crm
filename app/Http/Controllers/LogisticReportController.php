@@ -131,13 +131,24 @@ class LogisticReportController extends Controller
         $customerId = $request->get('customer_id');
         $jenis      = $request->get('jenis', 'all');     // all|unpaid|paid
         $sdTanggal  = $request->get('sd_tanggal');         // s/d tanggal kirim invoice
+        $periode    = $request->get('periode');             // bulan pencatatan laporan
 
         $query = Invoice::with(['customer', 'payments'])->whereIn('status', ['invoice', 'termin', 'paid']);
 
         if ($customerId) $query->where('customer_id', $customerId);
         if ($jenis === 'unpaid') $query->whereIn('status', ['invoice', 'termin']);
         if ($jenis === 'paid')   $query->where('status', 'paid');
-        if ($sdTanggal)          $query->whereDate('tgl_buat', '<=', $sdTanggal);
+        if ($sdTanggal) {
+            $query->where(function ($dateQuery) use ($sdTanggal) {
+                $dateQuery->whereDate('submitted_at', '<=', $sdTanggal)
+                    ->orWhere(function ($legacyQuery) use ($sdTanggal) {
+                        $legacyQuery->whereNull('submitted_at')->whereDate('tgl_buat', '<=', $sdTanggal);
+                    });
+            });
+        }
+        if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $periode)) {
+            $query->whereDate('periode_invoice', $periode . '-01');
+        }
 
         // Ringkasan harus mencakup seluruh hasil filter, bukan hanya 25 baris
         // yang sedang terlihat pada halaman paginator.
@@ -149,12 +160,12 @@ class LogisticReportController extends Controller
         $sumPaid = (float) $summaryInvoices->sum(fn (Invoice $invoice) => $invoice->total_paid);
         $sumOutstanding = (float) $summaryInvoices->sum(fn (Invoice $invoice) => $invoice->outstanding);
 
-        $invoices = $query->orderByDesc('tgl_buat')->paginate(25)->withQueryString();
+        $invoices = $query->orderByDesc('submitted_at')->orderByDesc('tgl_buat')->paginate(25)->withQueryString();
 
         $customers = Customer::orderBy('company_name')->get(['id', 'company_name']);
 
         return view('logistic_reports.invoice', compact(
-            'invoices', 'customers', 'customerId', 'jenis', 'sdTanggal',
+            'invoices', 'customers', 'customerId', 'jenis', 'sdTanggal', 'periode',
             'invoiceCount', 'sumJual', 'sumHpp', 'sumLaba', 'sumPaid', 'sumOutstanding'
         ));
     }
@@ -164,20 +175,33 @@ class LogisticReportController extends Controller
         $customerId = $request->get('customer_id');
         $jenis      = $request->get('jenis', 'all');
         $sdTanggal  = $request->get('sd_tanggal');
+        $periode    = $request->get('periode');
 
         $query = Invoice::with(['customer', 'payments'])->whereIn('status', ['invoice', 'termin', 'paid']);
         if ($customerId) $query->where('customer_id', $customerId);
         if ($jenis === 'unpaid') $query->whereIn('status', ['invoice', 'termin']);
         if ($jenis === 'paid')   $query->where('status', 'paid');
-        if ($sdTanggal)          $query->whereDate('tgl_buat', '<=', $sdTanggal);
+        if ($sdTanggal) {
+            $query->where(function ($dateQuery) use ($sdTanggal) {
+                $dateQuery->whereDate('submitted_at', '<=', $sdTanggal)
+                    ->orWhere(function ($legacyQuery) use ($sdTanggal) {
+                        $legacyQuery->whereNull('submitted_at')->whereDate('tgl_buat', '<=', $sdTanggal);
+                    });
+            });
+        }
+        if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $periode)) {
+            $query->whereDate('periode_invoice', $periode . '-01');
+        }
 
-        $invoices = $query->orderByDesc('tgl_buat')->get();
+        $invoices = $query->orderByDesc('submitted_at')->orderByDesc('tgl_buat')->get();
 
-        $headers = ['No Urut Inv', 'Submit', 'No Invoice', 'Customer', 'HPP', 'Harga Jual', 'Laba', 'Terbayar', 'Outstanding Belum Terbayar', 'Due Date', 'Umur (hari)', 'Status', 'Tgl Cair'];
+        $headers = ['No Urut Inv', 'Periode Invoice', 'Submit', 'No Invoice', 'Customer', 'HPP', 'Harga Jual', 'Laba', 'Terbayar', 'Outstanding Belum Terbayar', 'Due Date', 'Umur (hari)', 'Status', 'Tgl Cair'];
         $rows = [];
         foreach ($invoices as $inv) {
             $rows[] = [
-                $inv->invoice_id, $inv->tgl_buat?->format('Y-m-d'), $inv->invoice_number,
+                $inv->invoice_id, $inv->periode_invoice?->format('Y-m'),
+                $inv->submitted_at?->format('Y-m-d H:i:s') ?? $inv->tgl_buat?->format('Y-m-d'),
+                $inv->invoice_number,
                 $inv->customer?->company_name ?? '-',
                 (float) $inv->total_hpp, (float) $inv->total_jual, (float) $inv->laba,
                 (float) $inv->total_paid, (float) $inv->outstanding,

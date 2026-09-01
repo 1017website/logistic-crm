@@ -34,7 +34,7 @@ class DeliveryOrderController extends Controller
         $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->get('end_date', now()->endOfMonth()->format('Y-m-d'));
 
-        $query = DeliveryOrder::with(['customer', 'vendor', 'salesUser', 'requestOrder.items'])
+        $query = DeliveryOrder::with(['customer', 'vendor', 'salesUser', 'requestOrder.items', 'requestOrder.jobDetails'])
             ->whereBetween('do_date', [$startDate, $endDate]);
 
         if ($status && $status !== 'all') $query->where('status', $status);
@@ -48,7 +48,7 @@ class DeliveryOrderController extends Controller
         $dos = $query->orderByDesc('do_date')->orderByDesc('id')->paginate(15)->withQueryString();
 
         // KPI
-        $closed = DeliveryOrder::with('requestOrder.items')
+        $closed = DeliveryOrder::with(['requestOrder.items', 'requestOrder.jobDetails'])
             ->whereBetween('do_date', [$startDate, $endDate])
             ->whereIn('status', ['closed', 'invoiced', 'paid'])->get();
 
@@ -71,7 +71,7 @@ class DeliveryOrderController extends Controller
     {
         $deliveryOrder->load([
             'customer', 'vendor', 'salesUser', 'podVerifier', 'closer',
-            'requestOrder.items', 'requestOrder.salesUser',
+            'requestOrder.items', 'requestOrder.jobDetails', 'requestOrder.salesUser',
             'invoiceItems.invoice',
             'statusLogs.user',
         ]);

@@ -33,7 +33,7 @@ class RequestOrderController extends Controller
         $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->get('end_date', now()->endOfMonth()->format('Y-m-d'));
 
-        $query = RequestOrder::with(['customer', 'lead', 'items', 'salesUser', 'verifier', 'operationalStatusChanger', 'dpReviewer'])
+        $query = RequestOrder::with(['customer', 'lead', 'items', 'jobDetails', 'salesUser', 'verifier', 'operationalStatusChanger', 'dpReviewer'])
             ->whereBetween('order_date', [$startDate, $endDate]);
 
         if ($tab === 'cancelled') {
@@ -70,7 +70,7 @@ class RequestOrderController extends Controller
         ])->all();
 
         // KPI pendapatan dari request yang sudah menjadi DO dan tidak dibatalkan.
-        $allDone = RequestOrder::with('items')
+        $allDone = RequestOrder::with(['items', 'jobDetails'])
             ->whereBetween('order_date', [$startDate, $endDate])
             ->where('request_status', 'assigned')
             ->where('operational_status', '!=', 'cancelled')
