@@ -785,7 +785,9 @@ class RequestOrderController extends Controller
 
         $rows = [];
         foreach ($sos as $so) {
-            foreach ($so->items as $item) {
+            // Request tanpa item layanan tetap diekspor sebagai satu baris.
+            $items = $so->items->isNotEmpty() ? $so->items : [null];
+            foreach ($items as $item) {
                 $rows[] = [
                     $so->do_number,
                     $so->customer?->company_name ?? '-',
@@ -800,10 +802,14 @@ class RequestOrderController extends Controller
                     $so->dp_note,
                     $so->dp_reviewed_at?->format('Y-m-d H:i:s'),
                     $so->delivery_type, $so->origin, $so->destination, $so->tracking_number,
-                    $item->service_name, $item->unit,
-                    $item->tonnage !== null ? (float) $item->tonnage : null,
-                    (float) $item->qty, (float) $item->buy_price, (float) $item->sell_price,
-                    (float) $item->subtotal_revenue, (float) $item->subtotal_cost, (float) $item->gross_profit,
+                    $item?->service_name, $item?->unit,
+                    $item?->tonnage !== null ? (float) $item->tonnage : null,
+                    $item ? (float) $item->qty : null,
+                    $item ? (float) $item->buy_price : null,
+                    $item ? (float) $item->sell_price : null,
+                    $item ? (float) $item->subtotal_revenue : null,
+                    $item ? (float) $item->subtotal_cost : null,
+                    $item ? (float) $item->gross_profit : null,
                     $so->currency, $so->status,
                     $so->order_date?->format('Y-m-d'), $so->estimated_arrival?->format('Y-m-d'),
                 ];

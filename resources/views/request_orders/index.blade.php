@@ -41,10 +41,19 @@
                 </div>
             </div>
 
-            <ul class="nav nav-pills mb-3" style="gap:6px">
-                <li class="nav-item"><a class="nav-link {{ $tab === 'active' ? 'active' : '' }}" href="{{ route('request-orders.index', array_merge(request()->query(), ['tab'=>'active', 'page'=>null])) }}">Request Aktif</a></li>
-                <li class="nav-item"><a class="nav-link {{ $tab === 'cancelled' ? 'active bg-danger' : '' }}" href="{{ route('request-orders.index', array_merge(request()->query(), ['tab'=>'cancelled', 'page'=>null])) }}">Request Batal <span class="badge bg-light text-dark ms-1">{{ $cancelledRequestCount }}</span></a></li>
-            </ul>
+            <div class="mb-3">
+                @include('components.status-tabs', [
+                    'label' => 'Status Request DO',
+                    'tabs' => [
+                        ['label' => 'Request Aktif', 'icon' => 'fa-clipboard-list', 'count' => $activeRequestCount,
+                            'active' => $tab === 'active',
+                            'url' => route('request-orders.index', array_merge(request()->query(), ['tab' => 'active', 'page' => null]))],
+                        ['label' => 'Request Batal', 'icon' => 'fa-circle-xmark', 'count' => $cancelledRequestCount,
+                            'active' => $tab === 'cancelled', 'tone' => 'danger',
+                            'url' => route('request-orders.index', array_merge(request()->query(), ['tab' => 'cancelled', 'page' => null]))],
+                    ],
+                ])
+            </div>
 
             {{-- Filter --}}
             <form method="GET" action="{{ route('request-orders.index') }}">

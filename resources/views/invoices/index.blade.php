@@ -12,14 +12,17 @@
 
     {{-- Tabs + Tambah --}}
     <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <ul class="nav nav-pills" style="gap:6px">
-            @foreach(['draft'=>'Draft','invoice'=>'Invoice','paid'=>'Paid / Termin'] as $key=>$label)
-            <li class="nav-item">
-                <a class="nav-link {{ $tab === $key ? 'active' : '' }}" style="padding:5px 16px;font-size:13px"
-                   href="{{ route('invoices.index', array_merge(request()->query(), ['tab'=>$key])) }}">{{ $label }}</a>
-            </li>
-            @endforeach
-        </ul>
+        @include('components.status-tabs', [
+            'label' => 'Status Invoice',
+            'tabs' => [
+                ['label' => 'Draft', 'icon' => 'fa-file-pen', 'active' => $tab === 'draft',
+                    'url' => route('invoices.index', array_merge(request()->query(), ['tab' => 'draft']))],
+                ['label' => 'Invoice', 'icon' => 'fa-file-invoice', 'active' => $tab === 'invoice',
+                    'url' => route('invoices.index', array_merge(request()->query(), ['tab' => 'invoice']))],
+                ['label' => 'Paid / Termin', 'icon' => 'fa-circle-check', 'active' => $tab === 'paid',
+                    'url' => route('invoices.index', array_merge(request()->query(), ['tab' => 'paid']))],
+            ],
+        ])
         <div class="d-flex gap-2">
             <a href="{{ route('invoices.export', array_merge(request()->query(), ['status'=>$status])) }}" class="btn btn-outline-success btn-sm"><i class="fas fa-file-excel me-1"></i> Export Excel</a>
             <a href="{{ route('invoices.export-pdf', array_merge(request()->query(), ['status'=>$status])) }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-file-pdf me-1"></i> Export PDF</a>
