@@ -2,6 +2,7 @@
 
 namespace App\Helpers;
 
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -33,7 +34,7 @@ class ExcelExport
         }
 
         // Style header
-        $lastCol = chr(ord('A') + count($headers) - 1);
+        $lastCol = Coordinate::stringFromColumnIndex(count($headers));
         $sheet->getStyle("A1:{$lastCol}1")->applyFromArray([
             'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
             'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E3A5F']],
@@ -63,7 +64,8 @@ class ExcelExport
         }
 
         // Auto-size columns
-        foreach (range('A', $lastCol) as $c) {
+        for ($columnIndex = 1; $columnIndex <= count($headers); $columnIndex++) {
+            $c = Coordinate::stringFromColumnIndex($columnIndex);
             $sheet->getColumnDimension($c)->setAutoSize(true);
         }
 
