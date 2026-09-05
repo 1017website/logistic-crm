@@ -239,7 +239,7 @@
                 <div class="col-md-2">
                     <label class="form-label">Jabatan <span class="text-danger">*</span></label>
                     <input type="text" name="signatory_title" class="form-control"
-                        value="{{ old('signatory_title', $quotation->signatory_title) }}" required>
+                        value="{{ old('signatory_title', $quotation->resolvedSignatoryTitle()) }}" required>
                 </div>
             </div>
         </div>

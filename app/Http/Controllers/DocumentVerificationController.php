@@ -30,7 +30,7 @@ class DocumentVerificationController extends Controller
 
     private function quotation(int $id): array
     {
-        $document = Quotation::query()->findOrFail($id);
+        $document = Quotation::with('user')->findOrFail($id);
 
         return [
             'label' => 'Surat Penawaran Harga',
@@ -41,7 +41,7 @@ class DocumentVerificationController extends Controller
             'date' => $document->quotation_date?->translatedFormat('d F Y'),
             'counterparty' => $document->company_name,
             'signer' => $document->signatory_name,
-            'title' => $document->signatory_title,
+            'title' => $document->resolvedSignatoryTitle(),
             'status' => $document->status_label,
         ];
     }

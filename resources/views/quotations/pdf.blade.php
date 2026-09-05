@@ -120,7 +120,7 @@
             <div>Mengetahui,</div>
             <div class="signature-verified">
                 <x-verified-signature :signature-qr="$signatureQr" :verification-url="$verificationUrl"
-                    :signer-name="$quotation->signatory_name" :signer-title="$quotation->signatory_title"
+                    :signer-name="$quotation->signatory_name" :signer-title="$quotation->resolvedSignatoryTitle()"
                     :company-name="$company['name']" />
             </div>
         </div>

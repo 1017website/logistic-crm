@@ -135,4 +135,44 @@ class QuotationWorkflowTest extends TestCase
 
         $this->actingAs($finance)->get(route('quotations.index'))->assertForbidden();
     }
+
+    public function test_quotation_signature_uses_the_signers_user_position(): void
+    {
+        $signer = User::create([
+            'name' => 'Rahma Fitri Yeni',
+            'email' => 'rahma-signature-' . uniqid() . '@example.test',
+            'password' => 'password',
+            'position' => 'Sales Manager',
+            'role' => 'Sales Executive',
+            'status' => 'Active',
+        ]);
+
+        $quotation = Quotation::create([
+            'quotation_number' => 'SPH-TEST-' . uniqid(),
+            'user_id' => $signer->id,
+            'quotation_date' => '2026-09-05',
+            'recipient_name' => 'Yth.',
+            'recipient_title' => 'Bpk/Ibu Pimpinan',
+            'company_name' => 'PT Customer Test',
+            'attachment' => '-',
+            'subject' => 'Surat Penawaran Harga',
+            'city' => 'Surabaya',
+            'signatory_name' => 'Rahma Fitri Yeni',
+            'signatory_title' => 'PROJECT',
+            'status' => 'draft',
+        ]);
+
+        $this->assertSame('Sales Manager', $quotation->resolvedSignatoryTitle());
+
+        $verificationUrl = URL::signedRoute('documents.verify', [
+            'kind' => 'quotation',
+            'id' => $quotation->id,
+        ], absolute: false);
+
+        $this->get($verificationUrl)
+            ->assertOk()
+            ->assertSee('Rahma Fitri Yeni')
+            ->assertSee('Sales Manager')
+            ->assertDontSee('PROJECT');
+    }
 }
