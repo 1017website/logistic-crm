@@ -141,6 +141,7 @@ class QuotationWorkflowTest extends TestCase
         $signer = User::create([
             'name' => 'Rahma Fitri Yeni',
             'email' => 'rahma-signature-' . uniqid() . '@example.test',
+            'phone' => '08116611202',
             'password' => 'password',
             'position' => 'Sales Manager',
             'role' => 'Sales Executive',
@@ -163,6 +164,23 @@ class QuotationWorkflowTest extends TestCase
         ]);
 
         $this->assertSame('Sales Manager', $quotation->resolvedSignatoryTitle());
+        $this->assertSame('08116611202', $quotation->resolvedSignatoryPhone());
+
+        $html = view('quotations.pdf', [
+            'quotation' => $quotation,
+            'company' => ['name' => 'PT Print Test', 'logo' => '', 'address' => '', 'phone' => '', 'email' => '', 'website' => ''],
+            'signatureQr' => 'data:image/png;base64,',
+            'verificationUrl' => 'https://example.test/verify',
+        ])->render();
+        $this->assertStringContainsString('No. HP: 08116611202', $html);
+
+        $quotation->signatory_name = 'External Signer';
+        $quotation->contact_name = 'Different Contact';
+        $quotation->contact_phone = '08999999999';
+        $this->assertSame('', $quotation->resolvedSignatoryPhone());
+        $quotation->contact_name = 'External Signer';
+        $this->assertSame('08999999999', $quotation->resolvedSignatoryPhone());
+        $quotation->signatory_name = 'Rahma Fitri Yeni';
 
         $verificationUrl = URL::signedRoute('documents.verify', [
             'kind' => 'quotation',

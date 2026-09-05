@@ -190,6 +190,7 @@
     <div class="sign">
         <x-verified-signature :signature-qr="$signature['signatureQr']" :verification-url="$signature['verificationUrl']"
             :signer-name="$company['signatory_name']" :signer-title="$company['signatory_title']"
+            :signer-phone="$company['signatory_phone']"
             :company-name="$company['name']" />
     </div>
 

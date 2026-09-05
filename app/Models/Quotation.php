@@ -86,6 +86,28 @@ class Quotation extends Model
         return trim((string) $position) ?: $storedTitle;
     }
 
+    public function resolvedSignatoryPhone(): string
+    {
+        $name = trim((string) $this->signatory_name);
+        if ($name === '') {
+            return '';
+        }
+
+        $owner = $this->user;
+        if ($owner && strcasecmp(trim((string) $owner->name), $name) === 0 && filled($owner->phone)) {
+            return trim($owner->phone);
+        }
+
+        $phone = trim((string) User::where('name', $name)->value('phone'));
+        if ($phone !== '') {
+            return $phone;
+        }
+
+        return strcasecmp(trim((string) $this->contact_name), $name) === 0
+            ? trim((string) $this->contact_phone)
+            : '';
+    }
+
     public function getStatusLabelAttribute(): string
     {
         return self::STATUSES[$this->status] ?? ucfirst($this->status);

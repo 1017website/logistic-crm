@@ -239,6 +239,8 @@ function openEditUser(id, name, email, phone, position, role, status, target) {
     document.getElementById('euPosition').value = position;
     document.getElementById('euRole').value     = role;
     document.getElementById('euStatus').value   = status;
+    // Sync the visible Select2 labels when opening a different user.
+    window.jQuery('#euRole, #euStatus').trigger('change.select2');
     // Format target dengan separator
     const raw = parseInt(String(target).replace(/\D/g,'')) || 0;
     document.getElementById('euTarget').value   = raw > 0 ? raw.toLocaleString('id-ID') : '';

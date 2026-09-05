@@ -121,6 +121,7 @@
             <div class="signature-verified">
                 <x-verified-signature :signature-qr="$signatureQr" :verification-url="$verificationUrl"
                     :signer-name="$quotation->signatory_name" :signer-title="$quotation->resolvedSignatoryTitle()"
+                    :signer-phone="$quotation->resolvedSignatoryPhone()"
                     :company-name="$company['name']" />
             </div>
         </div>

@@ -913,6 +913,9 @@ class InvoiceController extends Controller
                 : (\App\Models\Setting::get('company_signatory_title') ?: 'Direktur'),
         ];
         $signature = $documentSignature->make('invoice', $invoice->getKey());
+        $company['signatory_phone'] = $salesManager
+            ? $salesManager->phone
+            : User::where('name', $company['signatory_name'])->value('phone');
         return compact('invoice', 'printType', 'printItems', 'printSubtotal', 'printPpn', 'printGrand', 'company', 'signature');
     }
 

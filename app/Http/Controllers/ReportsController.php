@@ -97,6 +97,7 @@ class ReportsController extends Controller
             'signatory_name' => Setting::get('company_signatory_name') ?: $companyName,
             'signatory_title' => Setting::get('company_signatory_title') ?: 'Direktur',
         ];
+        $company['signatory_phone'] = User::where('name', $company['signatory_name'])->value('phone');
         $signature = $documentSignature->make('report', now()->timestamp, [
             'report_type' => $reportType,
             'start_date' => $startDate,
