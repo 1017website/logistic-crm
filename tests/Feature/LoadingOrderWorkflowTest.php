@@ -19,9 +19,13 @@ class LoadingOrderWorkflowTest extends TestCase
 
     public function test_independent_letter_workflow_and_versioned_signature(): void
     {
-        $this->actingAs($this->user('Sales Executive'));
+        $creator = $this->user('Sales Executive');
+        $creator->update(['position' => 'Marketing Executive']);
+        $this->actingAs($creator);
         $form = $this->get(route('loading-orders.create'))->assertOk();
         $defaults = $form->viewData('order');
+        $this->assertSame($creator->name, $defaults->signatory_name);
+        $this->assertSame('Marketing Executive', $defaults->signatory_title);
         $payload = array_merge($defaults->getAttributes(), [
             'letter_date' => '2026-06-26', 'recipient' => 'PT. Catur Sentosa Adiprana Tbk.',
             'route' => 'CALS Pekanbaru', 'po_number' => 'PDBL00154209', 'mod_number' => 'MORD-26P1-00011531',
@@ -32,6 +36,9 @@ class LoadingOrderWorkflowTest extends TestCase
         $order = LoadingOrder::latest('id')->firstOrFail();
         $this->assertStringStartsWith('SPM-2606-', $order->number);
         $this->assertSame($payload['recipient'], $order->recipient);
+        $this->assertEquals($creator->id, $order->created_by);
+        $this->assertSame($creator->name, $order->signatory_name);
+        $this->assertSame('Marketing Executive', $order->signatory_title);
         $this->get(route('loading-orders.index', ['search' => $order->number]))->assertOk()->assertSee($order->number);
         $pdf = $this->get(route('loading-orders.pdf', [$order, 'download' => 1]))->assertOk()->assertHeader('content-type', 'application/pdf');
         $this->assertStringStartsWith('%PDF', $pdf->getContent());
@@ -40,14 +47,24 @@ class LoadingOrderWorkflowTest extends TestCase
         }
         $url = URL::signedRoute('documents.verify', ['kind' => 'loading_order', 'id' => $order->id, 'version' => $order->fingerprint()], absolute: false);
         auth()->forgetGuards();
-        $this->get($url)->assertOk()->assertSee('Anggi Sanjaya');
+        $this->get($url)->assertOk()->assertSee($creator->name)->assertSee('Marketing Executive');
         $this->get($url.'&tampered=1')->assertForbidden();
         $this->actingAs($this->user('Transport Planner'));
         $this->put(route('loading-orders.update', $order), [...$payload, 'driver_name' => 'Driver Pengganti'])->assertSessionHasNoErrors();
         $this->assertSame('Driver Pengganti', $order->fresh()->driver_name);
+        $this->assertEquals($creator->id, $order->fresh()->created_by);
+        $this->assertSame($creator->name, $order->fresh()->signatory_name);
+        $this->assertSame('Marketing Executive', $order->fresh()->signatory_title);
+        $edit = $this->get(route('loading-orders.edit', $order))->assertOk();
+        if (getenv('SPM_REVIEW_HTML')) {
+            file_put_contents(base_path('tmp/spm-form-review.html'), $edit->getContent());
+            file_put_contents(base_path('tmp/spm-index-review.html'), $this->get(route('loading-orders.index'))->getContent());
+        }
         $this->get($url)->assertStatus(410);
         $freshUrl = URL::signedRoute('documents.verify', ['kind' => 'loading_order', 'id' => $order->id, 'version' => $order->fresh()->fingerprint()], absolute: false);
         $this->get($freshUrl)->assertOk();
+        $this->put(route('loading-orders.update', $order), [...$payload, 'term_items' => ['Syarat pertama', 'Syarat kedua']])->assertSessionHasNoErrors();
+        $this->assertSame("Syarat pertama\nSyarat kedua", $order->fresh()->terms);
         $this->put(route('loading-orders.update', $order), [...$payload, 'recipient' => ''])->assertSessionHasErrors('recipient');
     }
 
@@ -57,6 +74,9 @@ class LoadingOrderWorkflowTest extends TestCase
         foreach (User::ROLES as $role) {
             $user = $this->user($role);
             $this->actingAs($user);
+            if ($role !== 'Finance') {
+                $this->assertSame($role, $this->get(route('loading-orders.create'))->viewData('order')->signatory_title);
+            }
             $this->assertSame($role !== 'Finance', $user->canAccess('loading_orders'));
             foreach (['loading-orders.index', 'loading-orders.create'] as $route) {
                 $response = $this->get(route($route));

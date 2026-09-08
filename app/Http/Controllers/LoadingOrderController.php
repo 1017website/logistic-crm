@@ -34,8 +34,8 @@ class LoadingOrderController extends Controller
             'opening' => 'Bersama ini PT. Firman Tangguh Logistik, memutuskan bahwa pelaksanaan transportasi logistik dilakukan oleh PT. Firman Tangguh Logistik dengan rincian sebagai berikut:',
             'terms' => "Supir bertanggung jawab penuh atas kendaraan dan muatan selama proses pengangkutan dari titik muat hingga titik bongkar.\nSegala risiko yang terjadi selama perjalanan, termasuk keterlambatan, kerusakan, atau kehilangan akibat kelalaian supir menjadi tanggung jawab pihak pelaksana pengangkutan.\nPekerjaan ini tidak diperkenankan untuk dialihkan atau disubkontrakkan kepada pihak ketiga tanpa ada persetujuan dari pihak pertama.\nApabila di kemudian hari ditemukan pelanggaran terhadap ketentuan SPM ini, maka pihak pertama berhak memberikan sanksi sesuai kesepakatan yang berlaku.",
             'closing' => 'Demikian Surat Perintah Muat ini dibuat untuk dilaksanakan dengan penuh tanggung jawab. Atas perhatian dan kerja samanya kami ucapkan terima kasih.',
-            'signatory_name' => Setting::get('company_signatory_name') ?: auth()->user()->name,
-            'signatory_title' => Setting::get('company_signatory_title') ?: 'Direktur',
+            'signatory_name' => auth()->user()->name,
+            'signatory_title' => auth()->user()->position ?: auth()->user()->role,
         ]);
         return view('loading_orders.form', compact('order'));
     }
@@ -43,6 +43,9 @@ class LoadingOrderController extends Controller
     public function store(Request $request)
     {
         $data = $this->validated($request);
+        $data['created_by'] = $request->user()->id;
+        $data['signatory_name'] = $request->user()->name;
+        $data['signatory_title'] = $request->user()->position ?: $request->user()->role;
         $order = DB::transaction(function () use ($data) {
             $order = LoadingOrder::create([...$data, 'number' => 'TMP-'.Str::uuid(), 'company' => $this->company()]);
             $order->update(['number' => 'SPM-'.$order->letter_date->format('ym').'-'.str_pad($order->id, 4, '0', STR_PAD_LEFT)]);
@@ -74,8 +77,15 @@ class LoadingOrderController extends Controller
 
     private function validated(Request $request): array
     {
+        if ($request->has('term_items')) {
+            $terms = $request->validate([
+                'term_items' => ['required', 'array', 'min:1', 'max:50'],
+                'term_items.*' => ['required', 'string', 'max:6000'],
+            ]);
+            $request->merge(['terms' => implode("\n", $terms['term_items'])]);
+        }
         $rules = ['letter_date' => ['required', 'date_format:Y-m-d']];
-        foreach (['city', 'recipient', 'subject', 'route', 'driver_name', 'vehicle_number', 'vehicle_type', 'signatory_name', 'signatory_title'] as $field) {
+        foreach (['city', 'recipient', 'subject', 'route', 'driver_name', 'vehicle_number', 'vehicle_type'] as $field) {
             $rules[$field] = ['required', 'string', 'max:255'];
         }
         foreach (['po_number', 'mod_number', 'driver_phone'] as $field) {
