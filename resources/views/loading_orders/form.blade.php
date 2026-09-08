@@ -3,20 +3,11 @@
 @section('page-title', $order->exists ? 'Edit Surat Perintah Muat' : 'Buat Surat Perintah Muat')
 @section('page-subtitle', 'Lengkapi data surat, lalu ekspor sebagai PDF')
 @section('content')
-@if(!$order->exists)
-<div class="d-flex align-items-center flex-wrap gap-2 mb-3" style="font-size:13px">
-    <span>Template surat:</span>
-    <a href="{{ route('loading-orders.create') }}" class="btn btn-sm {{ $order->language === 'en' ? 'btn-outline-secondary' : 'btn-primary' }}">Indonesia</a>
-    <a href="{{ route('loading-orders.create', ['language' => 'en']) }}" class="btn btn-sm {{ $order->language === 'en' ? 'btn-primary' : 'btn-outline-secondary' }}">English</a>
-    <span class="text-muted" style="font-size:11px">Pilih template sebelum mengisi surat.</span>
-</div>
-@endif
 @if($errors->any())
 <div class="alert alert-danger py-2" style="font-size:13px"><strong>Periksa kembali isian surat.</strong><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
 @endif
 <form method="post" action="{{ $order->exists ? route('loading-orders.update', $order) : route('loading-orders.store') }}">
 @csrf
-<input type="hidden" name="language" value="{{ $order->language ?? 'id' }}">
 @if($order->exists) @method('PUT') @endif
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <a href="{{ route('loading-orders.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i> Kembali</a>
@@ -31,7 +22,7 @@
 <div class="card mb-3">
     <div class="card-header bg-white py-3">
         <div style="font-size:14px;font-weight:700">Data Surat</div>
-        <div style="font-size:11px;color:#6b7280">Penerima, tanggal, dan identitas surat perintah muat. Bahasa PDF: {{ $order->language === 'en' ? 'English' : 'Indonesia' }}.</div>
+        <div style="font-size:11px;color:#6b7280">Penerima, tanggal, dan identitas surat perintah muat.</div>
     </div>
     <div class="card-body"><div class="row g-3">
         <div class="col-md-4"><label class="form-label" for="number">Nomor Surat</label><input id="number" class="form-control" value="{{ $order->number ?: 'Otomatis setelah disimpan' }}" readonly></div>

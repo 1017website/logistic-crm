@@ -10,7 +10,6 @@
             <div style="font-size:12px;color:#6b7280">Kelola surat dan unduh PDF dengan tanda tangan elektronik.</div>
         </div>
         <div class="d-flex gap-2">
-            <a class="btn btn-outline-primary btn-sm" href="{{ route('loading-orders.create', ['language' => 'en']) }}"><i class="fas fa-plus me-1"></i> Buat SPM ENG</a>
             <a class="btn btn-primary btn-sm" href="{{ route('loading-orders.create') }}"><i class="fas fa-plus me-1"></i> Buat Surat Perintah Muat</a>
         </div>
     </div>
@@ -33,7 +32,7 @@
             </tr></thead>
             <tbody>@forelse($orders as $order)
             <tr>
-                <td class="px-3 py-2"><span style="font-weight:700;color:#111827">{{ $order->number }}</span><br><span class="text-muted" style="font-size:11px">{{ $order->language === 'en' ? 'English' : 'Indonesia' }}</span></td>
+                <td class="px-3 py-2"><span style="font-weight:700;color:#111827">{{ $order->number }}</span></td>
                 <td>{{ $order->letter_date->format('d M Y') }}</td>
                 <td><span style="font-weight:600">{{ $order->recipient }}</span></td><td style="font-size:12px">{{ $order->route }}</td>
                 <td>{{ $order->driver_name }}<br><span class="text-muted" style="font-size:11px">{{ $order->vehicle_number }}</span></td>
