@@ -17,6 +17,39 @@ class LoadingOrderWorkflowTest extends TestCase
         return User::create(['name' => 'SPM Tester', 'email' => uniqid().'@example.test', 'password' => 'password', 'role' => $role, 'status' => 'Active']);
     }
 
+    public function test_english_template_can_be_edited_saved_and_exported(): void
+    {
+        $this->actingAs($this->user('Sales Executive'));
+        $form = $this->get(route('loading-orders.create', ['language' => 'en']))->assertOk()->assertSee('LOADING ORDER');
+        $payload = [...$form->viewData('order')->getAttributes(),
+            'letter_date' => '2026-09-08', 'recipient' => 'PT. Catur Sentosa Adiprana Tbk.',
+            'route' => 'Subang - Pekanbaru', 'driver_name' => 'Mulyana',
+            'vehicle_number' => 'B 9515 YB', 'vehicle_type' => '35-ton Trailer',
+        ];
+        $this->post(route('loading-orders.store'), $payload)->assertSessionHasNoErrors();
+        $order = LoadingOrder::latest('id')->firstOrFail();
+        $this->assertSame('en', $order->language);
+        $this->assertStringContainsString('The driver is fully responsible', $order->terms);
+        $order->update(['company' => [
+            'name' => 'PT Firman Tangguh Logistik', 'address' => "Griya Kebraon Barat Blok CK Nomor 23 RT 002/RW 009\nKebraon Karang pilang Surabaya 60222",
+            'phone' => '031-76800968', 'website' => 'www.ft-logistik.com', 'email' => 'info@ft-logistik.com', 'logo' => null,
+        ]]);
+        $html = view('loading_orders.pdf', ['order' => $order, 'company' => $order->company,
+            'signatureQr' => '', 'verificationUrl' => 'https://example.test',
+        ])->render();
+        $this->assertStringContainsString('Terms and Conditions', $html);
+        $this->assertStringContainsString('This document is electronically signed by:', $html);
+        $this->assertStringNotContainsString('Dengan Hormat', $html);
+        $pdf = $this->get(route('loading-orders.pdf', $order))->assertOk()->assertHeader('content-type', 'application/pdf');
+        if (getenv('SPM_REVIEW_PDF')) {
+            file_put_contents(base_path('tmp/pdfs/spm-en-review.pdf'), $pdf->getContent());
+        }
+        $this->put(route('loading-orders.update', $order), [...$payload, 'opening' => 'Please load the cargo as detailed below.'])->assertSessionHasNoErrors();
+        $this->assertSame('Please load the cargo as detailed below.', $order->fresh()->opening);
+        $this->assertSame('en', $order->fresh()->language);
+        $this->get(route('loading-orders.create', ['language' => 'invalid']))->assertSessionHasErrors('language');
+    }
+
     public function test_independent_letter_workflow_and_versioned_signature(): void
     {
         $creator = $this->user('Sales Executive');

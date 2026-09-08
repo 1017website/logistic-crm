@@ -26,9 +26,11 @@ class LoadingOrderController extends Controller
         return view('loading_orders.index', compact('orders', 'search'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
+        $language = $request->validate(['language' => ['sometimes', 'in:id,en']])['language'] ?? 'id';
         $order = new LoadingOrder([
+            'language' => $language,
             'letter_date' => today(), 'city' => Setting::get('company_document_city', 'Surabaya'),
             'subject' => 'SURAT PERINTAH MUAT',
             'opening' => 'Bersama ini PT. Firman Tangguh Logistik, memutuskan bahwa pelaksanaan transportasi logistik dilakukan oleh PT. Firman Tangguh Logistik dengan rincian sebagai berikut:',
@@ -37,6 +39,14 @@ class LoadingOrderController extends Controller
             'signatory_name' => auth()->user()->name,
             'signatory_title' => auth()->user()->position ?: auth()->user()->role,
         ]);
+        if ($language === 'en') {
+            $order->fill([
+                'subject' => 'LOADING ORDER',
+                'opening' => 'We hereby confirm that PT. Firman Tangguh Logistik will carry out the transportation services in accordance with the following details:',
+                'terms' => "The driver is fully responsible for the vehicle and cargo throughout transportation, from the loading point to the unloading point.\nAny risks arising during the journey, including delays, damage, or loss caused by driver negligence, shall be the responsibility of the transport operator.\nThis work may not be transferred or subcontracted to a third party without prior approval from the first party.\nIf any breach of this loading order is subsequently found, the first party reserves the right to impose sanctions in accordance with the applicable agreement.",
+                'closing' => 'This loading order is issued to be carried out with full responsibility. Thank you for your attention and cooperation.',
+            ]);
+        }
         return view('loading_orders.form', compact('order'));
     }
 
@@ -84,7 +94,7 @@ class LoadingOrderController extends Controller
             ]);
             $request->merge(['terms' => implode("\n", $terms['term_items'])]);
         }
-        $rules = ['letter_date' => ['required', 'date_format:Y-m-d']];
+        $rules = ['letter_date' => ['required', 'date_format:Y-m-d'], 'language' => ['sometimes', 'required', 'in:id,en']];
         foreach (['city', 'recipient', 'subject', 'route', 'driver_name', 'vehicle_number', 'vehicle_type'] as $field) {
             $rules[$field] = ['required', 'string', 'max:255'];
         }

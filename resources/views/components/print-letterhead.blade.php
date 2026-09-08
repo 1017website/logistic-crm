@@ -1,4 +1,4 @@
-@props(['company', 'printOnly' => false])
+@props(['company', 'printOnly' => false, 'compactLogo' => false])
 @php
     $logo = $company['logo'] ?? null;
     $logoUrl = $logo && str_starts_with($logo, 'data:')
@@ -10,7 +10,16 @@
     .document-letterhead{width:100%;margin:0 0 6mm}.document-letterhead-table{width:100%;border-collapse:collapse;table-layout:fixed}.document-letterhead-table td{vertical-align:middle;padding:0}.document-letterhead-logo-cell{width:54%;padding-right:7mm!important;text-align:center}.document-letterhead-logo{max-width:93mm;max-height:25mm;object-fit:contain}.document-letterhead-fallback{font-size:18pt;font-weight:800;color:#d4ad4f;letter-spacing:.5pt}.document-letterhead-company{width:46%}.document-letterhead-name{font-family:"DejaVu Sans",Arial,sans-serif;font-size:13.8pt;line-height:1.05;font-weight:bold;font-style:normal;text-decoration:underline;margin-bottom:2pt;color:#111827;text-shadow:.18pt 0 #111827,-.18pt 0 #111827}.document-letterhead-detail{font-size:8.6pt;line-height:1.35;color:#111827}.document-letterhead-accent{width:100%;height:4.5pt;border-collapse:collapse;margin-top:5mm}.document-letterhead-accent td{padding:0;height:4.5pt}.document-letterhead-accent .gold{background:#d16308;width:29%}.document-letterhead-accent .mid{background:#9b7b45;width:22%}.document-letterhead-accent .blue{background:#0ea5c6;width:22%}.document-letterhead-accent .dark{background:#020617;width:27%}.document-letterhead.print-only{display:none}@media print{.document-letterhead.print-only{display:block!important}}
 </style>
 @endonce
-<div class="document-letterhead {{ $printOnly ? 'print-only' : '' }}">
+@if($compactLogo)
+<style>
+    .document-letterhead.compact-logo .document-letterhead-logo-cell{width:43%;padding-right:5mm!important}
+    .document-letterhead.compact-logo .document-letterhead-logo{max-width:72mm;max-height:21mm}
+    .document-letterhead.compact-logo .document-letterhead-company{width:57%}
+    .document-letterhead.compact-logo .document-letterhead-name{font-size:12.5pt;white-space:nowrap}
+    .document-letterhead.compact-logo .document-letterhead-fallback{font-size:14pt}
+</style>
+@endif
+<div class="document-letterhead {{ $printOnly ? 'print-only' : '' }} {{ $compactLogo ? 'compact-logo' : '' }}">
     <table class="document-letterhead-table">
         <tr>
             <td class="document-letterhead-logo-cell">
