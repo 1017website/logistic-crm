@@ -41,6 +41,17 @@
                     <a class="btn btn-sm btn-outline-primary" style="padding:4px 9px" target="_blank" rel="noopener" href="{{ route('loading-orders.pdf', $order) }}" title="Print Preview"><i class="fas fa-print me-1"></i> Preview</a>
                     <a class="btn btn-sm btn-primary" style="padding:4px 9px" href="{{ route('loading-orders.pdf', [$order, 'download' => 1]) }}" title="Unduh PDF"><i class="fas fa-file-pdf me-1"></i> PDF</a>
                     <a class="btn btn-sm btn-outline-secondary" style="padding:4px 8px" href="{{ route('loading-orders.edit', $order) }}" title="Edit" aria-label="Edit {{ $order->number }}"><i class="fas fa-pen"></i></a>
+                    @if(in_array($order->id, $pendingDeletionIds))
+                        <span class="badge bg-warning text-dark" style="font-size:11px" title="Menunggu persetujuan administrator"><i class="fas fa-clock me-1"></i> Menunggu Hapus</span>
+                    @else
+                        <form method="POST" action="{{ route('deletion-requests.store') }}" class="d-inline"
+                            onsubmit="return confirm('Ajukan permintaan hapus surat ini? Surat baru dihapus setelah disetujui administrator.')">
+                            @csrf
+                            <input type="hidden" name="module" value="loading-orders">
+                            <input type="hidden" name="model_id" value="{{ $order->id }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:4px 8px" title="Ajukan permintaan hapus" aria-label="Ajukan permintaan hapus {{ $order->number }}"><i class="fas fa-trash"></i></button>
+                        </form>
+                    @endif
                 </td>
             </tr>
             @empty

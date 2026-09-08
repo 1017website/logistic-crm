@@ -17,6 +17,54 @@ class LoadingOrderWorkflowTest extends TestCase
         return User::create(['name' => 'SPM Tester', 'email' => uniqid().'@example.test', 'password' => 'password', 'role' => $role, 'status' => 'Active']);
     }
 
+    public function test_spm_deletion_always_requires_approval_and_finance_is_blocked(): void
+    {
+        $admin = $this->user('Admin');
+        $superAdmin = $this->user('Super Admin');
+        foreach (array_diff(User::ROLES, ['Finance']) as $role) {
+            $user = $this->user($role);
+            $order = LoadingOrder::create([
+                'number' => 'SPM-DELETE-'.uniqid(), 'letter_date' => today(),
+                'company' => ['name' => 'Test'], 'recipient' => 'Penerima Test',
+                'signatory_name' => $user->name, 'signatory_title' => $role,
+            ]);
+            $order->refresh();
+            $fingerprint = $order->fingerprint();
+            $payload = ['module' => 'loading-orders', 'model_id' => $order->id];
+            $this->actingAs($user)->post(route('deletion-requests.store'), $payload)->assertSessionHas('success');
+            $dr = \App\Models\DeletionRequest::where('model_type', LoadingOrder::class)->where('model_id', $order->id)->sole();
+            $this->assertTrue($dr->isPending());
+            $this->assertNotNull(LoadingOrder::find($order->id));
+            $this->assertSame($fingerprint, $order->fresh()->fingerprint());
+            $this->get(route('loading-orders.index'))->assertOk()->assertSee('Menunggu Hapus');
+            foreach ([$admin, $superAdmin] as $recipient) {
+                $this->assertDatabaseHas('notifications', ['user_id' => $recipient->id, 'title' => 'Permintaan Hapus: Surat Perintah Muat']);
+            }
+            $notifications = \App\Models\Notification::count();
+            $this->post(route('deletion-requests.store'), $payload)->assertSessionHas('success');
+            $this->assertSame($notifications, \App\Models\Notification::count());
+            $this->assertSame(1, \App\Models\DeletionRequest::where('model_type', LoadingOrder::class)->where('model_id', $order->id)->count());
+            if (!$user->isAdmin()) {
+                $this->post(route('deletion-requests.approve', $dr))->assertForbidden();
+            }
+            $this->actingAs($admin)->post(route('deletion-requests.reject', $dr))->assertSessionHas('success');
+            $this->assertNotNull(LoadingOrder::find($order->id));
+            $this->assertTrue($dr->fresh()->isRejected());
+            $this->actingAs($user)->post(route('deletion-requests.store'), $payload)->assertSessionHas('success');
+            $pending = \App\Models\DeletionRequest::where('model_type', LoadingOrder::class)->where('model_id', $order->id)->where('status', 'pending')->sole();
+            $verifyUrl = URL::signedRoute('documents.verify', ['kind' => 'loading_order', 'id' => $order->id, 'version' => $fingerprint], absolute: false);
+            $this->actingAs($superAdmin)->post(route('deletion-requests.approve', $pending))->assertSessionHas('success');
+            $this->assertSoftDeleted('loading_orders', ['id' => $order->id]);
+            $this->assertTrue($pending->fresh()->isApproved());
+            $this->get(route('loading-orders.pdf', $order))->assertNotFound();
+            $this->get($verifyUrl)->assertNotFound();
+        }
+        $finance = $this->user('Finance');
+        $order = LoadingOrder::create(['number' => 'SPM-FIN-'.uniqid(), 'letter_date' => today(), 'company' => ['name' => 'Test']]);
+        $this->actingAs($finance)->post(route('deletion-requests.store'), ['module' => 'loading-orders', 'model_id' => $order->id])->assertForbidden();
+        $this->assertDatabaseMissing('deletion_requests', ['model_type' => LoadingOrder::class, 'model_id' => $order->id]);
+    }
+
     public function test_only_indonesian_template_is_available(): void
     {
         $this->actingAs($this->user('Sales Executive'));

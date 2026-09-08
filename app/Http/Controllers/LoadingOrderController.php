@@ -23,7 +23,8 @@ class LoadingOrderController extends Controller
                 }
             });
         })->latest('id')->paginate(20)->withQueryString();
-        return view('loading_orders.index', compact('orders', 'search'));
+        $pendingDeletionIds = \App\Models\DeletionRequest::pendingIdsFor(LoadingOrder::class);
+        return view('loading_orders.index', compact('orders', 'search', 'pendingDeletionIds'));
     }
 
     public function create()

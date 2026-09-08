@@ -105,6 +105,27 @@ class DeletionRequestController extends Controller
             return back()->withErrors(['delete' => 'Modul tidak dikenal.']);
         }
 
+        // SPM selalu melalui antrian, termasuk pengajuan dari Admin/Super Admin.
+        if ($modelClass === \App\Models\LoadingOrder::class) {
+            abort_unless($request->user()->status === 'Active'
+                && $request->user()->canAccess('loading_orders'), 403);
+
+            return DB::transaction(function () use ($request, $modelClass) {
+                $model = $modelClass::lockForUpdate()->findOrFail($request->model_id);
+                $dr = DeletionRequest::request($model, $request->user()->id, $request->reason);
+                if (!$dr->wasRecentlyCreated) {
+                    return back()->with('success', 'Permintaan hapus surat ini masih menunggu persetujuan administrator.');
+                }
+                Notification::sendToRoles(
+                    ['Super Admin', 'Admin'], 'delete_request',
+                    'Permintaan Hapus: ' . $dr->module_title,
+                    $request->user()->name . ' meminta hapus "' . $dr->model_label . '"',
+                    route('deletion-requests.index')
+                );
+                return back()->with('success', 'Permintaan hapus dikirim ke administrator untuk disetujui.');
+            });
+        }
+
         $model = $modelClass::find($request->model_id);
         if (!$model) {
             return back()->withErrors(['delete' => 'Data tidak ditemukan.']);

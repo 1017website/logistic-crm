@@ -24,6 +24,12 @@ class DeletionRequest extends Model
      * route       : nama route index modul (untuk badge & link).
      */
     public const MODULES = [
+        \App\Models\LoadingOrder::class => [
+            'module' => 'loading-orders',
+            'label_field' => 'number',
+            'route' => 'loading-orders.index',
+            'title' => 'Surat Perintah Muat',
+        ],
         \App\Models\Lead::class => [
             'module'      => 'leads',
             'label_field' => 'company_name',
