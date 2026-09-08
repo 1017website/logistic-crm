@@ -18,6 +18,7 @@ class DocumentVerificationController extends Controller
         $defaultTitle = Setting::get('company_signatory_title') ?: 'Direktur';
 
         $verification = match ($kind) {
+            'loading_order' => $this->loadingOrder($request, $id),
             'quotation' => $this->quotation($id),
             'invoice' => $this->invoice($id, $defaultSigner, $defaultTitle),
             'delivery_order' => $this->deliveryOrder($id, $defaultSigner, $defaultTitle),
@@ -26,6 +27,18 @@ class DocumentVerificationController extends Controller
         };
 
         return view('documents.verify', compact('verification', 'companyName'));
+    }
+
+    private function loadingOrder(Request $request, int $id): array
+    {
+        $document = \App\Models\LoadingOrder::findOrFail($id);
+        abort_unless(hash_equals($document->fingerprint(), (string) $request->query('version')), 410, 'Isi surat telah diperbarui. Gunakan PDF versi terbaru.');
+        return [
+            'label' => 'Surat Perintah Muat', 'number' => $document->number,
+            'date' => $document->letter_date->translatedFormat('d F Y'),
+            'counterparty' => $document->recipient, 'signer' => $document->signatory_name,
+            'title' => $document->signatory_title, 'status' => 'Diterbitkan',
+        ];
     }
 
     private function quotation(int $id): array

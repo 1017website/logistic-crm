@@ -48,6 +48,7 @@ class User extends Authenticatable
         if ($this->isSuperAdmin()) return true;
 
         return match($feature) {
+            'loading_orders' => !$this->isFinance(),
             'settings'        => $this->isAdmin(),
             'users'           => in_array($this->role, ['Admin', 'Sales Manager']),
             'reports'         => in_array($this->role, ['Admin', 'Sales Manager']),

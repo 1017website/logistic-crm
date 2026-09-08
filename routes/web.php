@@ -47,7 +47,7 @@ Route::get('/', function () {
 
 // Tujuan publik QR tanda tangan elektronik. Signature URL mencegah parameter diubah.
 Route::get('/documents/verify/{kind}/{id}', [DocumentVerificationController::class, 'show'])
-    ->whereIn('kind', ['quotation', 'invoice', 'delivery_order', 'report'])
+    ->whereIn('kind', ['quotation', 'invoice', 'delivery_order', 'report', 'loading_order'])
     ->whereNumber('id')
     ->middleware('signed:relative')
     ->name('documents.verify');
@@ -62,6 +62,11 @@ Route::get('/tracking/surat-jalan/{deliveryOrder}', [DeliveryOrderController::cl
 Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::middleware('role:Admin,Sales Manager,Sales Executive,Sales Admin,Transport Planner')->group(function () {
+        Route::get('/loading-orders/{loadingOrder}/pdf', [\App\Http\Controllers\LoadingOrderController::class, 'pdf'])->name('loading-orders.pdf');
+        Route::resource('loading-orders', \App\Http\Controllers\LoadingOrderController::class)
+            ->parameters(['loading-orders' => 'loadingOrder'])->only(['index', 'create', 'store', 'edit', 'update']);
+    });
     Route::get('/search',    [SearchController::class, 'search'])->name('search');
 
     // Notifications

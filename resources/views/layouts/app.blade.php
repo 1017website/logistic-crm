@@ -1465,6 +1465,11 @@
             <a href="{{ route('pipeline.index') }}" class="sidebar-item {{ request()->routeIs('pipeline.*') ? 'active' : '' }}">
                 <i class="fas fa-filter si-icon"></i><span>Pipeline</span>
             </a>
+            @if(auth()->user()->canAccess('loading_orders'))
+            <a href="{{ route('loading-orders.index') }}" class="sidebar-item {{ request()->routeIs('loading-orders.*') ? 'active' : '' }}">
+                <i class="fas fa-file-alt si-icon"></i><span>Surat Perintah Muat</span>
+            </a>
+            @endif
             @if(auth()->user()->canAccess('quotations'))
             <a href="{{ route('quotations.index') }}" class="sidebar-item {{ request()->routeIs('quotations.*') ? 'active' : '' }}">
                 <i class="fas fa-file-signature si-icon"></i><span>Penawaran</span>
