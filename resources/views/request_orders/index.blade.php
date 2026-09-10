@@ -109,6 +109,7 @@
                                 <tr>
                                     <th class="px-3 py-2" style="width:28px"></th>
                                     <th class="px-3 py-2">No. DO</th>
+                                    <th class="py-2">Tgl Order</th>
                                     <th class="py-2">Customer</th>
                                     <th class="py-2">Sales PIC</th>
                                     <th class="py-2">Lokasi Muat</th>
@@ -118,7 +119,6 @@
                                     <th class="py-2">Status DO</th>
                                     <th class="py-2">DP</th>
                                     <th class="py-2">Tahap Flow</th>
-                                    <th class="py-2">Tgl Order</th>
                                     <th class="py-2">Service Type</th>
                                     <th class="py-2"></th>
                                 </tr>
@@ -137,6 +137,7 @@
                                             </button>
                                         </td>
                                         <td class="px-3 py-2" style="font-weight:700;color:var(--primary)">{{ $po->do_number }}</td>
+                                        <td class="py-2" style="color:#6b7280;font-size:12px">{{ $po->order_date?->format('d M Y') }}</td>
                                         <td class="py-2" style="font-size:12px">{{ $po->customer?->company_name ?? '-' }}</td>
                                         <td class="py-2" style="font-size:12px;font-weight:600">{{ $po->salesUser?->name ?? '-' }}</td>
                                         <td class="py-2" style="font-size:12px;min-width:120px">{{ $po->muat ?: ($po->origin ?: '-') }}</td>
@@ -185,7 +186,6 @@
                                             @endphp
                                             <span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;background:{{ $fc[0] }};color:{{ $fc[1] }}">{{ $po->flow_label }}</span>
                                         </td>
-                                        <td class="py-2" style="color:#6b7280;font-size:12px">{{ $po->order_date?->format('d M Y') }}</td>
                                         <td class="py-2" style="color:#6b7280;font-size:11px">
                                             {{ $po->delivery_type ? ucwords($po->delivery_type) : '-' }}<br>
                                             @if($po->tracking_number)

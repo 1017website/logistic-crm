@@ -52,19 +52,20 @@
                 <table class="table table-hover mb-0" style="font-size:13px">
                     <thead style="background:#f8f9fa"><tr>
                         <th class="px-3 py-2">No. DO</th>
+                        <th class="py-2">Tgl DO</th>
                         <th class="py-2">Request DO</th>
                         <th class="py-2">Customer</th>
                         <th class="py-2">Armada / Vendor</th>
                         <th class="py-2">Rute</th>
                         <th class="py-2">Tahap</th>
                         <th class="py-2">Revenue</th>
-                        <th class="py-2">Tgl DO</th>
                         <th class="py-2"></th>
                     </tr></thead>
                     <tbody>
                         @forelse($dos as $do)
                         <tr>
                             <td class="px-3 py-2" style="font-weight:700;color:var(--primary)">{{ $do->do_number }}</td>
+                            <td class="py-2" style="font-size:12px;color:#6b7280">{{ $do->do_date?->format('d M Y') }}</td>
                             <td class="py-2" style="font-size:12px;color:#6b7280">{{ $do->requestOrder?->do_number ?? '-' }}</td>
                             <td class="py-2">{{ $do->customer?->company_name ?? '-' }}</td>
                             <td class="py-2" style="font-size:12px">
@@ -74,7 +75,6 @@
                             <td class="py-2" style="font-size:11px;color:#6b7280">{{ $do->origin ?? '?' }} &rarr; {{ $do->destination ?? '?' }}</td>
                             <td class="py-2"><span class="badge bg-{{ $do->flow_color }}">{{ $do->flow_label }}</span></td>
                             <td class="py-2" style="font-weight:600;color:var(--primary);white-space:nowrap">{{ idr($do->total_revenue) }}</td>
-                            <td class="py-2" style="font-size:12px;color:#6b7280">{{ $do->do_date?->format('d M Y') }}</td>
                             <td class="py-2">
                                 <a href="{{ route('delivery-orders.show', $do->id) }}" class="btn btn-sm btn-outline-primary" style="padding:3px 7px" title="Detail & Aksi">
                                     <i class="fas fa-stream"></i>

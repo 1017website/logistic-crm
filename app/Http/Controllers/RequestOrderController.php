@@ -781,7 +781,7 @@ class RequestOrderController extends Controller
 
         $sos = $query->orderByDesc('order_date')->get();
 
-        $headers = ['Request DO', 'Customer', 'Flow', 'Status Operasional', 'Keterangan Status', 'Alasan Batal', 'Jadwal Reschedule', 'Request DP', 'Status DP', 'Nominal DP', 'Catatan DP', 'Direview Finance', 'Delivery Type', 'Origin', 'Destination', 'Tracking', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA'];
+        $headers = ['Request DO', 'Tgl Order', 'Customer', 'Flow', 'Status Operasional', 'Keterangan Status', 'Alasan Batal', 'Jadwal Reschedule', 'Request DP', 'Status DP', 'Nominal DP', 'Catatan DP', 'Direview Finance', 'Delivery Type', 'Origin', 'Destination', 'Tracking', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'ETA'];
 
         $rows = [];
         foreach ($sos as $so) {
@@ -790,6 +790,7 @@ class RequestOrderController extends Controller
             foreach ($items as $item) {
                 $rows[] = [
                     $so->do_number,
+                    $so->order_date?->format('Y-m-d'),
                     $so->customer?->company_name ?? '-',
                     $so->flow_label,
                     $so->operational_status_label,
@@ -811,7 +812,7 @@ class RequestOrderController extends Controller
                     $item ? (float) $item->subtotal_cost : null,
                     $item ? (float) $item->gross_profit : null,
                     $so->currency, $so->status,
-                    $so->order_date?->format('Y-m-d'), $so->estimated_arrival?->format('Y-m-d'),
+                    $so->estimated_arrival?->format('Y-m-d'),
                 ];
             }
         }

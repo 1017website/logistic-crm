@@ -35,18 +35,19 @@ class RequestOrderExportTest extends TestCase
 
         $this->assertCount(2, $rows);
         $this->assertCount(29, $rows[0]);
+        $this->assertSame(['Request DO', 'Tgl Order', 'Customer'], array_slice($rows[0], 0, 3));
         $this->assertSame('ETA', $rows[0][28]);
         $this->assertSame($order->do_number, $rows[1][0]);
-        $this->assertSame($customer->company_name, $rows[1][1]);
-        $this->assertSame($order->flow_label, $rows[1][2]);
-        $this->assertSame('Jalan / Aktif', $rows[1][3]);
-        $this->assertSame('Belum Direview', $rows[1][8]);
-        $this->assertSame('Surabaya', $rows[1][13]);
-        $this->assertSame('Jakarta', $rows[1][14]);
-        $this->assertSame(array_fill(0, 9, null), array_slice($rows[1], 16, 9));
-        $this->assertSame('IDR', $rows[1][25]);
-        $this->assertSame('In Progress', $rows[1][26]);
-        $this->assertSame('2026-09-02', $rows[1][27]);
+        $this->assertSame($customer->company_name, $rows[1][2]);
+        $this->assertSame($order->flow_label, $rows[1][3]);
+        $this->assertSame('Jalan / Aktif', $rows[1][4]);
+        $this->assertSame('Belum Direview', $rows[1][9]);
+        $this->assertSame('Surabaya', $rows[1][14]);
+        $this->assertSame('Jakarta', $rows[1][15]);
+        $this->assertSame(array_fill(0, 9, null), array_slice($rows[1], 17, 9));
+        $this->assertSame('IDR', $rows[1][26]);
+        $this->assertSame('In Progress', $rows[1][27]);
+        $this->assertSame('2026-09-02', $rows[1][1]);
         $this->assertSame('2026-09-05', $rows[1][28]);
     }
 
@@ -70,12 +71,12 @@ class RequestOrderExportTest extends TestCase
 
         $this->assertCount(4, $rows);
         $this->assertSame([$withItems->do_number, $withItems->do_number, $withoutItems->do_number], array_column(array_slice($rows, 1), 0));
-        $this->assertEqualsCanonicalizing(['Trucking', 'Bongkar'], [$rows[1][16], $rows[2][16]]);
+        $this->assertEqualsCanonicalizing(['Trucking', 'Bongkar'], [$rows[1][17], $rows[2][17]]);
         foreach ([$rows[1], $rows[2]] as $row) {
-            $this->assertSame('rit', $row[17]);
-            $this->assertEquals([2.5, 2, 100000, 150000, 300000, 200000, 100000], array_slice($row, 18, 7));
+            $this->assertSame('rit', $row[18]);
+            $this->assertEquals([2.5, 2, 100000, 150000, 300000, 200000, 100000], array_slice($row, 19, 7));
         }
-        $this->assertSame(array_fill(0, 9, null), array_slice($rows[3], 16, 9));
+        $this->assertSame(array_fill(0, 9, null), array_slice($rows[3], 17, 9));
     }
 
     private function exportRows(User $user, Customer $customer, array $filters = []): array

@@ -299,12 +299,13 @@ class DeliveryOrderController extends Controller
             ->whereBetween('do_date', [$startDate, $endDate])
             ->orderByDesc('do_date')->get();
 
-        $headers = ['DO Number', 'Request DO', 'Customer', 'Armada/Vendor', 'Tipe', 'Origin', 'Destination', 'Flow', 'Pickup', 'Delivery', 'Revenue', 'Actual Cost', 'Other Cost', 'Gross Profit', 'POD At', 'Closed At'];
+        $headers = ['DO Number', 'Tgl DO', 'Request DO', 'Customer', 'Armada/Vendor', 'Tipe', 'Origin', 'Destination', 'Flow', 'Pickup', 'Delivery', 'Revenue', 'Actual Cost', 'Other Cost', 'Gross Profit', 'POD At', 'Closed At'];
 
         $rows = [];
         foreach ($dos as $d) {
             $rows[] = [
                 $d->do_number,
+                $d->do_date?->format('Y-m-d'),
                 $d->requestOrder?->do_number ?? '-',
                 $d->customer?->company_name ?? '-',
                 $d->fleet_info ?? ($d->vendor?->vendor_name ?? '-'),
