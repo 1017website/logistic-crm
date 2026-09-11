@@ -753,7 +753,7 @@ class RequestOrderController extends Controller
         $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->get('end_date', now()->endOfMonth()->format('Y-m-d'));
 
-        $query = RequestOrder::with(['customer', 'items'])
+        $query = RequestOrder::with('customer')
             ->whereBetween('order_date', [$startDate, $endDate]);
 
         if ($request->get('tab', 'active') === 'cancelled') {
@@ -781,40 +781,20 @@ class RequestOrderController extends Controller
 
         $sos = $query->orderByDesc('order_date')->get();
 
-        $headers = ['Request DO', 'Tgl Order', 'Customer', 'Flow', 'Status Operasional', 'Keterangan Status', 'Alasan Batal', 'Jadwal Reschedule', 'Request DP', 'Status DP', 'Nominal DP', 'Catatan DP', 'Direview Finance', 'Delivery Type', 'Origin', 'Destination', 'Tracking', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'ETA'];
+        $headers = ['No Request DO', 'Tgl order', 'Cust', 'Trucking', 'No Cont', 'No Seal', 'No Pol', 'Driver'];
 
         $rows = [];
         foreach ($sos as $so) {
-            // Request tanpa item layanan tetap diekspor sebagai satu baris.
-            $items = $so->items->isNotEmpty() ? $so->items : [null];
-            foreach ($items as $item) {
-                $rows[] = [
-                    $so->do_number,
-                    $so->order_date?->format('Y-m-d'),
-                    $so->customer?->company_name ?? '-',
-                    $so->flow_label,
-                    $so->operational_status_label,
-                    $so->operational_note,
-                    $so->cancel_reason,
-                    $so->rescheduled_for?->format('Y-m-d'),
-                    $so->dp_request_active ? 'Aktif' : 'Nonaktif',
-                    $so->dp_status_label,
-                    (float) $so->dp_amount,
-                    $so->dp_note,
-                    $so->dp_reviewed_at?->format('Y-m-d H:i:s'),
-                    $so->delivery_type, $so->origin, $so->destination, $so->tracking_number,
-                    $item?->service_name, $item?->unit,
-                    $item?->tonnage !== null ? (float) $item->tonnage : null,
-                    $item ? (float) $item->qty : null,
-                    $item ? (float) $item->buy_price : null,
-                    $item ? (float) $item->sell_price : null,
-                    $item ? (float) $item->subtotal_revenue : null,
-                    $item ? (float) $item->subtotal_cost : null,
-                    $item ? (float) $item->gross_profit : null,
-                    $so->currency, $so->status,
-                    $so->estimated_arrival?->format('Y-m-d'),
-                ];
-            }
+            $rows[] = [
+                $so->do_number,
+                $so->order_date?->format('Y-m-d'),
+                $so->customer?->company_name ?? '-',
+                $so->jenis_truck,
+                $so->no_container,
+                $so->no_seal,
+                $so->no_pol,
+                $so->supir,
+            ];
         }
 
         return \App\Helpers\ExcelExport::download(
