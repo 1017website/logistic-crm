@@ -134,9 +134,11 @@ class RequestOrderController extends Controller
     {
         $request->validate($this->rules());
 
+        $this->validateDuplicates($request);
+
         $customer = Customer::findOrFail($request->customer_id);
         if ($customer->status !== 'Existing') {
-            return back()->withInput()->withErrors(['customer_id' => 'Customer harus berstatus Existing/Won sebelum dibuatkan Request DO.']);
+            throw \Illuminate\Validation\ValidationException::withMessages(['customer_id' => 'Customer harus berstatus Existing/Won sebelum dibuatkan Request DO.']);
         }
 
         $ro = DB::transaction(function () use ($request) {
@@ -166,6 +168,10 @@ class RequestOrderController extends Controller
             return $ro;
         });
 
+        if ($request->expectsJson()) {
+            $request->session()->flash('success', 'Request DO berhasil dibuat & masuk antrian verifikasi.');
+            return response()->json(['redirect' => route('request-orders.index')]);
+        }
         return redirect()->route('request-orders.index')->with('success', 'Request DO berhasil dibuat & masuk antrian verifikasi.');
     }
 
@@ -183,10 +189,12 @@ class RequestOrderController extends Controller
     {
         // Hanya boleh edit jika belum disetujui (belum terbit DO).
         if (in_array($requestOrder->request_status, ['assigned'])) {
-            return back()->withErrors(['general' => 'Request DO sudah disetujui & DO terbit, tidak bisa diedit.']);
+            throw \Illuminate\Validation\ValidationException::withMessages(['general' => 'Request DO sudah disetujui & DO terbit, tidak bisa diedit.']);
         }
 
         $request->validate($this->rules());
+
+        $this->validateDuplicates($request, $requestOrder->id);
 
         $wasResubmitted = DB::transaction(function () use ($request, $requestOrder) {
             $requestOrder->update([
@@ -211,6 +219,12 @@ class RequestOrderController extends Controller
             );
         });
 
+        if ($request->expectsJson()) {
+            $request->session()->flash('success', $wasResubmitted
+                ? 'Request DO berhasil diperbarui & diajukan ulang ke Sales Manager.'
+                : 'Request DO berhasil diperbarui.');
+            return response()->json(['redirect' => route('request-orders.index')]);
+        }
         return redirect()->route('request-orders.index')->with(
             'success',
             $wasResubmitted
@@ -543,6 +557,10 @@ class RequestOrderController extends Controller
 
         // APPROVE → terbitkan DO final otomatis
         DB::transaction(function () use ($requestOrder, $assignment, $request) {
+            $requestOrder = RequestOrder::lockForUpdate()->findOrFail($requestOrder->id);
+            if ($requestOrder->request_status !== 'approval') {
+                throw \Illuminate\Validation\ValidationException::withMessages(['general' => 'Request DO tidak berada di tahap approval.']);
+            }
             if ($assignment) {
                 $assignment->update([
                     'approval_status' => 'approved',
@@ -554,7 +572,10 @@ class RequestOrderController extends Controller
 
             $requestOrder->transition('assigned', $request->note ?: 'Penugasan disetujui.', auth()->id());
 
-            $do = DeliveryOrder::create([
+            $returnedDo = DeliveryOrder::onlyTrashed()
+                ->where('request_order_id', $requestOrder->id)
+                ->where('status', 'returned_to_rdo')->lockForUpdate()->first();
+            $doData = [
                 // Satu nomor dipakai dari Request DO sampai DO final agar mudah ditelusuri.
                 'do_number'        => $requestOrder->do_number,
                 'request_order_id' => $requestOrder->id,
@@ -573,7 +594,20 @@ class RequestOrderController extends Controller
                 'do_date'          => now()->toDateString(),
                 'pickup_date'      => $requestOrder->pickup_date,
                 'actual_cost'      => $assignment?->estimated_cost ?? 0,
-            ]);
+            ];
+            if ($returnedDo) {
+                unset($doData['do_date']);
+                if (!$assignment) {
+                    foreach (['assignment_type', 'fleet_info', 'driver_name', 'driver_phone', 'actual_cost'] as $field) {
+                        unset($doData[$field]);
+                    }
+                }
+                $returnedDo->fill($doData);
+                $returnedDo->restore();
+                $do = $returnedDo;
+            } else {
+                $do = DeliveryOrder::create($doData);
+            }
 
             \App\Models\OrderStatusLog::record($do, null, 'surat_jalan', auth()->id(), 'DO terbit otomatis dari approval penugasan ' . $requestOrder->do_number . '.');
 
@@ -802,6 +836,18 @@ class RequestOrderController extends Controller
         );
     }
 
+    private function validateDuplicates(Request $request, ?int $exceptId = null): void
+    {
+        if ($request->boolean('allow_duplicate')) return;
+
+        $matches = app(\App\Services\RequestOrderDuplicateService::class)->find($request->all(), $exceptId);
+        if ($matches->isNotEmpty()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'duplicate' => 'Kemungkinan RDO duplikat: ' . $matches->pluck('do_number')->implode(', ') . '. Periksa data dan konfirmasi sebelum menyimpan.',
+            ]);
+        }
+    }
+
     private function rules(): array
     {
         return [
@@ -819,6 +865,14 @@ class RequestOrderController extends Controller
             'pickup_date'       => 'nullable|date',
             'notes'             => 'nullable|string',
             'alamat'            => 'nullable|string|max:1000',
+            'kode_sektor'       => 'nullable|string|max:255',
+            'sektor'            => 'nullable|string|max:255',
+            'no_container'      => 'nullable|string|max:255',
+            'no_seal'           => 'nullable|string|max:255',
+            'no_pol'            => 'nullable|string|max:255',
+            'muat'              => 'nullable|string|max:255',
+            'bongkar'           => 'nullable|string|max:255',
+            'allow_duplicate'   => 'nullable|boolean',
         ];
     }
 
@@ -827,7 +881,7 @@ class RequestOrderController extends Controller
     {
         $keys = [
             'checker', 'jenis_truck', 'no_pol', 'komoditi', 'depo', 'muat', 'tgl_muat',
-            'bongkar', 'tgl_bongkar', 'tujuan', 'no_container', 'no_seal', 'grade', 'sektor',
+            'bongkar', 'tgl_bongkar', 'tujuan', 'no_container', 'no_seal', 'grade', 'sektor', 'kode_sektor',
             'supir', 'hp_supir', 'kota', 'alamat', 'keterangan',
         ];
         $out = [];

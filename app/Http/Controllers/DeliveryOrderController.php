@@ -27,6 +27,30 @@ use Illuminate\Validation\ValidationException;
  */
 class DeliveryOrderController extends Controller
 {
+    public function returnToRequest(Request $request, DeliveryOrder $deliveryOrder)
+    {
+        $data = $request->validate(['reason' => 'required|string|max:1000']);
+        $order = DB::transaction(function () use ($deliveryOrder, $data) {
+            $order = \App\Models\RequestOrder::lockForUpdate()->findOrFail($deliveryOrder->request_order_id);
+            $do = DeliveryOrder::lockForUpdate()->findOrFail($deliveryOrder->id);
+            $do->setRelation('requestOrder', $order);
+            if (!$do->can_return_to_request) {
+                throw ValidationException::withMessages(['general' => 'Hanya DO tahap Surat Jalan yang belum ditagihkan dapat dikembalikan ke RDO.']);
+            }
+
+            $note = 'DO dikembalikan ke RDO oleh ' . auth()->user()->name . '. Alasan: ' . $data['reason'];
+            $do->transition('returned_to_rdo', $note, auth()->id());
+            $do->delete();
+            $order->update(['do_approved' => false, 'price_correction_open' => false]);
+            $order->transition('finance', $note, auth()->id());
+
+            return $order;
+        });
+
+        return redirect()->route('request-orders.show', $order)
+            ->with('success', 'DO dikembalikan ke RDO untuk perbaikan harga/biaya oleh Finance dan approval ulang.');
+    }
+
     public function index(Request $request)
     {
         $search    = $request->get('search');

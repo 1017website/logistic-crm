@@ -533,6 +533,7 @@
                                     <div class="col-lg-3 col-md-6"><label class="form-label">No. Seal</label><input type="text" name="no_seal" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Grade</label><input type="text" name="grade" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Sektor</label><input type="text" name="sektor" class="form-control"></div>
+                                    <div class="col-lg-3 col-md-6"><label for="addKodeSektor" class="form-label">Kode Sektor</label><input id="addKodeSektor" type="text" name="kode_sektor" maxlength="255" class="form-control"></div>
                                 </div>
                                 </section>
                                 <section class="request-ops-group">
@@ -700,6 +701,7 @@
                                     <div class="col-lg-3 col-md-6"><label class="form-label">No. Seal</label><input type="text" name="no_seal" id="epNoSeal" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Grade</label><input type="text" name="grade" id="epGrade" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Sektor</label><input type="text" name="sektor" id="epSektor" class="form-control"></div>
+                                    <div class="col-lg-3 col-md-6"><label for="epKodeSektor" class="form-label">Kode Sektor</label><input type="text" name="kode_sektor" id="epKodeSektor" maxlength="255" class="form-control"></div>
                                 </div>
                                 </section>
                                 <section class="request-ops-group">
@@ -1099,7 +1101,7 @@
                 const opMap = {
                     epChecker:'checker', epJenisTruck:'jenis_truck', epNoPol:'no_pol', epKomoditi:'komoditi',
                     epDepo:'depo', epMuat:'muat', epTglMuat:'tgl_muat', epBongkar:'bongkar', epTglBongkar:'tgl_bongkar',
-                    epTujuan:'tujuan', epNoContainer:'no_container', epNoSeal:'no_seal', epGrade:'grade', epSektor:'sektor',
+                    epTujuan:'tujuan', epNoContainer:'no_container', epNoSeal:'no_seal', epGrade:'grade', epSektor:'sektor', epKodeSektor:'kode_sektor',
                     epSupir:'supir', epHpSupir:'hp_supir', epKota:'kota', epAlamat:'alamat'
                 };
                 Object.keys(opMap).forEach(function(elId){
@@ -1366,18 +1368,54 @@
             }
 
             (function attachDoSubmitGuards() {
-                const addForm = document.getElementById('addDoForm');
-                if (addForm) {
-                    addForm.addEventListener('submit', function (e) {
-                        if (!prepareDoSubmit(addForm, 'addItemsBody')) e.preventDefault();
+                ['addDoForm', 'editDoForm'].forEach(function (id) {
+                    const form = document.getElementById(id);
+                    if (!form) return;
+                    form.addEventListener('submit', async function (event) {
+                        event.preventDefault();
+                        if (form.dataset.saving === 'true') return;
+                        if (!prepareDoSubmit(form, id === 'addDoForm' ? 'addItemsBody' : 'editItemsBody')) return;
+                        form.dataset.saving = 'true';
+                        form.setAttribute('aria-busy', 'true');
+                        initActionTokens(form);
+                        const buttons = form.querySelectorAll('[type="submit"]');
+                        buttons.forEach(button => button.disabled = true);
+                        const data = new FormData(form);
+                        try {
+                            while (true) {
+                                const response = await fetch(form.action, {
+                                    method: 'POST', body: data,
+                                    headers: { 'Accept': 'application/json' },
+                                });
+                                if (response.redirected) throw new Error('Sesi atau status RDO berubah. Muat ulang halaman sebelum menyimpan.');
+                                const result = await response.json();
+                                if (response.status === 422) {
+                                    form.querySelector('[name="_action_token"]')?.remove();
+                                    initActionTokens(form);
+                                    data.set('_action_token', form.querySelector('[name="_action_token"]').value);
+                                }
+                                if (response.ok && result.redirect) {
+                                    window.location.assign(result.redirect);
+                                    return;
+                                }
+                                if (response.status === 422 && result.errors?.duplicate) {
+                                    if (window.confirm(result.errors.duplicate.join('\n') + '\n\nTetap simpan sebagai order terpisah?')) {
+                                        data.set('allow_duplicate', '1');
+                                        continue;
+                                    }
+                                    return;
+                                }
+                                throw new Error(result.errors ? Object.values(result.errors).flat().join('\n') : (result.message || 'RDO gagal disimpan.'));
+                            }
+                        } catch (error) {
+                            window.alert(error.message || 'RDO gagal disimpan. Periksa koneksi lalu coba lagi.');
+                        } finally {
+                            form.dataset.saving = 'false';
+                            form.removeAttribute('aria-busy');
+                            buttons.forEach(button => button.disabled = false);
+                        }
                     });
-                }
-                const editForm = document.getElementById('editDoForm');
-                if (editForm) {
-                    editForm.addEventListener('submit', function (e) {
-                        if (!prepareDoSubmit(editForm, 'editItemsBody')) e.preventDefault();
-                    });
-                }
+                });
             })();
 
             document.querySelectorAll('.cancel-request-form').forEach(function (form) {

@@ -27,6 +27,7 @@
 
             <div class="row g-2" style="font-size:13px">
                 <div class="col-md-6"><span class="text-muted">Customer</span><br><b>{{ $do->customer?->company_name ?? '-' }}</b></div>
+                <div class="col-md-6"><span class="text-muted">Kode Sektor</span><br><b>{{ $ro?->kode_sektor ?: ($ro?->sektor ?: '-') }}</b></div>
                 <div class="col-md-6"><span class="text-muted">Jenis Armada</span><br><b>{{ $do->assignment_type === 'internal' ? 'Armada Internal' : 'Vendor Eksternal' }}</b></div>
                 <div class="col-md-6"><span class="text-muted">Armada / Vendor</span><br>{{ $do->fleet_info ?? ($do->vendor?->vendor_name ?? '-') }}</div>
                 <div class="col-md-6"><span class="text-muted">Nama Driver</span><br><b>{{ $ro?->supir ?: ($do->driver_name ?: '-') }}</b> {{ $do->driver_phone ? '('.$do->driver_phone.')' : '' }}</div>
@@ -40,6 +41,19 @@
                 <div class="col-md-4"><span class="text-muted">Delivery</span><br>{{ $do->delivery_date?->format('d M Y') ?? '-' }}</div>
             </div>
         </div></div>
+
+        @if(($u->isSuperAdmin() || in_array($u->role, ['Admin', 'Sales Manager'])) && $do->can_return_to_request)
+        <div class="card mb-3"><div class="card-body p-3">
+            <h6>Kembalikan ke RDO</h6>
+            <p class="text-muted small">Finance dapat melengkapi harga dan biaya, lalu mengajukan approval ulang. Nomor DO dan riwayat tetap tersimpan.</p>
+            <form method="POST" action="{{ route('delivery-orders.return-to-request', $do) }}" onsubmit="return confirm('Kembalikan DO ini ke RDO untuk review Finance dan approval ulang?')">
+                @csrf
+                <label for="returnReason" class="form-label">Alasan pengembalian</label>
+                <textarea id="returnReason" name="reason" class="form-control mb-2" rows="2" maxlength="1000" required>{{ old('reason') }}</textarea>
+                <button type="submit" class="btn btn-sm btn-outline-warning">Kembalikan ke RDO</button>
+            </form>
+        </div></div>
+        @endif
 
         {{-- Item layanan (dari request order) --}}
         <div class="card mb-3"><div class="card-body p-3">

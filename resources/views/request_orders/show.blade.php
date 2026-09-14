@@ -48,6 +48,7 @@
                 <div class="row g-2" style="font-size:13px">
                     <div class="col-md-6"><span class="text-muted">Customer</span><br><b>{{ $requestOrder->customer?->company_name ?? '-' }}</b></div>
                     <div class="col-md-6"><span class="text-muted">Sales PIC</span><br><b>{{ $requestOrder->salesUser?->name ?? '-' }}</b></div>
+                    <div class="col-md-6"><span class="text-muted">Kode Sektor</span><br><b>{{ $requestOrder->kode_sektor ?: ($requestOrder->sektor ?: '-') }}</b></div>
                     <div class="col-md-6"><span class="text-muted">Lokasi Muat</span><br><b>{{ $requestOrder->muat ?: ($requestOrder->origin ?: '-') }}</b></div>
                     <div class="col-md-6"><span class="text-muted">Lokasi Bongkar</span><br><b>{{ $requestOrder->bongkar ?: ($requestOrder->destination ?: '-') }}</b></div>
                     <div class="col-md-3"><span class="text-muted">No. Container</span><br><b>{{ $requestOrder->no_container ?: '-' }}</b></div>

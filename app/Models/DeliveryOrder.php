@@ -38,6 +38,7 @@ class DeliveryOrder extends Model
     ];
 
     public const FLOW = [
+        'returned_to_rdo' => 'Dikembalikan ke RDO',
         'surat_jalan'    => 'Surat Jalan',
         'pickup'         => 'Pickup',
         'in_delivery'    => 'Delivery',
@@ -58,6 +59,19 @@ class DeliveryOrder extends Model
         'closed'         => 'invoiced',
         'invoiced'       => 'paid',
     ];
+
+    public function getCanReturnToRequestAttribute(): bool
+    {
+        return !$this->trashed() && $this->status === 'surat_jalan'
+            && $this->invoice_status === 'uninvoiced'
+            && $this->requestOrder?->request_status === 'assigned'
+            && $this->requestOrder?->invoice_status === 'uninvoiced'
+            && !$this->pod_file && !$this->pod_at && !$this->closed_at
+            && !InvoiceItem::where(function ($query) {
+                $query->where('delivery_order_id', $this->id)
+                    ->orWhere('request_order_id', $this->request_order_id);
+            })->exists();
+    }
 
     public function requestOrder(): BelongsTo { return $this->belongsTo(RequestOrder::class); }
     public function customer(): BelongsTo     { return $this->belongsTo(Customer::class); }
