@@ -34,14 +34,14 @@ class RequestOrderExportTest extends TestCase
         $rows = $this->exportRows($user, $customer, ['tab' => $tab, 'page' => 2]);
 
         $this->assertCount(2, $rows);
-        $this->assertSame(['No Request DO', 'Tgl order', 'Cust', 'Trucking', 'No Cont', 'No Seal', 'No Pol', 'Driver'], $rows[0]);
+        $this->assertSame(['Request DO', 'Customer', 'Flow', 'Status Operasional', 'Keterangan Status', 'Alasan Batal', 'Jadwal Reschedule', 'Request DP', 'Status DP', 'Nominal DP', 'Catatan DP', 'Direview Finance', 'Delivery Type', 'Lokasi Muat', 'Lokasi Bongkar', 'Tracking', 'Kode Sektor', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA'], $rows[0]);
         $this->assertSame($order->do_number, $rows[1][0]);
-        $this->assertSame($customer->company_name, $rows[1][2]);
-        $this->assertSame(array_fill(0, 5, null), array_slice($rows[1], 3));
-        $this->assertSame('2026-09-02', $rows[1][1]);
+        $this->assertSame($customer->company_name, $rows[1][1]);
+        $this->assertSame(array_fill(0, 9, null), array_slice($rows[1], 17, 9));
+        $this->assertSame('2026-09-02', $rows[1][28]);
     }
 
-    public function test_export_contains_one_row_per_request_even_with_multiple_services(): void
+    public function test_export_restores_service_rows_and_keeps_requests_without_items(): void
     {
         [$user, $customer] = $this->makeCustomer();
         $withoutItems = $this->makeOrder($user, $customer, ['order_date' => '2026-09-01']);
@@ -59,35 +59,38 @@ class RequestOrderExportTest extends TestCase
 
         $rows = $this->exportRows($user, $customer);
 
-        $this->assertCount(3, $rows);
-        $this->assertSame([$withItems->do_number, $withoutItems->do_number], array_column(array_slice($rows, 1), 0));
+        $this->assertCount(4, $rows);
+        $this->assertSame([$withItems->do_number, $withItems->do_number, $withoutItems->do_number], array_column(array_slice($rows, 1), 0));
     }
 
-    public static function truckTypes(): array
-    {
-        return [['CDD'], ["Trailer 20'"], ["Trailer 40'"]];
-    }
-
-    #[DataProvider('truckTypes')]
-    public function test_export_maps_operational_details_to_requested_columns(string $truckType): void
+    public function test_export_maps_locations_tracking_and_sector(): void
     {
         [$user, $customer] = $this->makeCustomer();
-        $order = $this->makeOrder($user, $customer, [
-            'jenis_truck' => $truckType,
-            'no_container' => 'CONT1234567',
-            'no_seal' => '001234',
-            'no_pol' => 'B 1234 XYZ',
-            'supir' => 'Driver Export',
+        $this->makeOrder($user, $customer, [
+            'delivery_type' => 'Trucking Trailer',
+            'muat' => 'Gudang Muat',
+            'bongkar' => 'Gudang Bongkar',
+            'tracking_number' => 'TRACK-001',
+            'sektor' => '0017',
+            'kode_sektor' => 'LEGACY',
         ]);
 
         $rows = $this->exportRows($user, $customer);
 
         $this->assertSame([
-            $order->do_number, '2026-09-02', $customer->company_name,
-            $truckType, 'CONT1234567', '001234', 'B 1234 XYZ', 'Driver Export',
-        ], $rows[1]);
+            'Trucking Trailer', 'Gudang Muat', 'Gudang Bongkar', 'TRACK-001', '0017',
+        ], array_slice($rows[1], 12, 5));
     }
 
+    public function test_export_uses_legacy_locations_when_operational_locations_are_empty(): void
+    {
+        [$user, $customer] = $this->makeCustomer();
+        $this->makeOrder($user, $customer);
+
+        $rows = $this->exportRows($user, $customer);
+
+        $this->assertSame(['Surabaya', 'Jakarta'], array_slice($rows[1], 13, 2));
+    }
     private function exportRows(User $user, Customer $customer, array $filters = []): array
     {
         $response = $this->actingAs($user)->get(route('request-orders.export', array_merge([
