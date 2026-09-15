@@ -23,7 +23,7 @@ function setup(responses, confirm = false) {
         querySelector: () => token ? { value: token, remove: () => { token = null; } } : null,
     };
     class FormDataMock extends Map {
-        constructor() { super([['_action_token', token], ['kode_sektor', 'S-17']]); }
+        constructor() { super([['_action_token', token], ['sektor', 'S-17']]); }
     }
     vm.runInNewContext(script, {
         document: { getElementById: id => id === 'addDoForm' ? form : null },
@@ -50,7 +50,7 @@ test('confirmation retries with a fresh action token and preserves input', async
     assert.equal(ui.calls.length, 2);
     assert.notEqual(ui.calls[0].get('_action_token'), ui.calls[1].get('_action_token'));
     assert.equal(ui.calls[1].get('allow_duplicate'), '1');
-    assert.equal(ui.calls[1].get('kode_sektor'), 'S-17');
+    assert.equal(ui.calls[1].get('sektor'), 'S-17');
     assert.deepEqual(ui.redirects, ['/request-orders']);
 });
 

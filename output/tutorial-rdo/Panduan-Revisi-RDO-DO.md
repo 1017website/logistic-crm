@@ -16,11 +16,11 @@ Screenshot aplikasi lokal menggunakan data contoh. Panduan ini berlaku setelah r
 
 Petugas yang memiliki akses membuat atau mengedit RDO
 
-1. Buka Request DO, pilih Tambah Request DO atau ikon pensil pada RDO yang masih dapat diedit. 2. Buka Detail Operasional Muatan, lalu bagian Container &amp; Area. 3. Isi Kode Sektor sesuai kode yang digunakan perusahaan, kemudian simpan. Contoh di gambar: SBY-JKT-01.
+1. Buka Request DO, pilih Tambah Request DO atau ikon pensil pada RDO yang masih dapat diedit. 2. Buka Detail Operasional Muatan, lalu bagian Container &amp; Area. 3. Isi kolom Sektor yang sudah tersedia, kemudian simpan. Contoh di gambar: SBY-JKT-01. Tidak ada input Kode Sektor terpisah.
 
 ![Mengisi atau memperbarui kode sektor](screenshots/06-form-kode-sektor.png)
 
-Kode sektor membantu Finance menentukan harga dan biaya; nilainya tidak mengisi harga secara otomatis. Jika kode kosong, detail memakai nilai Sektor jika tersedia.
+Label Kode Sektor pada detail RDO/DO menampilkan nilai dari input Sektor. Jika Sektor kosong, detail menampilkan tanda minus. Harga tidak terisi otomatis.
 
 ## Mengembalikan DO ke RDO
 
@@ -70,7 +70,7 @@ Berlaku saat membuat maupun menyimpan perubahan RDO
 
 ![Menangani peringatan RDO duplikat](screenshots/07-form-pemeriksaan-duplikat.png)
 
-Screenshot menunjukkan form setelah peringatan dibatalkan. Teks dialog dan aturan pencocokan dijelaskan pada halaman berikutnya.
+Screenshot menunjukkan contoh form dengan nomor container yang perlu diperiksa. Teks dialog dan aturan pencocokan dijelaskan pada halaman berikutnya.
 
 ## Aturan duplikat dan kendala umum
 

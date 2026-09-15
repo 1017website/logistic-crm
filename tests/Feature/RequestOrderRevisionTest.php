@@ -27,7 +27,7 @@ class RequestOrderRevisionTest extends TestCase
         $data = [
             'customer_id' => $customer->id, 'user_id' => $user->id, 'currency' => 'IDR',
             'order_date' => '2026-09-15', 'no_container' => 'ABCD1234567',
-            'kode_sektor' => 'S-17',
+            'sektor' => 'S-17',
         ];
         $order = RequestOrder::create($data + [
             'do_number' => uniqid('RDO-REV-'), 'request_status' => 'assigned',
@@ -103,18 +103,19 @@ class RequestOrderRevisionTest extends TestCase
         $this->postJson(route('request-orders.store'), $data + ['allow_duplicate' => true])
             ->assertOk()->assertJsonPath('redirect', route('request-orders.index'));
         $this->assertSame(2, RequestOrder::where('customer_id', $order->customer_id)->count());
-        $this->assertDatabaseHas('request_orders', ['customer_id' => $order->customer_id, 'request_status' => 'verifikasi', 'kode_sektor' => 'S-17']);
+        $this->assertDatabaseHas('request_orders', ['customer_id' => $order->customer_id, 'request_status' => 'verifikasi', 'sektor' => 'S-17']);
     }
 
     public function test_edit_excludes_itself_and_sector_is_saved_and_displayed(): void
     {
         [$user, $order, $do, $data] = $this->fixture();
         $order->update(['request_status' => 'finance']);
-        $data['kode_sektor'] = 'S-18';
+        $data['sektor'] = 'S-18';
         $this->actingAs($user)->putJson(route('request-orders.update', $order), $data)->assertOk();
-        $this->assertSame('S-18', $order->fresh()->kode_sektor);
+        $this->assertSame('S-18', $order->fresh()->sektor);
         $this->get(route('request-orders.show', $order))->assertOk()->assertSee('Kode Sektor')->assertSee('S-18');
-        $this->get(route('request-orders.edit', $order))->assertOk()->assertJsonPath('kode_sektor', 'S-18');
+        $this->get(route('request-orders.edit', $order))->assertOk()->assertJsonPath('sektor', 'S-18');
+        $this->get(route('request-orders.index'))->assertOk()->assertDontSee('name="kode_sektor"', false)->assertSee('name="sektor"', false);
         $data['order_date'] = '2026-09-16';
         $this->postJson(route('request-orders.store'), $data)->assertOk();
     }

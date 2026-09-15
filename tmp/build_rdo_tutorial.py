@@ -22,9 +22,9 @@ pages = [
      'Petugas yang memiliki akses membuat atau mengedit RDO',
      '<b>1.</b> Buka <b>Request DO</b>, pilih <b>Tambah Request DO</b> atau ikon pensil pada RDO yang masih dapat diedit. '
      '<b>2.</b> Buka <b>Detail Operasional Muatan</b>, lalu bagian <b>Container &amp; Area</b>. '
-     '<b>3.</b> Isi <b>Kode Sektor</b> sesuai kode yang digunakan perusahaan, kemudian simpan. Contoh di gambar: SBY-JKT-01.',
+     '<b>3.</b> Isi kolom <b>Sektor</b> yang sudah tersedia, kemudian simpan. Contoh di gambar: SBY-JKT-01. Tidak ada input Kode Sektor terpisah.',
      '06-form-kode-sektor.png',
-     'Kode sektor membantu Finance menentukan harga dan biaya; nilainya tidak mengisi harga secara otomatis. Jika kode kosong, detail memakai nilai Sektor jika tersedia.'),
+     'Label Kode Sektor pada detail RDO/DO menampilkan nilai dari input Sektor. Jika Sektor kosong, detail menampilkan tanda minus. Harga tidak terisi otomatis.'),
     ('Mengembalikan DO ke RDO',
      'Dilakukan oleh Admin atau Sales Manager termasuk Super Admin',
      '<b>1.</b> Buka <b>Delivery Orders</b>, lalu detail DO yang akan diperbaiki. '
@@ -59,7 +59,7 @@ pages = [
      '<b>2.</b> Pilih <b>Cancel / Batal</b> untuk memeriksa dan memperbaiki data; isian form tetap tersedia. '
      '<b>3.</b> Pilih <b>OK</b> hanya jika sudah dipastikan merupakan order terpisah yang sah.',
      '07-form-pemeriksaan-duplikat.png',
-     'Screenshot menunjukkan form setelah peringatan dibatalkan. Teks dialog dan aturan pencocokan dijelaskan pada halaman berikutnya.'),
+     'Screenshot menunjukkan contoh form dengan nomor container yang perlu diperiksa. Teks dialog dan aturan pencocokan dijelaskan pada halaman berikutnya.'),
 ]
 
 style = ParagraphStyle('body', fontName='Helvetica', fontSize=11, leading=15, textColor=HexColor('#20252b'))

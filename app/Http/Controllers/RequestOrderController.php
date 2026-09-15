@@ -865,7 +865,6 @@ class RequestOrderController extends Controller
             'pickup_date'       => 'nullable|date',
             'notes'             => 'nullable|string',
             'alamat'            => 'nullable|string|max:1000',
-            'kode_sektor'       => 'nullable|string|max:255',
             'sektor'            => 'nullable|string|max:255',
             'no_container'      => 'nullable|string|max:255',
             'no_seal'           => 'nullable|string|max:255',
@@ -881,7 +880,7 @@ class RequestOrderController extends Controller
     {
         $keys = [
             'checker', 'jenis_truck', 'no_pol', 'komoditi', 'depo', 'muat', 'tgl_muat',
-            'bongkar', 'tgl_bongkar', 'tujuan', 'no_container', 'no_seal', 'grade', 'sektor', 'kode_sektor',
+            'bongkar', 'tgl_bongkar', 'tujuan', 'no_container', 'no_seal', 'grade', 'sektor',
             'supir', 'hp_supir', 'kota', 'alamat', 'keterangan',
         ];
         $out = [];

@@ -533,7 +533,6 @@
                                     <div class="col-lg-3 col-md-6"><label class="form-label">No. Seal</label><input type="text" name="no_seal" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Grade</label><input type="text" name="grade" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Sektor</label><input type="text" name="sektor" class="form-control"></div>
-                                    <div class="col-lg-3 col-md-6"><label for="addKodeSektor" class="form-label">Kode Sektor</label><input id="addKodeSektor" type="text" name="kode_sektor" maxlength="255" class="form-control"></div>
                                 </div>
                                 </section>
                                 <section class="request-ops-group">
@@ -701,7 +700,6 @@
                                     <div class="col-lg-3 col-md-6"><label class="form-label">No. Seal</label><input type="text" name="no_seal" id="epNoSeal" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Grade</label><input type="text" name="grade" id="epGrade" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Sektor</label><input type="text" name="sektor" id="epSektor" class="form-control"></div>
-                                    <div class="col-lg-3 col-md-6"><label for="epKodeSektor" class="form-label">Kode Sektor</label><input type="text" name="kode_sektor" id="epKodeSektor" maxlength="255" class="form-control"></div>
                                 </div>
                                 </section>
                                 <section class="request-ops-group">
@@ -1101,7 +1099,7 @@
                 const opMap = {
                     epChecker:'checker', epJenisTruck:'jenis_truck', epNoPol:'no_pol', epKomoditi:'komoditi',
                     epDepo:'depo', epMuat:'muat', epTglMuat:'tgl_muat', epBongkar:'bongkar', epTglBongkar:'tgl_bongkar',
-                    epTujuan:'tujuan', epNoContainer:'no_container', epNoSeal:'no_seal', epGrade:'grade', epSektor:'sektor', epKodeSektor:'kode_sektor',
+                    epTujuan:'tujuan', epNoContainer:'no_container', epNoSeal:'no_seal', epGrade:'grade', epSektor:'sektor',
                     epSupir:'supir', epHpSupir:'hp_supir', epKota:'kota', epAlamat:'alamat'
                 };
                 Object.keys(opMap).forEach(function(elId){

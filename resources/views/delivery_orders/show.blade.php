@@ -27,7 +27,7 @@
 
             <div class="row g-2" style="font-size:13px">
                 <div class="col-md-6"><span class="text-muted">Customer</span><br><b>{{ $do->customer?->company_name ?? '-' }}</b></div>
-                <div class="col-md-6"><span class="text-muted">Kode Sektor</span><br><b>{{ $ro?->kode_sektor ?: ($ro?->sektor ?: '-') }}</b></div>
+                <div class="col-md-6"><span class="text-muted">Kode Sektor</span><br><b>{{ $ro?->sektor ?: '-' }}</b></div>
                 <div class="col-md-6"><span class="text-muted">Jenis Armada</span><br><b>{{ $do->assignment_type === 'internal' ? 'Armada Internal' : 'Vendor Eksternal' }}</b></div>
                 <div class="col-md-6"><span class="text-muted">Armada / Vendor</span><br>{{ $do->fleet_info ?? ($do->vendor?->vendor_name ?? '-') }}</div>
                 <div class="col-md-6"><span class="text-muted">Nama Driver</span><br><b>{{ $ro?->supir ?: ($do->driver_name ?: '-') }}</b> {{ $do->driver_phone ? '('.$do->driver_phone.')' : '' }}</div>
