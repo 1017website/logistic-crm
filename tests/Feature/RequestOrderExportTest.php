@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\RequestOrder;
 use App\Models\User;
+use App\Models\Vendor;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -34,11 +35,11 @@ class RequestOrderExportTest extends TestCase
         $rows = $this->exportRows($user, $customer, ['tab' => $tab, 'page' => 2]);
 
         $this->assertCount(2, $rows);
-        $this->assertSame(['Request DO', 'Customer', 'Flow', 'Status Operasional', 'Keterangan Status', 'Alasan Batal', 'Jadwal Reschedule', 'Request DP', 'Status DP', 'Nominal DP', 'Catatan DP', 'Direview Finance', 'Delivery Type', 'Lokasi Muat', 'Lokasi Bongkar', 'Tracking', 'Kode Sektor', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA'], $rows[0]);
+        $this->assertSame(['Request DO', 'Customer', 'Flow', 'Status Operasional', 'Keterangan Status', 'Alasan Batal', 'Jadwal Reschedule', 'Request DP', 'Status DP', 'Nominal DP', 'Catatan DP', 'Direview Finance', 'Delivery Type', 'Lokasi Muat', 'Lokasi Bongkar', 'No Cont', 'No Seal', 'No Pol', 'Driver', 'Vendor', 'Tracking', 'Kode Sektor', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA'], $rows[0]);
         $this->assertSame($order->do_number, $rows[1][0]);
         $this->assertSame($customer->company_name, $rows[1][1]);
-        $this->assertSame(array_fill(0, 9, null), array_slice($rows[1], 17, 9));
-        $this->assertSame('2026-09-02', $rows[1][28]);
+        $this->assertSame(array_fill(0, 9, null), array_slice($rows[1], 22, 9));
+        $this->assertSame('2026-09-02', $rows[1][33]);
     }
 
     public function test_export_restores_service_rows_and_keeps_requests_without_items(): void
@@ -78,8 +79,8 @@ class RequestOrderExportTest extends TestCase
         $rows = $this->exportRows($user, $customer);
 
         $this->assertSame([
-            'Trucking Trailer', 'Gudang Muat', 'Gudang Bongkar', 'TRACK-001', '0017',
-        ], array_slice($rows[1], 12, 5));
+            'Trucking Trailer', 'Gudang Muat', 'Gudang Bongkar', null, null, null, null, null, 'TRACK-001', '0017',
+        ], array_slice($rows[1], 12, 10));
     }
 
     public function test_export_uses_legacy_locations_when_operational_locations_are_empty(): void
@@ -90,6 +91,33 @@ class RequestOrderExportTest extends TestCase
         $rows = $this->exportRows($user, $customer);
 
         $this->assertSame(['Surabaya', 'Jakarta'], array_slice($rows[1], 13, 2));
+    }
+    public function test_export_includes_container_vehicle_driver_and_vendor_after_unloading_location(): void
+    {
+        [$user, $customer] = $this->makeCustomer();
+        $vendor = Vendor::create([
+            'vendor_code' => 'V-EXPORT-' . uniqid(),
+            'vendor_name' => 'Vendor Export',
+            'pic_name' => 'PIC Export',
+            'phone' => '0800000000',
+            'vendor_type' => 'External',
+        ]);
+        $this->makeOrder($user, $customer, [
+            'bongkar' => 'Gudang Tujuan',
+            'no_container' => 'CONT1234567',
+            'no_seal' => '001234',
+            'no_pol' => 'B 1234 XYZ',
+            'supir' => 'Driver Export',
+            'vendor_id' => $vendor->id,
+            'tracking_number' => 'TRACK-001',
+        ]);
+
+        $rows = $this->exportRows($user, $customer);
+
+        $this->assertSame([
+            'Gudang Tujuan', 'CONT1234567', '001234', 'B 1234 XYZ',
+            'Driver Export', 'Vendor Export', 'TRACK-001',
+        ], array_slice($rows[1], 14, 7));
     }
     private function exportRows(User $user, Customer $customer, array $filters = []): array
     {

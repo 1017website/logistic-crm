@@ -787,7 +787,7 @@ class RequestOrderController extends Controller
         $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->get('end_date', now()->endOfMonth()->format('Y-m-d'));
 
-        $query = RequestOrder::with(['customer', 'items'])
+        $query = RequestOrder::with(['customer', 'items', 'vendor'])
             ->whereBetween('order_date', [$startDate, $endDate]);
 
         if ($request->get('tab', 'active') === 'cancelled') {
@@ -815,7 +815,7 @@ class RequestOrderController extends Controller
 
         $sos = $query->orderByDesc('order_date')->get();
 
-        $headers = ['Request DO', 'Customer', 'Flow', 'Status Operasional', 'Keterangan Status', 'Alasan Batal', 'Jadwal Reschedule', 'Request DP', 'Status DP', 'Nominal DP', 'Catatan DP', 'Direview Finance', 'Delivery Type', 'Lokasi Muat', 'Lokasi Bongkar', 'Tracking', 'Kode Sektor', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA'];
+        $headers = ['Request DO', 'Customer', 'Flow', 'Status Operasional', 'Keterangan Status', 'Alasan Batal', 'Jadwal Reschedule', 'Request DP', 'Status DP', 'Nominal DP', 'Catatan DP', 'Direview Finance', 'Delivery Type', 'Lokasi Muat', 'Lokasi Bongkar', 'No Cont', 'No Seal', 'No Pol', 'Driver', 'Vendor', 'Tracking', 'Kode Sektor', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA'];
 
         $rows = [];
         foreach ($sos as $so) {
@@ -835,7 +835,9 @@ class RequestOrderController extends Controller
                     (float) $so->dp_amount,
                     $so->dp_note,
                     $so->dp_reviewed_at?->format('Y-m-d H:i:s'),
-                    $so->delivery_type, $so->muat ?: $so->origin, $so->bongkar ?: $so->destination, $so->tracking_number, $so->sektor,
+                    $so->delivery_type, $so->muat ?: $so->origin, $so->bongkar ?: $so->destination,
+                    $so->no_container, $so->no_seal, $so->no_pol, $so->supir, $so->vendor?->vendor_name,
+                    $so->tracking_number, $so->sektor,
                     $item?->service_name, $item?->unit,
                     $item?->tonnage !== null ? (float) $item->tonnage : null,
                     $item ? (float) $item->qty : null,
