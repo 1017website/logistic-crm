@@ -30,6 +30,7 @@
                 <div class="col-md-6"><span class="text-muted">Kode Sektor</span><br><b>{{ $ro?->sektor ?: '-' }}</b></div>
                 <div class="col-md-6"><span class="text-muted">Jenis Armada</span><br><b>{{ $do->assignment_type === 'internal' ? 'Armada Internal' : 'Vendor Eksternal' }}</b></div>
                 <div class="col-md-6"><span class="text-muted">Armada / Vendor</span><br>{{ $do->fleet_info ?? ($do->vendor?->vendor_name ?? '-') }}</div>
+                <div class="col-md-6"><span class="text-muted">Vendor Armada</span><br><b>{{ $do->vendor?->vendor_name ?? 'Belum diisi' }}</b></div>
                 <div class="col-md-6"><span class="text-muted">Nama Driver</span><br><b>{{ $ro?->supir ?: ($do->driver_name ?: '-') }}</b> {{ $do->driver_phone ? '('.$do->driver_phone.')' : '' }}</div>
                 <div class="col-md-6"><span class="text-muted">No. Polisi</span><br><b>{{ $ro?->no_pol ?: '-' }}</b></div>
                 <div class="col-md-6"><span class="text-muted">Lokasi Muat</span><br><b>{{ $ro?->muat ?: ($do->origin ?: '-') }}</b></div>
@@ -41,6 +42,25 @@
                 <div class="col-md-4"><span class="text-muted">Delivery</span><br>{{ $do->delivery_date?->format('d M Y') ?? '-' }}</div>
             </div>
         </div></div>
+
+        @if(!$do->vendor_id && $ro && $u->canAccess('dispatch'))
+        <div class="card mb-3"><div class="card-body p-3">
+            <h6>Lengkapi Vendor</h6>
+            <p class="text-muted small">Pilih vendor armada untuk DO ini. Jenis armada mengikuti Internal/Eksternal pada master vendor.</p>
+            <form method="POST" action="{{ route('delivery-orders.vendor', $do) }}">
+                @csrf
+                <label for="completeVendor" class="form-label">Vendor Armada</label>
+                <select id="completeVendor" name="vendor_id" class="form-select mb-2" required>
+                    <option value="">— Pilih Vendor —</option>
+                    @foreach($vendors as $vendor)
+                    <option value="{{ $vendor->id }}" @selected((string) old('vendor_id', $ro->vendor_id) === (string) $vendor->id)>{{ $vendor->vendor_name }} ({{ $vendor->vendor_type }})</option>
+                    @endforeach
+                </select>
+                @error('vendor_id')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
+                <button type="submit" class="btn btn-sm btn-primary">Simpan Vendor</button>
+            </form>
+        </div></div>
+        @endif
 
         @if(($u->isSuperAdmin() || in_array($u->role, ['Admin', 'Sales Manager'])) && $do->can_return_to_request)
         <div class="card mb-3"><div class="card-body p-3">

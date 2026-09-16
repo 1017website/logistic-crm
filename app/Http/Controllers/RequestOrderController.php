@@ -9,6 +9,7 @@ use App\Models\DeliveryOrder;
 use App\Models\OrderAssignment;
 use App\Models\User;
 use App\Models\Notification;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -99,6 +100,7 @@ class RequestOrderController extends Controller
         $customers = Customer::where('status', 'Existing')
             ->orderBy('company_name')->get(['id', 'company_name', 'user_id']);
         $salesUsers = User::orderBy('name')->get(['id', 'name']);
+        $vendors = Vendor::orderBy('vendor_name')->get(['id', 'vendor_name', 'vendor_type', 'status']);
         $leads = Lead::where(function ($q) {
             $q->whereIn('pipeline_stage', ['Won', 'Maintaining'])->orWhereNotNull('customer_id');
         })->orderBy('company_name')->get(['id', 'company_name', 'lead_code', 'customer_id']);
@@ -111,7 +113,7 @@ class RequestOrderController extends Controller
 
         return view('request_orders.index', compact(
             'dos', 'revenue', 'grossProfit', 'volumeDo', 'totalCost',
-            'customers', 'leads', 'salesUsers',
+            'customers', 'leads', 'salesUsers', 'vendors',
             'search', 'status', 'flow', 'flowOptions', 'operationalStatus', 'operationalStatusOptions',
             'dpStatus', 'dpStatusOptions', 'dpTakenCount', 'dpTakenAmount', 'dpNotTakenCount', 'dpNotTakenAmount',
             'operationalStatusData', 'startDate', 'endDate', 'pendingDeletionDoIds',
@@ -148,6 +150,7 @@ class RequestOrderController extends Controller
             $ro = RequestOrder::create([
                 'do_number'      => RequestOrder::generateDoNumber(),
                 'customer_id'    => $request->customer_id,
+                'vendor_id'      => $request->vendor_id,
                 'lead_id'        => $request->lead_id,
                 'user_id'        => $userId,
                 'currency'       => $request->currency,
@@ -199,6 +202,7 @@ class RequestOrderController extends Controller
         $wasResubmitted = DB::transaction(function () use ($request, $requestOrder) {
             $requestOrder->update([
                 'customer_id'    => $request->customer_id,
+                'vendor_id'      => $request->input('vendor_id', $requestOrder->vendor_id),
                 'lead_id'        => $request->lead_id,
                 'user_id'        => $request->user_id,
                 'currency'       => $request->currency,
@@ -583,7 +587,8 @@ class RequestOrderController extends Controller
                 'vendor_id'        => $assignment?->vendor_id ?? $requestOrder->vendor_id,
                 'user_id'          => $requestOrder->user_id,
                 'status'           => 'surat_jalan',
-                'assignment_type'  => $assignment?->assignment_type,
+                'assignment_type'  => $assignment?->assignment_type
+                    ?? ($requestOrder->vendor ? strtolower($requestOrder->vendor->vendor_type) : null),
                 'fleet_info'       => $assignment?->isExternal()
                                         ? ($assignment->vendor?->vendor_name ?? $assignment->fleet_info)
                                         : $assignment?->fleet_info,
@@ -599,6 +604,7 @@ class RequestOrderController extends Controller
                 unset($doData['do_date']);
                 if (!$assignment) {
                     foreach (['assignment_type', 'fleet_info', 'driver_name', 'driver_phone', 'actual_cost'] as $field) {
+                        if ($field === 'assignment_type' && $requestOrder->vendor_id) continue;
                         unset($doData[$field]);
                     }
                 }
@@ -874,6 +880,7 @@ class RequestOrderController extends Controller
     {
         return [
             'customer_id' => 'required|exists:customers,id',
+            'vendor_id'   => ['nullable', \Illuminate\Validation\Rule::exists('vendors', 'id')->whereNull('deleted_at')],
             'lead_id'     => 'nullable|exists:leads,id',
             'user_id'     => 'required|exists:users,id',
             'currency'    => 'required|in:IDR,USD,SGD',

@@ -99,7 +99,36 @@ class DeliveryOrderController extends Controller
             'invoiceItems.invoice',
             'statusLogs.user',
         ]);
-        return view('delivery_orders.show', compact('deliveryOrder'));
+        $vendors = Vendor::where('status', 'Active')->orderBy('vendor_name')->get();
+        return view('delivery_orders.show', compact('deliveryOrder', 'vendors'));
+    }
+
+    public function completeVendor(Request $request, DeliveryOrder $deliveryOrder)
+    {
+        $data = $request->validate([
+            'vendor_id' => ['required', \Illuminate\Validation\Rule::exists('vendors', 'id')
+                ->where('status', 'Active')->whereNull('deleted_at')],
+        ]);
+
+        DB::transaction(function () use ($data, $deliveryOrder) {
+            $order = \App\Models\RequestOrder::whereKey($deliveryOrder->request_order_id)->lockForUpdate()->firstOrFail();
+            $do = DeliveryOrder::whereKey($deliveryOrder->id)->lockForUpdate()->firstOrFail();
+            if ($do->vendor_id) {
+                throw ValidationException::withMessages(['vendor_id' => 'Vendor DO sudah terisi. Muat ulang halaman.']);
+            }
+            if ($order->vendor_id && (int) $order->vendor_id !== (int) $data['vendor_id']) {
+                throw ValidationException::withMessages(['vendor_id' => 'Pilih vendor yang sama dengan Request DO.']);
+            }
+
+            $vendor = Vendor::findOrFail($data['vendor_id']);
+            $do->update(['vendor_id' => $vendor->id, 'assignment_type' => strtolower($vendor->vendor_type)]);
+            $order->update(['vendor_id' => $vendor->id]);
+            $note = 'Vendor armada dilengkapi: ' . $vendor->vendor_name . ' (' . $vendor->vendor_type . ').';
+            \App\Models\OrderStatusLog::record($do, $do->status, $do->status, auth()->id(), $note);
+            \App\Models\OrderStatusLog::record($order, $order->request_status, $order->request_status, auth()->id(), $note);
+        });
+
+        return back()->with('success', 'Vendor DO dan Request DO berhasil dilengkapi.');
     }
 
     /** Halaman publik yang dibuka saat QR Surat Jalan dipindai. */

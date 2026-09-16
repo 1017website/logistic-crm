@@ -6,12 +6,79 @@ use App\Models\Customer;
 use App\Models\DeliveryOrder;
 use App\Models\RequestOrder;
 use App\Models\User;
+use App\Models\Vendor;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class RequestOrderRevisionTest extends TestCase
 {
     use DatabaseTransactions;
+
+    private function vendor(): Vendor
+    {
+        return Vendor::create([
+            'vendor_code' => uniqid('VEN-'), 'vendor_name' => 'Vendor Armada Test',
+            'pic_name' => 'PIC', 'phone' => '0800000000',
+            'vendor_type' => 'External', 'status' => 'Active',
+        ]);
+    }
+
+    public function test_request_vendor_can_be_created_edited_and_carried_to_do(): void
+    {
+        [$user, $order, $do, $data] = $this->fixture();
+        $vendor = $this->vendor();
+        $this->actingAs($user)->post(route('request-orders.store'), $data + [
+            'vendor_id' => $vendor->id, 'allow_duplicate' => true,
+        ])->assertSessionHasNoErrors();
+        $created = RequestOrder::where('customer_id', $order->customer_id)->latest('id')->firstOrFail();
+        $this->assertSame($vendor->id, $created->vendor_id);
+        $this->put(route('request-orders.update', $created), $data + [
+            'vendor_id' => null, 'allow_duplicate' => true,
+        ])->assertSessionHasNoErrors();
+        $this->assertNull($created->fresh()->vendor_id);
+        $this->put(route('request-orders.update', $created), $data + [
+            'vendor_id' => $vendor->id, 'allow_duplicate' => true,
+        ])->assertSessionHasNoErrors();
+        $this->get(route('request-orders.edit', $created))->assertJsonPath('vendor_id', $vendor->id);
+        $this->get(route('request-orders.index'))->assertOk()->assertSee('id="epVendor"', false)->assertSee('id="addVendorSelect"', false);
+        $created->update(['request_status' => 'approval']);
+        $this->post(route('request-orders.approve', $created), ['action' => 'approve'])->assertSessionHasNoErrors();
+        $issued = DeliveryOrder::where('request_order_id', $created->id)->firstOrFail();
+        $this->assertSame($vendor->id, $issued->vendor_id);
+        $this->assertSame('external', $issued->assignment_type);
+    }
+
+    public function test_missing_vendor_can_be_completed_without_changing_do_progress(): void
+    {
+        [$user, $order, $do] = $this->fixture();
+        $vendor = $this->vendor();
+        $do->update(['status' => 'paid', 'invoice_status' => 'paid']);
+        $this->actingAs($user)->get(route('delivery-orders.show', $do))->assertOk()->assertSee('Lengkapi Vendor');
+        $this->post(route('delivery-orders.vendor', $do), ['vendor_id' => $vendor->id])->assertSessionHasNoErrors();
+        $this->assertSame($vendor->id, $do->fresh()->vendor_id);
+        $this->assertSame($vendor->id, $order->fresh()->vendor_id);
+        $this->assertSame('external', $do->fresh()->assignment_type);
+        $this->assertSame('paid', $do->fresh()->status);
+        $this->assertSame('paid', $do->fresh()->invoice_status);
+        $this->assertSame('90000', $do->fresh()->actual_cost);
+        $this->assertSame('assigned', $order->fresh()->request_status);
+        $this->assertTrue($do->statusLogs()->where('user_id', $user->id)->where('note', 'like', 'Vendor armada dilengkapi:%')->exists());
+        $this->get(route('delivery-orders.show', $do))->assertDontSee('Lengkapi Vendor');
+        $this->post(route('delivery-orders.vendor', $do), ['vendor_id' => $vendor->id])->assertSessionHasErrors('vendor_id');
+    }
+
+    public function test_complete_vendor_rejects_invalid_conflicting_and_unauthorized_choices(): void
+    {
+        [$user, $order, $do] = $this->fixture();
+        $vendor = $this->vendor();
+        $this->actingAs($user)->post(route('delivery-orders.vendor', $do), ['vendor_id' => 0])->assertSessionHasErrors('vendor_id');
+        $order->update(['vendor_id' => $vendor->id]);
+        $other = $this->vendor();
+        $this->post(route('delivery-orders.vendor', $do), ['vendor_id' => $other->id])->assertSessionHasErrors('vendor_id');
+        $this->assertNull($do->fresh()->vendor_id);
+        $user->update(['role' => 'Finance']);
+        $this->actingAs($user->fresh())->post(route('delivery-orders.vendor', $do), ['vendor_id' => $vendor->id])->assertForbidden();
+    }
 
     private function fixture(): array
     {

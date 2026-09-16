@@ -171,6 +171,7 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
     // Dispatch / penugasan armada (Sales Admin / Transport Planner / Admin)
     Route::middleware('role:Admin,Sales Admin,Transport Planner')->group(function () {
         Route::post('/request-orders/{requestOrder}/dispatch', [RequestOrderController::class, 'dispatchAssign'])->name('request-orders.dispatch');
+        Route::post('/delivery-orders/{deliveryOrder}/vendor', [DeliveryOrderController::class, 'completeVendor'])->name('delivery-orders.vendor');
     });
     // Status pelaksanaan DO dapat diubah oleh operasional dan manager.
     Route::middleware('role:Admin,Sales Manager,Sales Admin,Transport Planner')->group(function () {

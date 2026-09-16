@@ -508,6 +508,15 @@
                                 <div class="request-ops-grid">
                                 <section class="request-ops-group">
                                 <div class="request-subsection-label">Armada & Muatan</div>
+                                <div class="mb-2">
+                                    <label for="addVendorSelect" class="form-label">Vendor Armada</label>
+                                    <select name="vendor_id" id="addVendorSelect" class="form-select">
+                                        <option value="">— Pilih Vendor —</option>
+                                        @foreach($vendors as $vendor)
+                                        <option value="{{ $vendor->id }}">{{ $vendor->vendor_name }} ({{ $vendor->vendor_type }}){{ $vendor->status !== 'Active' ? ' — Nonaktif' : '' }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
                                 <div class="row">
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Checker</label><input type="text" name="checker" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Jenis Truck</label><input type="text" name="jenis_truck" class="form-control" placeholder="Trailer 20'/40'"></div>
@@ -675,6 +684,15 @@
                                 <div class="request-ops-grid">
                                 <section class="request-ops-group">
                                 <div class="request-subsection-label">Armada & Muatan</div>
+                                <div class="mb-2">
+                                    <label for="epVendor" class="form-label">Vendor Armada</label>
+                                    <select name="vendor_id" id="epVendor" class="form-select">
+                                        <option value="">— Pilih Vendor —</option>
+                                        @foreach($vendors as $vendor)
+                                        <option value="{{ $vendor->id }}">{{ $vendor->vendor_name }} ({{ $vendor->vendor_type }}){{ $vendor->status !== 'Active' ? ' — Nonaktif' : '' }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
                                 <div class="row">
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Checker</label><input type="text" name="checker" id="epChecker" class="form-control"></div>
                                     <div class="col-lg-3 col-md-6"><label class="form-label">Jenis Truck</label><input type="text" name="jenis_truck" id="epJenisTruck" class="form-control" placeholder="Trailer 20'/40'"></div>
@@ -1116,7 +1134,7 @@
                 // Detail operasional tetap ringkas, tetapi otomatis terbuka jika data sudah pernah diisi.
                 const editOperationalDetails = document.getElementById('editOperationalDetails');
                 if (editOperationalDetails) {
-                    editOperationalDetails.open = Object.values(opMap).some(field => {
+                    editOperationalDetails.open = !!po.vendor_id || Object.values(opMap).some(field => {
                         const value = po[field];
                         return value !== null && value !== undefined && String(value).trim() !== '';
                     });
@@ -1153,6 +1171,7 @@
                     setSelect2('epDeliveryType', _dt);
                     setSelect2('epCustomer', po.customer_id);
                     setSelect2('epSalesPicSelect', po.user_id);
+                    setSelect2('epVendor', po.vendor_id);
                 };
                 _fillSelects();
 
@@ -1198,12 +1217,14 @@
                     setSelect2('epDeliveryType', _dt);
                     setSelect2('epCustomer', po.customer_id);
                     setSelect2('epSalesPicSelect', po.user_id);
+                    setSelect2('epVendor', po.vendor_id);
                     setDateInputValue('epDate', po.order_date);
                     setTimeout(function () {
                         setSelect2('epCurrency', po.currency);
                         setSelect2('epDeliveryType', _dt);
                         setSelect2('epCustomer', po.customer_id);
                         setSelect2('epSalesPicSelect', po.user_id);
+                        setSelect2('epVendor', po.vendor_id);
                         setDateInputValue('epDate', po.order_date);
                     }, 60);
                 };
