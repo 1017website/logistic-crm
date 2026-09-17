@@ -15,6 +15,8 @@
         @include('components.status-tabs', [
             'label' => 'Status Invoice',
             'tabs' => [
+                ['label' => 'DO Siap Invoice', 'icon' => 'fa-truck', 'active' => $tab === 'ready',
+                    'url' => route('invoices.index', array_merge(request()->except('page'), ['tab' => 'ready']))],
                 ['label' => 'Draft', 'icon' => 'fa-file-pen', 'active' => $tab === 'draft',
                     'url' => route('invoices.index', array_merge(request()->query(), ['tab' => 'draft']))],
                 ['label' => 'Invoice', 'icon' => 'fa-file-invoice', 'active' => $tab === 'invoice',
@@ -24,9 +26,11 @@
             ],
         ])
         <div class="d-flex gap-2">
+            @if($tab !== 'ready')
             <a href="{{ route('invoices.export', array_merge(request()->query(), ['status'=>$status])) }}" class="btn btn-outline-success btn-sm"><i class="fas fa-file-excel me-1"></i> Export Excel</a>
             <a href="{{ route('invoices.export-pdf', array_merge(request()->query(), ['status'=>$status])) }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-file-pdf me-1"></i> Export PDF</a>
-            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addInvoiceModal"><i class="fas fa-plus me-1"></i> Tambah</button>
+            @endif
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addInvoiceModal"><i class="fas fa-plus me-1"></i> Tambah Draft Invoice</button>
         </div>
     </div>
 
@@ -46,15 +50,37 @@
                     @foreach(\App\Models\Invoice::TYPES as $key => $label)<option value="{{ $key }}" @selected($jenis === $key)>{{ $label }}</option>@endforeach
                 </select>
             </div>
+            @if($tab !== 'ready')
             <div class="col-md-2">
                 <label class="form-label mb-1" style="font-size:11px">Periode Invoice</label>
                 <input type="month" name="periode" class="form-control form-control-sm" value="{{ $periode }}">
             </div>
-            <div class="col-md-3"><input type="text" name="search" class="form-control form-control-sm" placeholder="Cari no invoice / customer..." value="{{ $search }}"></div>
+            @endif
+            <div class="col-md-3"><input type="text" name="search" class="form-control form-control-sm" placeholder="{{ $tab === 'ready' ? 'Cari no DO / customer...' : 'Cari no invoice / customer...' }}" value="{{ $search }}"></div>
             <div class="col-md-1"><button class="btn btn-primary btn-sm w-100"><i class="fas fa-search"></i></button></div>
         </div></div></div>
     </form>
 
+    @if($tab === 'ready')
+    <div class="card"><div class="card-body">
+        <p class="text-muted">DO yang sudah ditutup tersedia di sini. Pilih customer untuk menambahkan beberapa DO ke draft invoice.</p>
+        <div class="table-responsive"><table class="table table-hover">
+            <thead><tr><th>Customer</th><th>DO Siap Invoice</th><th>Daftar DO</th><th>Aksi</th></tr></thead>
+            <tbody>
+            @forelse($readyDos->groupBy('customer_id') as $readyCustomerId => $customerDos)
+                <tr>
+                    <td><button type="button" class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#addInvoiceModal" data-customer-id="{{ $readyCustomerId }}">{{ $customerDos->first()['customer_name'] }}</button></td>
+                    <td>{{ $customerDos->count() }} DO</td>
+                    <td>@foreach($customerDos as $readyDo)<span class="d-inline-block me-2">{{ $readyDo['do_number'] }}</span>@endforeach</td>
+                    <td><button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addInvoiceModal" data-customer-id="{{ $readyCustomerId }}">Tambah Draft</button></td>
+                </tr>
+            @empty
+                <tr><td colspan="4" class="text-center text-muted">Belum ada DO siap invoice sesuai filter.</td></tr>
+            @endforelse
+            </tbody>
+        </table></div>
+    </div></div>
+    @else
     {{-- Bundle invoice per customer --}}
     <div class="card"><div class="card-body p-0"><div class="table-responsive">
         <table class="table table-hover mb-0" style="font-size:13px">
@@ -96,7 +122,7 @@
                             </tr></thead>
                             <tbody>@foreach($bundle['invoices'] as $inv)
                             <tr>
-                                <td><a href="{{ route('invoices.show', $inv) }}" style="font-weight:700">{{ $inv->invoice_id }}</a><br><small class="text-muted">{{ $inv->invoice_number }}</small></td>
+                                <td><a href="{{ route('invoices.show', ['invoice' => $inv->id, 'list' => request()->query()]) }}" style="font-weight:700">{{ $inv->invoice_id }}</a><br><small class="text-muted">{{ $inv->invoice_number }}</small></td>
                                 <td><b>{{ $inv->periode_invoice?->translatedFormat('F Y') ?? '-' }}</b><br><small class="text-muted">Submit: {{ $inv->submitted_at?->format('d M Y') ?? ($inv->status === 'draft' ? 'Belum terbit' : ($inv->tgl_buat?->format('d M Y') ?? '-')) }}<br>Tempo: {{ $inv->tgl_tempo?->format('d M Y') ?? '-' }}</small></td>
                                 <td><span class="badge bg-dark">{{ $inv->jenis_label }}</span><br><small>{{ (float)$inv->ppn_persen > 0 ? 'PPN '.rtrim(rtrim(number_format($inv->ppn_persen,2),'0'),'.').'%' : 'Non-PPN' }} · {{ $inv->do_count }} DO</small></td>
                                 <td class="text-end">{{ idr($inv->total_hpp) }}</td>
@@ -105,7 +131,7 @@
                                 <td><span class="badge bg-{{ $inv->status_color }}">{{ $inv->status_label }}</span><br><small class="text-success">Terbayar {{ idr($inv->total_paid) }}</small><br><small class="text-danger">Sisa {{ idr($inv->outstanding) }}</small></td>
                                 <td>@php $um = $inv->umur_hari; @endphp @if($um !== null)<span style="color:{{ $um < 0 ? '#dc2626' : '#6b7280' }}">{{ $um }} hr</span>@else - @endif</td>
                                 <td class="text-nowrap">
-                                    <a href="{{ route('invoices.show', $inv) }}" class="btn btn-sm btn-outline-primary" style="padding:3px 7px" title="Detail"><i class="fas fa-list"></i></a>
+                                    <a href="{{ route('invoices.show', ['invoice' => $inv->id, 'list' => request()->query()]) }}" class="btn btn-sm btn-outline-primary" style="padding:3px 7px" title="Detail"><i class="fas fa-list"></i></a>
                                     <a href="{{ route('invoices.print', $inv) }}" target="_blank" class="btn btn-sm btn-outline-secondary" style="padding:3px 7px" title="Cetak"><i class="fas fa-print"></i></a>
                                     <a href="{{ route('invoices.pdf', $inv) }}" class="btn btn-sm btn-outline-danger" style="padding:3px 7px" title="Unduh PDF"><i class="fas fa-file-pdf"></i></a>
                                     <a href="{{ route('invoices.excel', $inv) }}" class="btn btn-sm btn-outline-success" style="padding:3px 7px" title="Unduh Excel"><i class="fas fa-file-excel"></i></a>
@@ -130,6 +156,7 @@
         </table>
     </div></div></div>
     <div class="mt-3">{{ $invoiceBundles->links() }}</div>
+    @endif
 </div></div>
 
 {{-- Modal pembayaran per invoice --}}
@@ -249,10 +276,14 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
     '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;'
 }[char]));
 
+let availableDosRequest = 0;
 async function loadAvailableDos(customerId){
+    const requestId = ++availableDosRequest;
     const wrap = document.getElementById('doListWrap');
     if (!wrap) return;
     wrap.innerHTML = '<div class="text-muted">Memuat...</div>';
+    document.getElementById('selectAllDosBtn').disabled = true;
+    recalcInv();
     if (!customerId) { wrap.innerHTML = '<div class="text-muted">Pilih customer dulu.</div>'; recalcInv(); return; }
     try {
         const res = await fetch(`${availUrl}?customer_id=${customerId}`, {
@@ -260,8 +291,9 @@ async function loadAvailableDos(customerId){
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const dos = await res.json();
+        if (requestId !== availableDosRequest) return;
         if (!dos.length) {
-            wrap.innerHTML = '<div class="text-muted small">Tidak ada komponen DO siap tagih.<br>Draft invoice normalnya dibuat otomatis setelah harga disetujui dan <b>DO ditutup</b>. Komponen yang sudah masuk invoice tidak dapat dipilih ulang.</div>';
+            wrap.innerHTML = '<div class="text-muted small">Tidak ada komponen DO siap tagih. DO harus ditutup terlebih dahulu. Komponen yang sudah masuk invoice tidak dapat dipilih ulang.</div>';
             const selectAll = document.getElementById('selectAllDosBtn'); if (selectAll) selectAll.disabled = true;
             recalcInv(); return;
         }
@@ -289,7 +321,9 @@ async function loadAvailableDos(customerId){
         const selectAll = document.getElementById('selectAllDosBtn'); if (selectAll) selectAll.disabled = false;
         recalcInv();
     } catch(e) {
-        wrap.innerHTML = '<div class="text-danger small">Gagal memuat DO: ' + (e.message||e) + '</div>';
+        if (requestId !== availableDosRequest) return;
+        wrap.innerHTML = '<div class="text-danger small">Gagal memuat DO. Pilih ulang customer untuk mencoba lagi.</div>';
+        recalcInv();
     }
 }
 
@@ -312,11 +346,17 @@ function applyCustomerTop() {
 
     const option = select.options[select.selectedIndex];
     const topDays = parseInt(option?.dataset?.topDays ?? '', 10);
-    if (!tglBuat.value || isNaN(topDays)) return;
+    const invoiceDate = document.getElementById('invoiceForm').elements.namedItem('tgl_buat')?.value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(invoiceDate || '') || isNaN(topDays)) return;
 
-    const due = new Date(tglBuat.value + 'T00:00:00');
+    const due = new Date(invoiceDate + 'T00:00:00');
+    if (isNaN(due.getTime())) return;
     due.setDate(due.getDate() + topDays);
-    tglTempo.value = due.toISOString().slice(0, 10);
+    if (tglTempo._airDatepicker) {
+        tglTempo._airDatepicker.selectDate(due);
+    } else {
+        tglTempo.value = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`;
+    }
     if (hint) hint.textContent = 'TOP ' + topDays + ' hari dari tanggal invoice. Bisa diubah manual.';
 }
 document.getElementById('invTglBuat')?.addEventListener('change', applyCustomerTop);
@@ -330,11 +370,13 @@ function togglePpnInput(){
 _ppnTypes.forEach(input => input.addEventListener('change', togglePpnInput));
 togglePpnInput();
 // Saat modal dibuka, muat ulang sesuai customer yang sedang terpilih.
-if (window.jQuery) {
-    jQuery(document).on('shown.bs.modal', '#addInvoiceModal', function(){
-        loadAvailableDos(document.getElementById('invCustomer')?.value);
-    });
-}
+document.getElementById('addInvoiceModal')?.addEventListener('show.bs.modal', function(event){
+    const customer = document.getElementById('invCustomer');
+    const selectedCustomer = event.relatedTarget?.dataset.customerId || @json((string) $customerId);
+    if (selectedCustomer) customer.value = selectedCustomer;
+    loadAvailableDos(customer.value);
+    applyCustomerTop();
+});
 
 function recalcInv(){
     let hpp=0, jual=0, n=0;

@@ -151,7 +151,7 @@ class InvoiceBillingSyncTest extends TestCase
         $this->assertSame('2026-09-15', $invoice->tgl_tempo?->toDateString());
     }
 
-    public function test_assignment_approval_warns_when_price_is_not_approved_yet(): void
+    public function test_assignment_approval_also_records_price_approval(): void
     {
         $manager = User::create([
             'name' => 'Manager Warning Test',
@@ -182,9 +182,10 @@ class InvoiceBillingSyncTest extends TestCase
         $this->actingAs($manager)
             ->post(route('request-orders.approve', $requestOrder), ['action' => 'approve'])
             ->assertSessionHas('success')
-            ->assertSessionHas('warning', fn(string $warning) => str_contains($warning, 'Harga DO belum disetujui'));
+            ->assertSessionMissing('warning');
 
         $this->assertSame('assigned', $requestOrder->fresh()->request_status);
+        $this->assertTrue($requestOrder->fresh()->do_approved);
     }
 
     /** @return \Illuminate\Support\Collection<int, Invoice> */

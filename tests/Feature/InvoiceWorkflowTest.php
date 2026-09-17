@@ -22,6 +22,33 @@ class InvoiceWorkflowTest extends TestCase
 {
     use DatabaseTransactions;
 
+    public function test_closed_dos_remain_separate_until_selected_for_one_customer_draft(): void
+    {
+        [$finance, $customer, $first] = $this->makePodReadyOrder();
+        $second = $this->makeAdditionalPodReadyOrder($finance, $customer);
+        $admin = User::create(['name' => 'POD Admin', 'email' => uniqid().'@example.test', 'password' => 'password', 'role' => 'Sales Admin', 'status' => 'Active']);
+        foreach ([$first, $second] as $do) {
+            $do->update(['status' => 'verifikasi_pod']);
+            $this->actingAs($admin)->post(route('delivery-orders.close', $do), ['actual_cost' => 700000])
+                ->assertSessionHas('success');
+        }
+        $this->assertSame(0, Invoice::where('customer_id', $customer->id)->count());
+        $this->actingAs($finance)->get(route('invoices.index', ['tab' => 'ready', 'customer_id' => $customer->id]))
+            ->assertOk()->assertSee('2 DO')->assertSee($first->do_number)->assertSee($second->do_number);
+        $payload = $this->invoicePayload($customer, $first, 'separate');
+        $payload['selections'] = [$first->id.':TR', $second->id.':TR'];
+        $this->post(route('invoices.store'), $payload)->assertSessionHas('success');
+        $invoice = Invoice::where('customer_id', $customer->id)->sole();
+        $this->assertSame(2, $invoice->do_count);
+        $filters = ['tab' => 'draft', 'customer_id' => $customer->id, 'search' => 'test', 'page' => 2];
+        $this->get(route('invoices.show', ['invoice' => $invoice->id, 'list' => $filters]))
+            ->assertOk()->assertSee(route('invoices.index', $filters));
+        $this->getJson(route('invoices.available-dos', ['customer_id' => $customer->id]))
+            ->assertOk()->assertJsonCount(2);
+        $this->assertSame('closed', $first->fresh()->status);
+        $this->assertNotNull($first->fresh()->pod_verified_at);
+    }
+
     public function test_legacy_combined_request_is_forced_into_separate_tr_and_ntr_invoices(): void
     {
         [$user, $customer, $deliveryOrder] = $this->makePodReadyOrder();
@@ -164,7 +191,7 @@ class InvoiceWorkflowTest extends TestCase
             ->assertSee($secondDo->do_number);
     }
 
-    public function test_closed_delivery_order_automatically_creates_invoice_drafts(): void
+    public function test_closed_delivery_order_waits_for_manual_invoice_selection(): void
     {
         [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
         $deliveryOrder->update([
@@ -208,29 +235,32 @@ class InvoiceWorkflowTest extends TestCase
                 'note' => 'POD valid, DO selesai.',
             ])
             ->assertRedirect()
-            ->assertSessionHas('success', 'DO ditutup. Draft invoice otomatis sudah tersedia di tab Draft.');
+            ->assertSessionHas('success', 'DO ditutup. DO tersedia di tab DO Siap Invoice untuk ditambahkan ke draft.');
 
         $deliveryOrder->refresh();
         $this->assertSame('closed', $deliveryOrder->status);
-        $this->assertSame('invoiced', $deliveryOrder->invoice_status);
+        $this->assertSame('uninvoiced', $deliveryOrder->invoice_status);
         $drafts = Invoice::with('items')->where('customer_id', $customer->id)->get();
-        $this->assertCount(2, $drafts);
-        $this->assertEqualsCanonicalizing(['TR', 'NTR'], $drafts->pluck('jenis')->all());
-        $this->assertTrue($drafts->every(fn(Invoice $invoice) => $invoice->status === 'draft'));
-        $this->assertTrue($drafts->every(fn(Invoice $invoice) => $invoice->items->contains('delivery_order_id', $deliveryOrder->id)));
+        $this->assertCount(0, $drafts);
+        $this->assertNotNull($deliveryOrder->pod_verified_at);
+        $this->assertNotNull($deliveryOrder->closed_at);
         $this->assertDatabaseHas('notifications', [
             'user_id' => $finance->id,
-            'type' => 'invoice_auto_draft',
-            'title' => 'Draft invoice otomatis tersedia',
+            'type' => 'delivery_order_ready_invoice',
+            'title' => 'DO siap invoice',
         ]);
 
-        $duplicateAttempt = app(\App\Services\AutomaticInvoiceDraftService::class)
-            ->createForClosedDeliveryOrder($deliveryOrder, $admin->id);
-        $this->assertCount(0, $duplicateAttempt);
-        $this->assertSame(2, Invoice::where('customer_id', $customer->id)->count());
+        $this->actingAs($admin)
+            ->post(route('delivery-orders.close', $deliveryOrder), ['actual_cost' => 800000])
+            ->assertUnprocessable();
+        $this->assertSame(0, Invoice::where('customer_id', $customer->id)->count());
 
         $this->actingAs($finance)
-            ->get(route('invoices.index', ['tab' => 'draft']))
+            ->getJson(route('invoices.available-dos', ['customer_id' => $customer->id]))
+            ->assertOk()->assertJsonPath('0.id', $deliveryOrder->id);
+
+        $this->actingAs($finance)
+            ->get(route('invoices.index', ['tab' => 'ready', 'customer_id' => $customer->id]))
             ->assertOk()
             ->assertSee($customer->company_name)
             ->assertSee('1 DO');

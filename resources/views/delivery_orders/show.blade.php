@@ -6,6 +6,8 @@
 @section('content')
 @php $u = auth()->user(); $do = $deliveryOrder; $ro = $do->requestOrder; @endphp
 <div class="row g-3">
+    @if(session('success'))<div class="col-12"><div class="alert alert-success mb-0">{{ session('success') }}</div></div>@endif
+    @foreach($errors->all() as $error)<div class="col-12"><div class="alert alert-danger mb-0">{{ $error }}</div></div>@endforeach
     {{-- ─────────── Kiri: info, item, dokumen, timeline ─────────── --}}
     <div class="col-lg-7">
         <div class="card mb-3"><div class="card-body p-3">
@@ -22,13 +24,13 @@
                     </a>
                     @endif
                 </div>
-                <a href="{{ route('delivery-orders.index') }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Kembali</a>
+                <a href="{{ route('delivery-orders.index', (array) request()->query('list', [])) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Kembali</a>
             </div>
 
             <div class="row g-2" style="font-size:13px">
                 <div class="col-md-6"><span class="text-muted">Customer</span><br><b>{{ $do->customer?->company_name ?? '-' }}</b></div>
                 <div class="col-md-6"><span class="text-muted">Kode Sektor</span><br><b>{{ $ro?->sektor ?: '-' }}</b></div>
-                <div class="col-md-6"><span class="text-muted">Jenis Armada</span><br><b>{{ $do->assignment_type === 'internal' ? 'Armada Internal' : 'Vendor Eksternal' }}</b></div>
+                <div class="col-md-6"><span class="text-muted">Jenis Armada</span><br><b>{{ !$do->vendor_id ? 'Belum dipilih' : ($do->assignment_type === 'internal' ? 'Armada Internal' : 'Vendor Eksternal') }}</b></div>
                 <div class="col-md-6"><span class="text-muted">Armada / Vendor</span><br>{{ $do->fleet_info ?? ($do->vendor?->vendor_name ?? '-') }}</div>
                 <div class="col-md-6"><span class="text-muted">Vendor Armada</span><br><b>{{ $do->vendor?->vendor_name ?? 'Belum diisi' }}</b></div>
                 <div class="col-md-6"><span class="text-muted">Nama Driver</span><br><b>{{ $ro?->supir ?: ($do->driver_name ?: '-') }}</b> {{ $do->driver_phone ? '('.$do->driver_phone.')' : '' }}</div>
@@ -75,6 +77,19 @@
         </div></div>
         @endif
 
+        @if($ro && !$ro->do_approved && in_array($do->status, ['surat_jalan', 'pickup', 'in_delivery', 'pod', 'verifikasi_pod']) && $u->canAccess('approve_assign'))
+        <div class="card mb-3"><div class="card-body p-3">
+            <h6>Persetujuan Harga DO</h6>
+            <p>Jual: <b>{{ idr($ro->total_revenue) }}</b> · HPP: <b>{{ idr($ro->total_cost) }}</b></p>
+            <form method="POST" action="{{ route('delivery-orders.approve-price', $do) }}">
+                @csrf
+                <label for="priceApprovalNote" class="form-label">Catatan persetujuan</label>
+                <textarea id="priceApprovalNote" name="note" class="form-control mb-2" maxlength="1000"></textarea>
+                <button class="btn btn-success btn-sm">Setujui Harga DO</button>
+            </form>
+        </div></div>
+        @endif
+
         {{-- Item layanan (dari request order) --}}
         <div class="card mb-3"><div class="card-body p-3">
             <h6 style="font-weight:700;font-size:13px;text-transform:uppercase;color:#6b7280">Item Layanan</h6>
@@ -106,10 +121,10 @@
             <div class="d-flex gap-2 flex-wrap" style="font-size:13px">
                 @if($do->surat_jalan_file)
                 <a href="{{ asset('storage/'.$do->surat_jalan_file) }}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="fas fa-file-alt me-1"></i> Surat Jalan</a>
-                @elseif($do->assignment_type !== 'internal')
+                @elseif($do->vendor_id && $do->assignment_type !== 'internal')
                 <span class="text-muted">Surat jalan vendor belum diunggah.</span>
                 @endif
-                @if($do->assignment_type === 'internal')
+                @if($do->vendor_id && $do->assignment_type === 'internal')
                 <a href="{{ route('delivery-orders.surat-jalan.print', $do->id) }}" target="_blank" class="btn btn-sm btn-outline-dark"><i class="fas fa-barcode me-1"></i> Cetak SJ Internal</a>
                 @endif
                 @if($do->pod_file)
@@ -170,7 +185,7 @@
         @endif
 
         {{-- SURAT JALAN (Sales Admin) --}}
-        @if($do->status === 'surat_jalan' && $u->canAccess('pod_field'))
+        @if($do->vendor_id && $do->status === 'surat_jalan' && $u->canAccess('pod_field'))
         <div class="card mb-3 border-secondary"><div class="card-body p-3">
             <h6 style="font-weight:700"><i class="fas fa-file-signature me-1"></i> Terbitkan Surat Jalan</h6>
             @if($do->assignment_type === 'internal')
@@ -249,9 +264,7 @@
             @endif
             @if(!$do->requestOrder?->do_approved)
                 <div class="alert alert-warning py-2 mb-2" style="font-size:12px">
-                    Harga DO belum disetujui. Approve harga dari
-                    <a href="{{ route('request-orders.show', $do->requestOrder) }}" class="alert-link">Request DO {{ $do->requestOrder?->do_number }}</a>
-                    sebelum menutup DO.
+                    Harga DO menunggu persetujuan Sales Manager di halaman DO ini sebelum ditutup.
                 </div>
             @else
             <form method="POST" action="{{ route('delivery-orders.close', $do->id) }}">
@@ -261,7 +274,7 @@
                 <label class="form-label" style="font-size:12px">Biaya Lain</label>
                 <input type="number" name="other_cost" class="form-control form-control-sm mb-2" min="0" value="{{ (int) $do->other_cost }}">
                 <textarea name="note" class="form-control form-control-sm mb-2" rows="2" placeholder="Catatan (opsional)"></textarea>
-                <button class="btn btn-success btn-sm w-100" onclick="return confirm('Verifikasi POD, tutup DO, dan buat draft invoice otomatis?')"><i class="fas fa-lock me-1"></i> Verifikasi, Tutup & Buat Draft Invoice</button>
+                <button class="btn btn-success btn-sm w-100" onclick="return confirm('Verifikasi POD dan tutup DO agar siap invoice?')"><i class="fas fa-lock me-1"></i> Verifikasi & Tutup DO</button>
             </form>
             @endif
         </div></div>
@@ -274,9 +287,9 @@
             <p class="mb-2" style="font-size:12px">
                 Status: <b>{{ $do->invoice_status_label }}</b>.
                 @if(in_array($do->status, ['closed', 'invoiced', 'paid']))
-                    Draft invoice dibuat otomatis saat DO ditutup dan pembayaran dikelola dari satu tempat.
+                    Pilih DO pada tab DO Siap Invoice untuk membuat draft per customer.
                 @else
-                    Draft invoice akan dibuat otomatis setelah POD diverifikasi dan DO ditutup.
+                    DO tersedia untuk dipilih setelah POD diverifikasi dan DO ditutup.
                 @endif
             </p>
             @if($do->invoiceItems->isNotEmpty())
@@ -290,7 +303,7 @@
                     @endforeach
                 </div>
             @endif
-            <a href="{{ route('invoices.index', ['customer_id' => $do->customer_id]) }}" class="btn btn-warning btn-sm w-100">
+            <a href="{{ route('invoices.index', ['tab' => 'ready', 'customer_id' => $do->customer_id]) }}" class="btn btn-warning btn-sm w-100">
                 <i class="fas fa-receipt me-1"></i> Buka Menu Invoice
             </a>
         </div></div>

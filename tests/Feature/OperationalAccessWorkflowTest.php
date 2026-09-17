@@ -16,6 +16,52 @@ class OperationalAccessWorkflowTest extends TestCase
 {
     use DatabaseTransactions;
 
+    public function test_vendor_is_required_before_surat_jalan_actions_are_available(): void
+    {
+        [$admin, $customer, $order] = $this->makeOrder('assigned');
+        $do = $this->makeDeliveryOrder($admin, $customer, $order, 'internal');
+        $do->update(['vendor_id' => null]);
+        $this->actingAs($admin)->get(route('delivery-orders.show', $do))
+            ->assertOk()->assertDontSee('Cetak SJ Internal');
+        $this->post(route('delivery-orders.surat-jalan', $do))->assertSessionHasErrors('general');
+        $this->get(route('delivery-orders.surat-jalan.print', $do))->assertUnprocessable();
+        $this->assertSame('surat_jalan', $do->fresh()->status);
+    }
+
+    public function test_manager_approval_on_do_does_not_return_order_to_rdo(): void
+    {
+        [$admin, $customer, $order] = $this->makeOrder('assigned');
+        $do = $this->makeDeliveryOrder($admin, $customer, $order, 'internal');
+        $do->update(['status' => 'verifikasi_pod', 'pod_at' => now()]);
+        $order->update(['do_approved' => false]);
+        $this->actingAs($admin)->post(route('delivery-orders.approve-price', $do))->assertForbidden();
+        $manager = $this->makeUser('Sales Manager');
+        $this->actingAs($manager)->get(route('delivery-orders.show', $do))
+            ->assertOk()->assertSee('Setujui Harga DO');
+        $this->post(route('delivery-orders.approve-price', $do))->assertSessionHas('success');
+        $this->assertSame('assigned', $order->fresh()->request_status);
+        $this->assertTrue($order->fresh()->do_approved);
+        $this->actingAs($admin)->post(route('delivery-orders.close', $do), ['actual_cost' => 100000])
+            ->assertSessionHas('success');
+        $this->assertSame('closed', $do->fresh()->status);
+        $this->assertSame(0, $do->invoiceItems()->count());
+    }
+
+    public function test_issuing_do_keeps_price_approval_and_list_filters(): void
+    {
+        [, $customer, $order] = $this->makeOrder('approval');
+        $manager = $this->makeUser('Sales Manager');
+        $this->actingAs($manager)->post(route('request-orders.approve', $order), ['action' => 'approve'])
+            ->assertSessionHas('success');
+        $this->assertTrue($order->fresh()->do_approved);
+        $do = $order->deliveryOrder()->firstOrFail();
+        $filters = ['search' => $customer->company_name, 'status' => 'all', 'page' => 2];
+        $this->get(route('delivery-orders.show', ['delivery_order' => $do->id, 'list' => $filters]))
+            ->assertOk()->assertSee(route('delivery-orders.index', $filters));
+        $this->get(route('request-orders.show', [$order->id, 'list' => $filters]))
+            ->assertOk()->assertSee(route('request-orders.index', $filters));
+    }
+
     public function test_sales_admin_can_assign_internal_fleet(): void
     {
         [$salesAdmin, , $requestOrder] = $this->makeOrder('dispatch');
@@ -834,6 +880,14 @@ class OperationalAccessWorkflowTest extends TestCase
         RequestOrder $requestOrder,
         string $assignmentType
     ): DeliveryOrder {
+        $vendor = \App\Models\Vendor::create([
+            'vendor_code' => 'V-' . uniqid(),
+            'vendor_name' => 'Armada Test',
+            'pic_name' => 'PIC',
+            'phone' => '0800000000',
+            'vendor_type' => ucfirst($assignmentType),
+            'status' => 'Active',
+        ]);
         return DeliveryOrder::create([
             'do_number' => 'DO-' . uniqid(),
             'request_order_id' => $requestOrder->id,
@@ -842,6 +896,7 @@ class OperationalAccessWorkflowTest extends TestCase
             'status' => 'surat_jalan',
             'invoice_status' => 'uninvoiced',
             'assignment_type' => $assignmentType,
+            'vendor_id' => $vendor->id,
             'origin' => 'Surabaya',
             'destination' => 'Jakarta',
             'do_date' => now()->toDateString(),

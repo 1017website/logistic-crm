@@ -40,7 +40,7 @@
                         <span class="badge {{ $requestOrder->dp_request_active ? 'bg-'.$requestOrder->dp_status_color : 'bg-dark' }}">{{ $requestOrder->dp_request_active ? $requestOrder->dp_status_label : 'DP Nonaktif' }}</span>
                         <span class="badge bg-light text-dark border">{{ $requestOrder->status }}</span>
                     </div>
-                    <a href="{{ route('request-orders.index') }}" class="btn btn-sm btn-outline-secondary">
+                    <a href="{{ route('request-orders.index', (array) request()->query('list', [])) }}" class="btn btn-sm btn-outline-secondary">
                         <i class="fas fa-arrow-left me-1"></i> Kembali
                     </a>
                 </div>
@@ -527,7 +527,7 @@
                     @csrf
                     <textarea name="note" class="form-control form-control-sm mb-2" rows="2" placeholder="Catatan approval (opsional)"></textarea>
                     <div class="d-flex gap-2">
-                        <button name="action" value="approve" class="btn btn-success btn-sm flex-fill" onclick="return confirm('Setujui Request DO? DO final akan otomatis terbit.')"><i class="fas fa-check me-1"></i> Setujui & Terbitkan DO</button>
+                        <button name="action" value="approve" class="btn btn-success btn-sm flex-fill" onclick="return confirm('Setujui harga dan penugasan Request DO? DO final akan otomatis terbit.')"><i class="fas fa-check me-1"></i> Setujui Harga & Terbitkan DO</button>
                         <button name="action" value="reject" class="btn btn-outline-danger btn-sm flex-fill"><i class="fas fa-times me-1"></i> Tolak</button>
                     </div>
                 </form>

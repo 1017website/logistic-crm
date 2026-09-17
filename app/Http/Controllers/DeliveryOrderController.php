@@ -7,7 +7,6 @@ use App\Models\DeliveryOrder;
 use App\Models\Notification;
 use App\Models\Vendor;
 use App\Models\User;
-use App\Services\AutomaticInvoiceDraftService;
 use App\Services\DeliveryOrderTrackingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -147,6 +146,9 @@ class DeliveryOrderController extends Controller
     // ─────────────────── SURAT JALAN (cetak internal / upload eksternal -> pickup) ───────────────────
     public function uploadSuratJalan(Request $request, DeliveryOrder $deliveryOrder)
     {
+        if (!$deliveryOrder->vendor_id || !in_array($deliveryOrder->assignment_type, ['internal', 'external'], true)) {
+            return back()->withErrors(['general' => 'Lengkapi vendor armada sebelum menerbitkan surat jalan.']);
+        }
         if ($deliveryOrder->status !== 'surat_jalan') {
             return back()->withErrors(['general' => 'DO tidak berada di tahap surat jalan.']);
         }
@@ -214,12 +216,12 @@ class DeliveryOrderController extends Controller
             $locked->update(['pod_file' => $path, 'pod_at' => now()]);
             $locked->transition(
                 'verifikasi_pod',
-                $request->note ?: 'POD diunggah. DO siap dipilih untuk invoice.',
+                $request->note ?: 'POD diunggah. Menunggu verifikasi dan penutupan DO.',
                 auth()->id()
             );
         });
 
-        return back()->with('success', 'POD diunggah. DO sudah tersedia di menu Invoice sambil menunggu verifikasi.');
+        return back()->with('success', 'POD diunggah. Verifikasi POD dan tutup DO agar siap invoice.');
     }
 
     // ─────────────────── VERIFIKASI POD + INPUT BIAYA + TUTUP DO (Sales Admin) ───────────────────
@@ -231,17 +233,19 @@ class DeliveryOrderController extends Controller
             'note'        => 'nullable|string|max:1000',
         ]);
 
-        $createdDrafts = collect();
-        DB::transaction(function () use ($request, $deliveryOrder, &$createdDrafts) {
+        DB::transaction(function () use ($request, $deliveryOrder) {
             Customer::query()->lockForUpdate()->findOrFail($deliveryOrder->customer_id);
             $locked = DeliveryOrder::query()->lockForUpdate()->findOrFail($deliveryOrder->id);
             if ($locked->status !== 'verifikasi_pod') {
                 abort(422, 'DO belum siap ditutup atau sudah pernah ditutup.');
             }
+            if (!$locked->pod_at) {
+                throw ValidationException::withMessages(['general' => 'POD harus diunggah sebelum DO diverifikasi dan ditutup.']);
+            }
             $locked->load('requestOrder');
             if (!$locked->requestOrder?->do_approved) {
                 throw ValidationException::withMessages([
-                    'general' => 'Harga DO belum disetujui. Approve harga terlebih dahulu sebelum menutup DO dan membuat invoice.',
+                    'general' => 'Harga DO belum disetujui. Minta Sales Manager menyetujui harga di halaman DO ini sebelum menutup DO.',
                 ]);
             }
 
@@ -266,29 +270,34 @@ class DeliveryOrderController extends Controller
 
             // Tandai request order terkait sebagai Done.
             $locked->requestOrder?->update(['status' => 'Done']);
-
-            $createdDrafts = app(AutomaticInvoiceDraftService::class)
-                ->createForClosedDeliveryOrder($locked, auth()->id());
         });
 
-        if ($createdDrafts->isNotEmpty()) {
-            User::where('role', 'Finance')->where('status', 'Active')->each(function (User $finance) use ($deliveryOrder, $createdDrafts) {
-                Notification::send(
-                    $finance->id,
-                    'invoice_auto_draft',
-                    'Draft invoice otomatis tersedia',
-                    $createdDrafts->count() . ' draft invoice dari DO ' . $deliveryOrder->do_number . ' telah dibuat.',
-                    route('invoices.index', ['tab' => 'draft'])
-                );
-            });
-        }
+        User::where('role', 'Finance')->where('status', 'Active')->each(function (User $finance) use ($deliveryOrder) {
+            Notification::send(
+                $finance->id,
+                'delivery_order_ready_invoice',
+                'DO siap invoice',
+                'DO ' . $deliveryOrder->do_number . ' telah ditutup. Pilih DO untuk ditambahkan ke draft invoice.',
+                route('invoices.index', ['tab' => 'ready', 'customer_id' => $deliveryOrder->customer_id])
+            );
+        });
 
-        return back()->with(
-            'success',
-            $createdDrafts->isNotEmpty()
-                ? 'DO ditutup. Draft invoice otomatis sudah tersedia di tab Draft.'
-                : 'DO ditutup. Komponen DO sudah terhubung ke invoice yang ada.'
-        );
+        return back()->with('success', 'DO ditutup. DO tersedia di tab DO Siap Invoice untuk ditambahkan ke draft.');
+    }
+
+    public function approvePrice(Request $request, DeliveryOrder $deliveryOrder)
+    {
+        $data = $request->validate(['note' => 'nullable|string|max:1000']);
+        DB::transaction(function () use ($deliveryOrder, $data) {
+            $order = \App\Models\RequestOrder::lockForUpdate()->findOrFail($deliveryOrder->request_order_id);
+            $do = DeliveryOrder::lockForUpdate()->findOrFail($deliveryOrder->id);
+            abort_unless(in_array($do->status, ['surat_jalan', 'pickup', 'in_delivery', 'pod', 'verifikasi_pod'], true), 422);
+            $order->update(['do_approved' => true, 'price_correction_open' => false]);
+            $note = $data['note'] ?? 'Harga disetujui Sales Manager melalui Delivery Order.';
+            \App\Models\OrderStatusLog::record($order, null, 'do_approved', auth()->id(), $note);
+            \App\Models\OrderStatusLog::record($do, $do->status, $do->status, auth()->id(), $note);
+        });
+        return back()->with('success', 'Harga DO disetujui. Proses dapat dilanjutkan di Delivery Order.');
     }
 
     // ─────────────────── FINANCE: INVOICE ───────────────────
@@ -308,6 +317,7 @@ class DeliveryOrderController extends Controller
     // ─────────────────── CETAK SURAT JALAN INTERNAL (HTML + QR tracking) ───────────────────
     public function printSuratJalan(DeliveryOrder $deliveryOrder, DeliveryOrderTrackingService $trackingService)
     {
+        abort_unless($deliveryOrder->vendor_id && $deliveryOrder->assignment_type === 'internal', 422, 'Pilih vendor armada internal sebelum mencetak surat jalan.');
         $deliveryOrder->load(['customer', 'vendor', 'salesUser', 'requestOrder.items']);
 
         $companyName = \App\Models\Setting::get('company_name', 'Perusahaan');

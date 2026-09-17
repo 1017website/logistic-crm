@@ -76,7 +76,7 @@
                             <td class="py-2"><span class="badge bg-{{ $do->flow_color }}">{{ $do->flow_label }}</span></td>
                             <td class="py-2" style="font-weight:600;color:var(--primary);white-space:nowrap">{{ idr($do->total_revenue) }}</td>
                             <td class="py-2">
-                                <a href="{{ route('delivery-orders.show', $do->id) }}" class="btn btn-sm btn-outline-primary" style="padding:3px 7px" title="Detail & Aksi">
+                                <a href="{{ route('delivery-orders.show', ['delivery_order' => $do->id, 'list' => request()->query()]) }}" class="btn btn-sm btn-outline-primary" style="padding:3px 7px" title="Detail & Aksi">
                                     <i class="fas fa-stream"></i>
                                 </a>
                                 @include('components.delete-request-button', [

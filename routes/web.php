@@ -181,6 +181,7 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
     Route::middleware('role:Admin,Sales Manager')->group(function () {
         Route::post('/request-orders/{requestOrder}/approve', [RequestOrderController::class, 'approveAssign'])->name('request-orders.approve');
         Route::post('/delivery-orders/{deliveryOrder}/return-to-request', [DeliveryOrderController::class, 'returnToRequest'])->name('delivery-orders.return-to-request');
+        Route::post('/delivery-orders/{deliveryOrder}/approve-price', [DeliveryOrderController::class, 'approvePrice'])->name('delivery-orders.approve-price');
     });
 
     // ── DELIVERY ORDER (tahap 2: surat jalan → pickup → delivery → POD → tutup → finance) ──

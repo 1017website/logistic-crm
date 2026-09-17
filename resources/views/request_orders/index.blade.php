@@ -165,7 +165,7 @@
                                             @endif
                                             @if(auth()->user()->canAccess('finance_dp_review') && in_array($po->request_status, ['finance', 'approval', 'assigned']))
                                                 <div class="mt-1">
-                                                    <a href="{{ route('request-orders.show', $po) }}#dp-management"
+                                                    <a href="{{ route('request-orders.show', [$po->id, 'list' => request()->query()]) }}#dp-management"
                                                         class="btn btn-sm btn-outline-info" style="font-size:10px;padding:2px 6px;white-space:nowrap"
                                                         title="{{ $po->dp_status === 'pending' ? 'Input data DP' : 'Perbarui data DP' }}">
                                                         <i class="fas fa-coins me-1"></i>{{ $po->dp_status === 'pending' ? 'Input DP' : 'Update DP' }}
@@ -193,7 +193,7 @@
                                             @endif
                                         </td>
                                         <td class="py-2">
-                                            <a href="{{ route('request-orders.show', $po->id) }}" class="btn btn-sm btn-outline-primary" style="padding:3px 7px" title="Detail & Flow">
+                                            <a href="{{ route('request-orders.show', [$po->id, 'list' => request()->query()]) }}" class="btn btn-sm btn-outline-primary" style="padding:3px 7px" title="Detail & Flow">
                                                 <i class="fas fa-stream"></i>
                                             </a>
                                             @if(!in_array($po->request_status, ['assigned']))

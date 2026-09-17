@@ -33,7 +33,7 @@
                     </form>
                     <a href="{{ route('invoices.pdf', $invoice) }}" class="btn btn-sm btn-outline-danger text-nowrap"><i class="fas fa-file-pdf me-1"></i> PDF</a>
                     <a href="{{ route('invoices.excel', $invoice) }}" class="btn btn-sm btn-outline-success text-nowrap"><i class="fas fa-file-excel me-1"></i> Excel</a>
-                    <a href="{{ route('invoices.index', ['tab'=>$hasPayment ? 'paid' : $invoice->status]) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Kembali</a>
+                    <a href="{{ route('invoices.index', (array) request()->query('list', ['tab'=>$hasPayment ? 'paid' : $invoice->status])) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Kembali</a>
                 </div>
             </div>
             <div class="row g-2" style="font-size:13px">

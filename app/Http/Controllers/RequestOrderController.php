@@ -574,7 +574,9 @@ class RequestOrderController extends Controller
                 ]);
             }
 
-            $requestOrder->transition('assigned', $request->note ?: 'Penugasan disetujui.', auth()->id());
+            $requestOrder->update(['do_approved' => true, 'price_correction_open' => false]);
+            \App\Models\OrderStatusLog::record($requestOrder, null, 'do_approved', auth()->id(), 'Harga dan penugasan disetujui saat penerbitan DO.');
+            $requestOrder->transition('assigned', $request->note ?: 'Harga dan penugasan disetujui.', auth()->id());
 
             $returnedDo = DeliveryOrder::onlyTrashed()
                 ->where('request_order_id', $requestOrder->id)
@@ -631,14 +633,6 @@ class RequestOrderController extends Controller
         });
 
         $message = 'Request DO disetujui Sales Manager & Delivery Order otomatis diterbitkan.';
-        if (!$requestOrder->fresh()->do_approved) {
-            // DO tidak dapat ditutup selama harga belum disetujui, jadi diingatkan
-            // sekarang — bukan nanti saat POD sudah terverifikasi.
-            return back()
-                ->with('success', $message)
-                ->with('warning', 'Harga DO belum disetujui. Approve harga sebelum DO ditutup, karena penutupan DO akan ditolak selama harga belum disetujui.');
-        }
-
         return back()->with('success', $message);
     }
 

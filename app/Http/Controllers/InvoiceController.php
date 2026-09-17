@@ -109,14 +109,21 @@ class InvoiceController extends Controller
         $invoiceBundles = $bundlePage;
         $customers = Customer::orderBy('company_name')
             ->get(['id', 'company_name', 'customer_code', 'invoice_code']);
-        $eligibleCustomerIds = $this->availableInvoiceDos()->pluck('customer_id')->unique();
+        $availableDos = $this->availableInvoiceDos();
+        $eligibleCustomerIds = $availableDos->pluck('customer_id')->unique();
+        $readyDos = $availableDos->filter(function (array $do) use ($customerId, $search, $jenis) {
+            return (!$customerId || (int) $do['customer_id'] === (int) $customerId)
+                && (!$search || str_contains(mb_strtolower($do['do_number'] . ' ' . $do['customer_name']), mb_strtolower($search)))
+                && (!isset(Invoice::TYPES[$jenis]) || collect($do['types'])->contains(fn($type) => $type['available'] && $type['type'] === $jenis));
+        });
         $invoiceCustomers = Customer::whereIn('id', $eligibleCustomerIds)
             ->orderBy('company_name')
-            ->get(['id', 'company_name', 'customer_code', 'invoice_code']);
+            ->get(['id', 'company_name', 'customer_code', 'invoice_code', 'top_days']);
         $pendingDeletionIds = \App\Models\DeletionRequest::pendingIdsFor(Invoice::class);
 
         return view('invoices.index', compact(
             'invoiceBundles',
+            'readyDos',
             'listedInvoices',
             'tab',
             'status',
@@ -151,6 +158,7 @@ class InvoiceController extends Controller
     private function availableInvoiceDos(?int $customerId = null): Collection
     {
         $query = DeliveryOrder::with([
+            'customer',
             'requestOrder.jobDetails',
             'requestOrder.items',
             'invoiceItems.invoice',
@@ -182,6 +190,7 @@ class InvoiceController extends Controller
                 return [
                     'id' => $do->id,
                     'customer_id' => $do->customer_id,
+                    'customer_name' => $do->customer?->company_name ?? '-',
                     'do_number' => $do->do_number,
                     'request_number' => $do->requestOrder?->do_number,
                     'do_date' => $do->do_date?->format('d M Y'),
