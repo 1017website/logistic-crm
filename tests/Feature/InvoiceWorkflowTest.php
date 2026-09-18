@@ -464,12 +464,17 @@ class InvoiceWorkflowTest extends TestCase
         }
     }
 
-    public function test_finance_can_edit_invoice_only_after_super_admin_approval(): void
+    public function test_finance_can_edit_issued_invoice_only_after_sales_manager_approval(): void
     {
         [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
         $this->actingAs($finance)->post(route('invoices.store'), $this->invoicePayload($customer, $deliveryOrder, 'separate'));
         $invoice = Invoice::with('items')->where('customer_id', $customer->id)->where('jenis', 'TR')->sole();
         $item = $invoice->items->firstOrFail();
+
+        $this->actingAs($finance)->put(route('invoices.number', $invoice), [
+            'invoice_number' => 'DRAFT-BOLEH',
+        ])->assertSessionHas('success');
+        $this->post(route('invoices.submit', $invoice))->assertSessionHas('success');
 
         $this->actingAs($finance)->put(route('invoices.number', $invoice), [
             'invoice_number' => 'TIDAK-BOLEH',
@@ -495,10 +500,10 @@ class InvoiceWorkflowTest extends TestCase
         ])->assertForbidden();
 
         $superAdmin = User::create([
-            'name' => 'Super Admin Invoice Test',
+            'name' => 'Sales Manager Invoice Test',
             'email' => 'super-admin-invoice-' . uniqid() . '@example.test',
             'password' => 'password',
-            'role' => 'Super Admin',
+            'role' => 'Sales Manager',
             'status' => 'Active',
         ]);
         $this->actingAs($superAdmin)->post(route('invoices.review-edit', $invoice), [
@@ -542,8 +547,7 @@ class InvoiceWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('Trucking (TR)')
             ->assertSee('Non-Trucking (Non-TR)')
-            ->assertSee('11%')
-            ->assertSee('1,1%');
+            ->assertSee('name="ppn_persen"', false);
 
         $this->actingAs($finance)->put(route('invoices.ppn', $invoice), [
             'ppn_types' => ['TR'],
@@ -570,9 +574,15 @@ class InvoiceWorkflowTest extends TestCase
         $this->actingAs($finance)->put(route('invoices.ppn', $invoice), [
             'ppn_types' => ['TR'],
             'ppn_persen' => 5,
-        ])->assertSessionHasErrors('ppn_persen');
-        $this->assertSame('0.00', $invoice->fresh()->ppn_persen);
-        $this->assertSame('11.00', $nonTrInvoice->fresh()->ppn_persen);
+        ])->assertSessionHas('success');
+        $this->assertSame('5.00', $invoice->fresh()->ppn_persen);
+        $this->assertSame('0.00', $nonTrInvoice->fresh()->ppn_persen);
+
+        foreach ([-1, 101, 'abc', 1.123] as $invalidRate) {
+            $this->actingAs($finance)->put(route('invoices.ppn', $invoice), [
+                'ppn_types' => ['TR'], 'ppn_persen' => $invalidRate,
+            ])->assertSessionHasErrors('ppn_persen');
+        }
 
         $this->actingAs($finance)->put(route('invoices.ppn', $invoice), [
             'ppn_types' => [],
@@ -630,6 +640,56 @@ class InvoiceWorkflowTest extends TestCase
         } finally {
             @unlink($path);
         }
+    }
+
+    public function test_finance_can_release_existing_draft_items_and_select_them_again(): void
+    {
+        [$finance, $customer, $first] = $this->makePodReadyOrder();
+        $second = $this->makeAdditionalPodReadyOrder($finance, $customer);
+        $payload = $this->invoicePayload($customer, $first, 'separate');
+        $payload['selections'] = [$first->id . ':TR', $second->id . ':TR'];
+        $payload['ppn_types'] = ['TR'];
+        $payload['ppn_persen'] = 1.1;
+        $this->actingAs($finance)->post(route('invoices.store'), $payload)->assertSessionHas('success');
+        $invoice = Invoice::where('customer_id', $customer->id)->sole();
+        $invoice->update(['edit_request_status' => 'pending']);
+        $item = $invoice->items()->where('delivery_order_id', $first->id)->sole();
+        $this->delete(route('invoices.items.destroy', [$invoice, $item]))->assertSessionHas('success');
+        $this->assertSame('1000000', $invoice->fresh()->total_jual);
+        $this->assertSame('1011000', $invoice->fresh()->grand_total);
+        $this->assertNotNull($first->fresh());
+        $payload['selections'] = [$first->id . ':TR'];
+        $this->post(route('invoices.store'), $payload)->assertSessionHas('success');
+        $this->delete(route('invoices.items.destroy', [$invoice, $invoice->items()->sole()]))
+            ->assertRedirect(route('invoices.index', ['tab' => 'draft']));
+        $this->assertSoftDeleted($invoice);
+        $this->assertNotNull($second->fresh());
+    }
+
+    public function test_draft_deletion_preserves_dos_and_issued_invoice_cannot_bypass_approval(): void
+    {
+        [$finance, $customer, $do] = $this->makePodReadyOrder();
+        $this->actingAs($finance)->post(route('invoices.store'), $this->invoicePayload($customer, $do, 'separate'));
+        $tr = Invoice::where('customer_id', $customer->id)->where('jenis', 'TR')->sole();
+        $ntr = Invoice::where('customer_id', $customer->id)->where('jenis', 'NTR')->sole();
+        $this->post(route('invoices.submit', $tr))->assertSessionHas('success');
+        $this->delete(route('invoices.destroy', $tr))->assertForbidden();
+        $this->post(route('invoices.unsubmit', $tr))->assertForbidden();
+        $this->post(route('deletion-requests.store'), ['module' => 'invoices', 'model_id' => $tr->id])
+            ->assertForbidden();
+        $this->delete(route('invoices.items.destroy', [$tr, $tr->items()->sole()]))->assertForbidden();
+        $this->delete(route('invoices.items.destroy', [$ntr, $tr->items()->sole()]))->assertNotFound();
+        $this->delete(route('invoices.destroy', $ntr))->assertSessionHas('success');
+        $this->assertNotNull($do->fresh());
+        $this->assertSame('invoiced', $do->fresh()->status);
+        $available = $this->getJson(route('invoices.available-dos', ['customer_id' => $customer->id]))->assertOk()->json();
+        $this->assertSame([$do->id], array_column($available, 'id'));
+        $payload = $this->invoicePayload($customer, $do, 'separate');
+        $payload['selections'] = [$do->id . ':NTR'];
+        $payload['ppn_types'] = ['NTR'];
+        $payload['ppn_persen'] = 0;
+        $this->post(route('invoices.store'), $payload)->assertSessionHas('success');
+        $this->assertSame('0.00', Invoice::where('customer_id', $customer->id)->where('jenis', 'NTR')->sole()->ppn_persen);
     }
 
     private function makePodReadyOrder(): array

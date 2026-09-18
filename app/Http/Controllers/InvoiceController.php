@@ -163,7 +163,7 @@ class InvoiceController extends Controller
             'requestOrder.items',
             'invoiceItems.invoice',
         ])
-            ->where('status', 'closed')
+            ->whereIn('status', ['closed', 'invoiced'])
             ->whereHas('requestOrder', fn($q) => $q->where('do_approved', true))
             ->orderByDesc('do_date')
             ->orderByDesc('id');
@@ -219,7 +219,7 @@ class InvoiceController extends Controller
             'ppn_mode' => 'nullable|in:ppn,non_ppn',
             'ppn_types' => 'nullable|array',
             'ppn_types.*' => 'in:TR,NTR',
-            'ppn_persen' => 'required_with:ppn_types|nullable|in:1.1,11',
+            'ppn_persen' => 'required_with:ppn_types|nullable|numeric|between:0,100|decimal:0,2',
             'notes' => 'nullable|string|max:2000',
         ]);
 
@@ -228,9 +228,9 @@ class InvoiceController extends Controller
         if ($ppnTypes->isEmpty() && ($data['ppn_mode'] ?? null) === 'ppn') {
             $ppnTypes = collect(['TR', 'NTR']);
         }
-        if ($ppnTypes->isNotEmpty() && empty($data['ppn_persen'])) {
+        if ($ppnTypes->isNotEmpty() && !isset($data['ppn_persen'])) {
             throw ValidationException::withMessages([
-                'ppn_persen' => 'Pilih tarif PPN 11% atau 1,1%.',
+                'ppn_persen' => 'Isi persentase PPN antara 0 dan 100.',
             ]);
         }
 
@@ -250,7 +250,7 @@ class InvoiceController extends Controller
             $dos = DeliveryOrder::with(['requestOrder.jobDetails', 'requestOrder.items'])
                 ->whereKey($doIds)
                 ->where('customer_id', $customer->id)
-                ->where('status', 'closed')
+                ->whereIn('status', ['closed', 'invoiced'])
                 ->whereHas('requestOrder', fn($q) => $q->where('do_approved', true))
                 ->orderBy('id')
                 ->lockForUpdate()
@@ -395,6 +395,7 @@ class InvoiceController extends Controller
                 'status' => 'invoice',
                 'periode_invoice' => $period->toDateString(),
                 'submitted_at' => $submittedAt,
+                'edit_request_status' => 'none',
                 'tgl_tempo' => $locked->tgl_tempo_manual
                     ? $locked->tgl_tempo
                     : $locked->customer->dueDateFrom($submittedAt),
@@ -420,7 +421,8 @@ class InvoiceController extends Controller
             if ($locked->status !== 'invoice') {
                 throw ValidationException::withMessages(['general' => 'Hanya invoice terbit yang bisa dikembalikan ke draft.']);
             }
-            $locked->update(['status' => 'draft', 'submitted_at' => null]);
+            $this->authorizeInvoiceEdit($locked);
+            $locked->update(['status' => 'draft', 'submitted_at' => null, 'edit_request_status' => 'none']);
 
             // Tanpa sinkronisasi ini DO tetap tercatat "Invoice Terbit" padahal
             // tagihannya sudah kembali menjadi draft.
@@ -511,9 +513,12 @@ class InvoiceController extends Controller
 
     public function updateNumber(Request $request, Invoice $invoice)
     {
-        $this->authorizeInvoiceEdit($invoice);
         $data = $request->validate(['invoice_number' => 'required|string|max:100']);
-        $invoice->update(['invoice_number' => $data['invoice_number']]);
+        DB::transaction(function () use ($invoice, $data) {
+            $locked = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
+            $this->authorizeInvoiceEdit($locked);
+            $locked->update(['invoice_number' => $data['invoice_number']]);
+        });
 
         return back()->with('success', 'Nomor invoice diperbarui.');
     }
@@ -529,10 +534,9 @@ class InvoiceController extends Controller
         $data = $request->validate([
             'ppn_types' => 'nullable|array',
             'ppn_types.*' => 'in:TR,NTR',
-            'ppn_persen' => 'required_with:ppn_types|nullable|in:1.1,11',
+            'ppn_persen' => 'required_with:ppn_types|nullable|numeric|between:0,100|decimal:0,2',
         ], [
-            'ppn_persen.required_with' => 'Pilih tarif PPN 11% atau 1,1%.',
-            'ppn_persen.in' => 'Tarif PPN hanya dapat dipilih 11% atau 1,1%.',
+            'ppn_persen.required_with' => 'Isi persentase PPN antara 0 dan 100.',
         ]);
         $selectedTypes = collect($data['ppn_types'] ?? [])->unique();
         $ppnPersen = $selectedTypes->isNotEmpty() ? (float) $data['ppn_persen'] : 0.0;
@@ -540,6 +544,8 @@ class InvoiceController extends Controller
 
         DB::transaction(function () use ($targets, $selectedTypes, $ppnPersen) {
             foreach ($targets as $target) {
+                $target = Invoice::query()->lockForUpdate()->findOrFail($target->id);
+                $this->authorizeInvoiceEdit($target);
                 $targetPpn = $selectedTypes->contains($target->jenis) ? $ppnPersen : 0.0;
                 $this->recalcTotals(
                     $target,
@@ -580,8 +586,8 @@ class InvoiceController extends Controller
     public function requestEdit(Request $request, Invoice $invoice)
     {
         if (!auth()->user()->isFinance()) abort(403);
-        if (in_array($invoice->status, ['termin', 'paid'], true)) {
-            return back()->withErrors(['general' => 'Invoice yang sudah memiliki pembayaran tidak dapat diminta untuk diedit.']);
+        if ($invoice->status !== 'invoice') {
+            return back()->withErrors(['general' => 'Permintaan edit hanya untuk invoice terbit yang belum memiliki pembayaran.']);
         }
 
         $data = $request->validate(['reason' => 'required|string|max:1000']);
@@ -595,27 +601,27 @@ class InvoiceController extends Controller
             'edit_review_note' => null,
         ]);
 
-        User::where('role', 'Super Admin')->where('status', 'Active')->each(fn(User $admin) =>
+        User::where('role', 'Sales Manager')->where('status', 'Active')->each(fn(User $admin) =>
             \App\Models\Notification::send(
                 $admin->id,
                 'invoice_edit_request',
                 'Permintaan edit invoice',
-                $invoice->invoice_number . ' menunggu persetujuan Super Admin.',
+                $invoice->invoice_number . ' menunggu persetujuan Sales Manager.',
                 route('invoices.show', $invoice)
             )
         );
 
-        return back()->with('success', 'Permintaan edit dikirim ke Super Admin.');
+        return back()->with('success', 'Permintaan edit dikirim ke Sales Manager.');
     }
 
     public function reviewEdit(Request $request, Invoice $invoice)
     {
-        if (!auth()->user()->isSuperAdmin()) abort(403);
+        if (!auth()->user()->isSalesManager() && !auth()->user()->isSuperAdmin()) abort(403);
         $data = $request->validate([
             'action' => 'required|in:approve,reject',
             'note' => 'nullable|string|max:1000',
         ]);
-        if ($invoice->edit_request_status !== 'pending') {
+        if ($invoice->status !== 'invoice' || $invoice->edit_request_status !== 'pending') {
             return back()->withErrors(['general' => 'Tidak ada permintaan edit yang sedang menunggu.']);
         }
 
@@ -650,16 +656,49 @@ class InvoiceController extends Controller
             'unit_price' => 'required|numeric|min:0',
         ]);
         $data['jual'] = round((float) $data['quantity'] * (float) $data['unit_price']);
-        $invoiceItem->update($data);
-        $invoice->refresh();
-        $this->recalcTotals(
-            $invoice,
-            (float) $invoice->items()->sum('hpp'),
-            (float) $invoice->items()->sum('jual'),
-            (float) $invoice->ppn_persen
-        );
+        DB::transaction(function () use ($invoice, $invoiceItem, $data) {
+            $locked = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
+            $this->authorizeInvoiceEdit($locked);
+            $locked->items()->findOrFail($invoiceItem->id)->update($data);
+            $this->recalcTotals($locked, (float) $locked->items()->sum('hpp'),
+                (float) $locked->items()->sum('jual'), (float) $locked->ppn_persen);
+        });
 
         return back()->with('success', 'Rincian invoice diperbarui.');
+    }
+
+    public function removeItem(Invoice $invoice, InvoiceItem $invoiceItem)
+    {
+        $empty = DB::transaction(function () use ($invoice, $invoiceItem) {
+            $locked = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
+            $this->authorizeInvoiceEdit($locked);
+            abort_unless($locked->status === 'draft', 403, 'DO hanya dapat dikeluarkan dari draft.');
+            $item = $locked->items()->lockForUpdate()->findOrFail($invoiceItem->id);
+            $doId = $item->delivery_order_id;
+            $requestId = $item->request_order_id;
+            $item->delete();
+
+            $empty = !$locked->items()->exists();
+            if ($empty) {
+                $locked->delete();
+            } else {
+                $types = $locked->items()->pluck('item_type')->unique();
+                $locked->update(['jenis' => $types->count() === 1 ? $types->first() : 'MIX']);
+                $this->recalcTotals($locked, (float) $locked->items()->sum('hpp'),
+                    (float) $locked->items()->sum('jual'), (float) $locked->ppn_persen);
+            }
+
+            if (!$doId && $requestId && !InvoiceItem::where('request_order_id', $requestId)->exists()) {
+                RequestOrder::whereKey($requestId)->update(['invoice_status' => 'uninvoiced']);
+            }
+            app(InvoiceBillingService::class)->sync([$doId], 'Komponen DO dikeluarkan dari draft invoice.');
+
+            return $empty;
+        }, 3);
+
+        return ($empty ? redirect()->route('invoices.index', ['tab' => 'draft']) : back())
+            ->with('success', 'Komponen DO dikeluarkan dan dapat dipilih kembali.'
+                . ($empty ? ' Draft kosong dihapus.' : ''));
     }
 
     public function destroy(Invoice $invoice)
@@ -671,6 +710,8 @@ class InvoiceController extends Controller
                     'general' => 'Invoice yang sudah memiliki pembayaran tidak dapat dihapus.',
                 ]);
             }
+
+            $this->authorizeInvoiceEdit($locked);
 
             $doIds = $locked->items()->pluck('delivery_order_id')->filter()->unique();
             $legacyRequestOrderIds = $locked->items()
@@ -688,7 +729,8 @@ class InvoiceController extends Controller
             );
         });
 
-        return back()->with('success', 'Invoice dihapus dan komponen DO dilepas untuk ditagih ulang.');
+        return redirect()->route('invoices.index', ['tab' => 'draft'])
+            ->with('success', 'Invoice dihapus dan komponen DO dilepas untuk ditagih ulang.');
     }
 
     public function print(Request $request, Invoice $invoice, \App\Services\DocumentSignatureService $documentSignature)
@@ -858,8 +900,8 @@ class InvoiceController extends Controller
             abort(403, 'Invoice yang sudah memiliki pembayaran tidak dapat diedit.');
         }
         $user = auth()->user();
-        abort_unless($user->isSuperAdmin() || ($user->isFinance() && $invoice->edit_request_status === 'approved'), 403,
-            'Finance harus mengajukan permintaan edit dan menunggu persetujuan Super Admin.');
+        abort_unless($invoice->canBeEditedBy($user), 403,
+            'Perubahan invoice terbit memerlukan persetujuan Sales Manager.');
     }
 
     /** Draft TR/NTR pasangan dengan kumpulan DO/Request yang sama. */

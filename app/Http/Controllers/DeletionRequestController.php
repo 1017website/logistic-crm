@@ -131,6 +131,10 @@ class DeletionRequestController extends Controller
             return back()->withErrors(['delete' => 'Data tidak ditemukan.']);
         }
 
+        if ($model instanceof Invoice) {
+            return app(InvoiceController::class)->destroy($model);
+        }
+
         // Admin: langsung hapus tanpa antrian persetujuan.
         if (auth()->user()->isAdmin()) {
             $label = $model->{(DeletionRequest::MODULES[$modelClass]['label_field'] ?? 'id')} ?? $model->id;

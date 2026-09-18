@@ -63,6 +63,17 @@ class Invoice extends Model
     public function items(): HasMany      { return $this->hasMany(InvoiceItem::class); }
     public function payments(): HasMany   { return $this->hasMany(InvoicePayment::class); }
 
+    public function canBeEditedBy(User $user): bool
+    {
+        if (!in_array($this->status, ['draft', 'invoice'], true) || $this->payments()->exists()) {
+            return false;
+        }
+
+        return $user->isSuperAdmin()
+            || ($this->status === 'draft' && ($user->isFinance() || $user->isAdmin()))
+            || ($user->isFinance() && $this->edit_request_status === 'approved');
+    }
+
     public function getTotalPaidAttribute(): float
     {
         $paid = $this->relationLoaded('payments')

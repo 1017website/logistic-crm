@@ -218,7 +218,7 @@ class InvoiceBillingSyncTest extends TestCase
             'name' => 'Billing Sync Admin',
             'email' => 'billing-sync-' . uniqid() . '@example.test',
             'password' => 'password',
-            'role' => 'Admin',
+            'role' => 'Super Admin',
             'status' => 'Active',
         ]);
         $customer = Customer::create([

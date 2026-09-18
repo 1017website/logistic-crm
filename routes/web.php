@@ -241,12 +241,13 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
         Route::put('/invoices/{invoice}/number', [InvoiceController::class, 'updateNumber'])->name('invoices.number');
         Route::put('/invoices/{invoice}/ppn', [InvoiceController::class, 'updatePpn'])->name('invoices.ppn');
         Route::put('/invoices/{invoice}/items/{invoiceItem}', [InvoiceController::class, 'updateItem'])->name('invoices.items.update');
+        Route::delete('/invoices/{invoice}/items/{invoiceItem}', [InvoiceController::class, 'removeItem'])->name('invoices.items.destroy');
     });
     Route::middleware('role:Finance')->group(function () {
         Route::post('/invoices/{invoice}/request-edit', [InvoiceController::class, 'requestEdit'])->name('invoices.request-edit');
         Route::post('/invoices/{invoice}/finish-edit', [InvoiceController::class, 'finishEdit'])->name('invoices.finish-edit');
     });
-    Route::middleware('role:Super Admin')->group(function () {
+    Route::middleware('role:Super Admin,Sales Manager')->group(function () {
         Route::post('/invoices/{invoice}/review-edit', [InvoiceController::class, 'reviewEdit'])->name('invoices.review-edit');
     });
     Route::middleware('role:Admin,Finance')->group(function () {
