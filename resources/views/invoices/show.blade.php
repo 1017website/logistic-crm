@@ -7,9 +7,9 @@
 @php
     $u = auth()->user();
     $hasPayment = in_array($invoice->status, ['termin', 'paid'], true);
-    $canEditInvoice = !$hasPayment && ($u->isSuperAdmin() || ($u->isFinance() && $invoice->edit_request_status === 'approved'));
-    $canEditPpn = !$hasPayment && ($canEditInvoice
-        || ($invoice->status === 'draft' && ($u->isFinance() || $u->isAdmin())));
+    $canEditInvoice = $invoice->canBeEditedBy($u);
+    $canEditPpn = $canEditInvoice;
+    $canRemoveDraftItem = $invoice->status === 'draft' && $canEditInvoice;
 @endphp
 <div class="row g-3">
     <div class="col-lg-8">
@@ -63,7 +63,12 @@
                         <td class="text-end">@if($canEditInvoice)<input form="item-form-{{ $it->id }}" type="number" step="0.001" min="0.001" name="quantity" class="form-control form-control-sm text-end" value="{{ (float)($it->quantity ?: 1) }}" required>@else{{ (float)($it->quantity ?: 1) }}@endif</td>
                         <td class="text-end">@if($canEditInvoice)<input form="item-form-{{ $it->id }}" type="number" min="0" name="unit_price" class="form-control form-control-sm text-end" value="{{ (float)($it->unit_price ?: $it->jual) }}" required>@else{{ idr($it->unit_price ?: $it->jual) }}@endif</td>
                         <td class="text-end">{{ idr($it->jual) }}</td>
-                        @if($canEditInvoice)<td><form id="item-form-{{ $it->id }}" method="POST" action="{{ route('invoices.items.update', [$invoice, $it]) }}">@csrf @method('PUT')<button class="btn btn-sm btn-outline-primary"><i class="fas fa-save"></i></button></form></td>@endif
+                        @if($canEditInvoice)<td class="text-nowrap">
+                            <form id="item-form-{{ $it->id }}" method="POST" action="{{ route('invoices.items.update', [$invoice, $it]) }}" class="d-inline">@csrf @method('PUT')<button class="btn btn-sm btn-outline-primary" title="Simpan perubahan"><i class="fas fa-save"></i></button></form>
+                            @if($canRemoveDraftItem)
+                            <form method="POST" action="{{ route('invoices.items.destroy', [$invoice, $it]) }}" class="d-inline" onsubmit="return confirm('Keluarkan DO ini dari draft? DO akan tersedia untuk dipilih kembali.')">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger" title="Keluarkan DO dari draft"><i class="fas fa-times"></i></button></form>
+                            @endif
+                        </td>@endif
                     </tr>
                     @endforeach
                 </tbody>
@@ -95,24 +100,24 @@
     </div>
 
     <div class="col-lg-4">
-        @if($u->isFinance() && !$canEditInvoice && !$hasPayment)
+        @if($u->isFinance() && $invoice->status === 'invoice' && !$canEditInvoice)
         <div class="card mb-3 border-warning"><div class="card-body p-3">
             <h6 style="font-weight:700">Permintaan Edit Invoice</h6>
             @if($invoice->edit_request_status === 'pending')
-                <div class="alert alert-warning py-2 mb-0" style="font-size:12px">Menunggu persetujuan Super Admin.<br><b>Alasan:</b> {{ $invoice->edit_request_reason }}</div>
+                <div class="alert alert-warning py-2 mb-0" style="font-size:12px">Menunggu persetujuan Sales Manager.<br><b>Alasan:</b> {{ $invoice->edit_request_reason }}</div>
             @else
                 @if($invoice->edit_request_status === 'rejected')<div class="alert alert-danger py-2" style="font-size:12px">Permintaan sebelumnya ditolak. {{ $invoice->edit_review_note }}</div>@endif
                 <form method="POST" action="{{ route('invoices.request-edit', $invoice) }}">@csrf
                     <textarea name="reason" class="form-control form-control-sm mb-2" rows="3" required placeholder="Jelaskan data yang perlu diedit"></textarea>
-                    <button class="btn btn-warning btn-sm w-100"><i class="fas fa-lock-open me-1"></i> Ajukan Edit ke Super Admin</button>
+                    <button class="btn btn-warning btn-sm w-100"><i class="fas fa-lock-open me-1"></i> Ajukan Edit ke Sales Manager</button>
                 </form>
             @endif
         </div></div>
         @endif
 
-        @if($u->isSuperAdmin() && $invoice->edit_request_status === 'pending')
+        @if(($u->isSalesManager() || $u->isSuperAdmin()) && $invoice->status === 'invoice' && $invoice->edit_request_status === 'pending')
         <div class="card mb-3 border-warning"><div class="card-body p-3">
-            <h6 style="font-weight:700">Approval Edit (Super Admin)</h6>
+            <h6 style="font-weight:700">Persetujuan Edit Invoice</h6>
             <p style="font-size:12px"><b>{{ $invoice->editRequester?->name }}</b>: {{ $invoice->edit_request_reason }}</p>
             <form method="POST" action="{{ route('invoices.review-edit', $invoice) }}">@csrf
                 <textarea name="note" class="form-control form-control-sm mb-2" rows="2" placeholder="Catatan approval"></textarea>
@@ -122,7 +127,7 @@
         @endif
 
         @if($u->isFinance() && $invoice->edit_request_status === 'approved')
-        <div class="alert alert-success py-2" style="font-size:12px">Edit disetujui oleh {{ $invoice->editReviewer?->name ?? 'Super Admin' }}. Selesaikan perubahan lalu kunci kembali.
+        <div class="alert alert-success py-2" style="font-size:12px">Edit disetujui oleh {{ $invoice->editReviewer?->name ?? 'Sales Manager' }}. Selesaikan perubahan lalu kunci kembali.
             <form method="POST" action="{{ route('invoices.finish-edit', $invoice) }}" class="mt-2">@csrf<button class="btn btn-sm btn-success w-100">Selesai Edit & Kunci</button></form>
         </div>
         @endif
@@ -140,7 +145,7 @@
         @if($canEditPpn)
         @php
             $selectedTaxTypes = $taxInvoices->filter(fn($taxInvoice) => (float)$taxInvoice->ppn_persen > 0)->keys();
-            $selectedTaxRate = (float)($taxInvoices->first(fn($taxInvoice) => (float)$taxInvoice->ppn_persen > 0)?->ppn_persen ?? 11);
+            $selectedTaxRate = (float)($taxInvoices->first(fn($taxInvoice) => (float)$taxInvoice->ppn_persen > 0)?->ppn_persen ?? 0);
         @endphp
         <div class="card mb-3 border-info"><div class="card-body p-3">
             <h6 style="font-weight:700;font-size:13px">PPN</h6>
@@ -158,17 +163,8 @@
                     @endforeach
                 </div>
                 <div id="invoicePpnRateWrap" class="border rounded p-2 mb-2" style="{{ $selectedTaxTypes->isEmpty() ? 'display:none' : '' }}">
-                    <label class="form-label mb-1" style="font-size:12px">Pilih tarif PPN</label>
-                    <div class="d-flex gap-3">
-                        <div class="form-check">
-                            <input class="form-check-input invoice-ppn-rate" type="radio" name="ppn_persen" id="invoicePpn11" value="11" @checked($selectedTaxRate === 11.0)>
-                            <label class="form-check-label" for="invoicePpn11">11%</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input invoice-ppn-rate" type="radio" name="ppn_persen" id="invoicePpn11Kecil" value="1.1" @checked($selectedTaxRate === 1.1)>
-                            <label class="form-check-label" for="invoicePpn11Kecil">1,1%</label>
-                        </div>
-                    </div>
+                    <label class="form-label mb-1" style="font-size:12px" for="invoicePpnPersen">PPN (%)</label>
+                    <input class="form-control form-control-sm invoice-ppn-rate" type="number" name="ppn_persen" id="invoicePpnPersen" value="{{ $selectedTaxRate }}" min="0" max="100" step="0.01" inputmode="decimal">
                 </div>
                 <button class="btn btn-sm btn-info w-100">Simpan Pengaturan PPN</button>
             </form>
@@ -184,6 +180,9 @@
                 <small class="text-muted d-block mb-2">Hanya menentukan bulan laporan. TOP mengikuti tanggal invoice diterbitkan, kecuali jatuh tempo diatur manual.</small>
                 <button class="btn btn-success btn-sm w-100"><i class="fas fa-paper-plane me-1"></i> Terbitkan Invoice</button>
             </form>
+            @if($u->isFinance() || $u->isAdmin())
+            <form method="POST" action="{{ route('invoices.destroy', $invoice) }}" class="mt-2" onsubmit="return confirm('Hapus draft ini? Semua DO di dalamnya akan tersedia untuk dipilih kembali.')">@csrf @method('DELETE')<button class="btn btn-outline-danger btn-sm w-100"><i class="fas fa-trash me-1"></i> Hapus Draft</button></form>
+            @endif
             @elseif(in_array($invoice->status, ['invoice', 'termin'], true))
             <div class="alert alert-info py-2" style="font-size:11px">Invoice sudah terbit dan tetap dapat menunggu pembayaran sampai pengiriman selesai.</div>
             <form method="POST" action="{{ route('invoices.pay',$invoice->id) }}" class="mb-2">@csrf

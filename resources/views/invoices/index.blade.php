@@ -141,7 +141,14 @@
                                     <button class="btn btn-sm btn-outline-success" style="padding:3px 7px" title="Catat pembayaran" data-bs-toggle="modal" data-bs-target="#payModal{{ $inv->id }}"><i class="fas fa-money-bill-wave"></i></button>
                                     @endif
                                     @if($u->canAccess('finance'))
-                                    @include('components.delete-request-button', ['module'=>'invoices','id'=>$inv->id,'label'=>$inv->invoice_number ?? $inv->invoice_id,'pending'=>in_array($inv->id,$pendingDeletionIds ?? [])])
+                                        @if($inv->status === 'draft')
+                                        <form method="POST" action="{{ route('invoices.destroy', $inv) }}" class="d-inline" onsubmit="return confirm('Hapus draft {{ addslashes($inv->invoice_number ?? $inv->invoice_id) }}? Semua DO di dalamnya akan tersedia untuk dipilih kembali.')">
+                                            @csrf @method('DELETE')
+                                            <button class="btn btn-sm btn-outline-danger" style="padding:3px 7px" title="Hapus draft"><i class="fas fa-trash"></i></button>
+                                        </form>
+                                        @else
+                                        @include('components.delete-request-button', ['module'=>'invoices','id'=>$inv->id,'label'=>$inv->invoice_number ?? $inv->invoice_id,'pending'=>in_array($inv->id,$pendingDeletionIds ?? [])])
+                                        @endif
                                     @endif
                                 </td>
                             </tr>
@@ -229,11 +236,8 @@
                         <div class="form-check"><input class="form-check-input ppn-type" type="checkbox" name="ppn_types[]" id="ppnTypeNTR" value="NTR"><label class="form-check-label" for="ppnTypeNTR">Non-TR</label></div>
                     </div>
                 </div>
-                <div class="col-md-2" id="ppnPercentWrap" style="display:none"><label class="form-label">Tarif PPN</label>
-                    <div class="d-flex gap-2 pt-1">
-                        <div class="form-check"><input class="form-check-input ppn-percent" type="radio" name="ppn_persen" id="ppn11" value="11" checked><label class="form-check-label" for="ppn11">11%</label></div>
-                        <div class="form-check"><input class="form-check-input ppn-percent" type="radio" name="ppn_persen" id="ppn11Kecil" value="1.1"><label class="form-check-label" for="ppn11Kecil">1,1%</label></div>
-                    </div>
+                <div class="col-md-2" id="ppnPercentWrap" style="display:none"><label class="form-label" for="ppnPersen">PPN (%)</label>
+                    <input class="form-control form-control-sm ppn-percent" type="number" name="ppn_persen" id="ppnPersen" value="0" min="0" max="100" step="0.01" inputmode="decimal">
                 </div>
                 <div class="col-md-3"><label class="form-label">Catatan</label><input type="text" name="notes" class="form-control form-control-sm" placeholder="Opsional"></div>
             </div>

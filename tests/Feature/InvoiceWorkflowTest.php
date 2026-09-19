@@ -531,7 +531,7 @@ class InvoiceWorkflowTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_finance_can_set_supported_ppn_rates_on_draft_without_edit_approval(): void
+    public function test_finance_can_set_manual_ppn_rate_on_draft_without_edit_approval(): void
     {
         [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
         $this->actingAs($finance)
@@ -547,7 +547,11 @@ class InvoiceWorkflowTest extends TestCase
             ->assertOk()
             ->assertSee('Trucking (TR)')
             ->assertSee('Non-Trucking (Non-TR)')
-            ->assertSee('name="ppn_persen"', false);
+            ->assertSee('id="invoicePpnPersen"', false)
+            ->assertSee('type="number" name="ppn_persen"', false)
+            ->assertSee('value="0"', false)
+            ->assertSee('Keluarkan DO dari draft')
+            ->assertSee('Hapus Draft');
 
         $this->actingAs($finance)->put(route('invoices.ppn', $invoice), [
             'ppn_types' => ['TR'],
