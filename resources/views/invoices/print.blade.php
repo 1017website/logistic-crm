@@ -94,9 +94,10 @@
 
 <div class="toolbar" @if($isPdf ?? false) style="display:none" @endif>
     <button class="primary" onclick="window.print()">Cetak</button>
-    <a href="{{ route('invoices.print', [$invoice->id, 'type' => 'all']) }}">Semua</a>
-    @if($invoice->items->contains('item_type', 'TR'))<a href="{{ route('invoices.print', [$invoice->id, 'type' => 'TR']) }}">Trucking</a>@endif
-    @if($invoice->items->contains('item_type', 'NTR'))<a href="{{ route('invoices.print', [$invoice->id, 'type' => 'NTR']) }}">Non-Trucking</a>@endif
+    <a href="{{ route('invoices.print', [$invoice->id, 'type' => 'all', 'document' => $documentMode]) }}">Semua</a>
+    @if($invoice->items->contains('item_type', 'TR'))<a href="{{ route('invoices.print', [$invoice->id, 'type' => 'TR', 'document' => $documentMode]) }}">Trucking</a>@endif
+    @if($invoice->items->contains('item_type', 'NTR'))<a href="{{ route('invoices.print', [$invoice->id, 'type' => 'NTR', 'document' => $documentMode]) }}">Non-Trucking</a>@endif
+    <a href="{{ route('invoices.print', [$invoice->id, 'type' => $printType, 'document' => $documentMode === 'proforma' ? 'invoice' : 'proforma']) }}">{{ $documentMode === 'proforma' ? 'Versi Invoice' : 'Versi Pro Forma' }}</a>
     <a href="{{ route('invoices.show', $invoice->id) }}">Kembali</a>
 </div>
 
@@ -106,8 +107,7 @@
 
     <div class="document-title">
         <div>
-            <div class="ttl">INVOICE</div>
-            <div class="sub">PRO FORMA</div>
+            <div class="ttl">{{ $documentMode === 'proforma' ? 'PRO FORMA INVOICE' : 'INVOICE' }}</div>
         </div>
         <span class="badge {{ $statusClass }}">{{ $statusText }}</span>
     </div>

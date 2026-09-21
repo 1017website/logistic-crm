@@ -107,9 +107,18 @@
                     <td class="py-3 text-end" style="font-weight:700;color:{{ $bundle['outstanding'] > 0 ? '#dc2626' : '#059669' }}">{{ idr($bundle['outstanding']) }}</td>
                     <td class="py-3 text-end">{{ idr($bundle['total_hpp']) }}</td>
                     <td class="py-3 text-center">
-                        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#{{ $collapseId }}" aria-expanded="false" aria-controls="{{ $collapseId }}">
-                            <i class="fas fa-chevron-down me-1"></i> Lihat Invoice
-                        </button>
+                        <div class="d-flex justify-content-center gap-1 flex-wrap">
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#{{ $collapseId }}" aria-expanded="false" aria-controls="{{ $collapseId }}">
+                                <i class="fas fa-chevron-down me-1"></i> Lihat Invoice
+                            </button>
+                            @if($tab === 'draft' && ($u->isFinance() || $u->isAdmin()) && $bundle['invoices']->count() > 1 && $bundle['customer'])
+                            <form method="POST" action="{{ route('invoices.merge-drafts', $bundle['customer']) }}" onsubmit="return confirm('Gabungkan draft yang kompatibel untuk customer ini? Nomor draft paling awal akan dipertahankan.')">
+                                @csrf
+                                @foreach($bundle['invoices'] as $mergeInvoice)<input type="hidden" name="invoice_ids[]" value="{{ $mergeInvoice->id }}">@endforeach
+                                <button class="btn btn-sm btn-outline-dark" title="Gabungkan draft berdasarkan tipe, periode, PPN, dan jatuh tempo"><i class="fas fa-object-group me-1"></i> Gabungkan Draft</button>
+                            </form>
+                            @endif
+                        </div>
                     </td>
                 </tr>
                 <tr class="collapse" id="{{ $collapseId }}"><td colspan="7" class="p-0" style="background:#f8fafc">
@@ -224,10 +233,13 @@
             </div>
             <div class="row g-2 mb-3">
                 <div class="col-md-4">
-                    <label class="form-label">TR & Non-TR</label>
+                    <label class="form-label">Komponen Invoice</label>
                     <input type="hidden" name="billing_mode" value="separate">
-                    <div class="form-control form-control-sm bg-light">Otomatis dipisah: Invoice TR dan Invoice Non-TR</div>
-                    <small class="text-muted">Masing-masing invoice tetap dapat berisi banyak DO customer yang sama.</small>
+                    <div class="d-flex gap-3 pt-1">
+                        <div class="form-check"><input class="form-check-input invoice-type" type="checkbox" id="invoiceTypeTR" value="TR" disabled><label class="form-check-label" for="invoiceTypeTR">Trucking (TR)</label></div>
+                        <div class="form-check"><input class="form-check-input invoice-type" type="checkbox" id="invoiceTypeNTR" value="NTR" disabled><label class="form-check-label" for="invoiceTypeNTR">Non-Trucking (NTR)</label></div>
+                    </div>
+                    <small class="text-muted">Pilih salah satu atau keduanya. Setiap tipe dibuat terpisah dan dapat memuat banyak DO.</small>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Jenis yang dikenakan PPN</label>
@@ -287,6 +299,7 @@ async function loadAvailableDos(customerId){
     if (!wrap) return;
     wrap.innerHTML = '<div class="text-muted">Memuat...</div>';
     document.getElementById('selectAllDosBtn').disabled = true;
+    document.querySelectorAll('.invoice-type').forEach(input => { input.checked = false; input.indeterminate = false; input.disabled = true; });
     recalcInv();
     if (!customerId) { wrap.innerHTML = '<div class="text-muted">Pilih customer dulu.</div>'; recalcInv(); return; }
     try {
@@ -322,6 +335,9 @@ async function loadAvailableDos(customerId){
             </div>`;
         }).join('');
         wrap.querySelectorAll('.doChk').forEach(c => c.addEventListener('change', recalcInv));
+        document.querySelectorAll('.invoice-type').forEach(input => {
+            input.disabled = !wrap.querySelector(`.doChk[value$=":${input.value}"]:not(:disabled)`);
+        });
         const selectAll = document.getElementById('selectAllDosBtn'); if (selectAll) selectAll.disabled = false;
         recalcInv();
     } catch(e) {
@@ -365,6 +381,7 @@ function applyCustomerTop() {
 }
 document.getElementById('invTglBuat')?.addEventListener('change', applyCustomerTop);
 const _ppnTypes = [...document.querySelectorAll('.ppn-type')];
+const _invoiceTypes = [...document.querySelectorAll('.invoice-type')];
 function togglePpnInput(){
     const taxable = _ppnTypes.some(input => input.checked);
     const wrap = document.getElementById('ppnPercentWrap');
@@ -372,6 +389,12 @@ function togglePpnInput(){
     document.querySelectorAll('.ppn-percent').forEach(input => input.required = taxable);
 }
 _ppnTypes.forEach(input => input.addEventListener('change', togglePpnInput));
+_invoiceTypes.forEach(input => input.addEventListener('change', function(){
+    document.querySelectorAll(`.doChk[value$=":${this.value}"]:not(:disabled)`).forEach(component => {
+        component.checked = this.checked;
+    });
+    recalcInv();
+}));
 togglePpnInput();
 // Saat modal dibuka, muat ulang sesuai customer yang sedang terpilih.
 document.getElementById('addInvoiceModal')?.addEventListener('show.bs.modal', function(event){
@@ -385,10 +408,24 @@ document.getElementById('addInvoiceModal')?.addEventListener('show.bs.modal', fu
 function recalcInv(){
     let hpp=0, jual=0, n=0;
     const selectedDos = new Set();
+    const selectedTypes = new Set();
     document.querySelectorAll('.doChk:checked').forEach(c=>{
         hpp+=+c.dataset.hpp; jual+=+c.dataset.jual; n++;
-        selectedDos.add(String(c.value).split(':')[0]);
+        const [doId, type] = String(c.value).split(':');
+        selectedDos.add(doId);
+        selectedTypes.add(type);
     });
+    _invoiceTypes.forEach(input => {
+        const components = [...document.querySelectorAll(`.doChk[value$=":${input.value}"]:not(:disabled)`)];
+        const selectedCount = components.filter(component => component.checked).length;
+        input.checked = components.length > 0 && selectedCount === components.length;
+        input.indeterminate = selectedCount > 0 && selectedCount < components.length;
+    });
+    _ppnTypes.forEach(input => {
+        input.disabled = !selectedTypes.has(input.value);
+        if (input.disabled) input.checked = false;
+    });
+    togglePpnInput();
     const count = document.getElementById('selectedDoCount');
     if (count) count.textContent = `${selectedDos.size} DO dipilih · ${n} komponen`;
     const eh = document.getElementById('sumHpp'); if (eh) eh.textContent = fmtRp(hpp);

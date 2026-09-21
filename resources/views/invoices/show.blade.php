@@ -23,11 +23,16 @@
                     <span class="badge bg-{{ $invoice->status_color }}">{{ $invoice->status_label }}</span>
                 </div>
                 <div class="d-flex gap-2">
-                    <form method="GET" action="{{ route('invoices.print', $invoice->id) }}" target="_blank" class="d-flex gap-1">
+                    <form method="GET" action="{{ route('invoices.print', $invoice->id) }}" target="_blank" class="d-flex gap-1 flex-wrap justify-content-end">
                         <select name="type" class="form-select form-select-sm no-select2" aria-label="Pilih tipe cetak">
                             <option value="all">Semua layanan</option>
                             @if($invoice->items->contains('item_type', 'TR'))<option value="TR">Trucking saja</option>@endif
                             @if($invoice->items->contains('item_type', 'NTR'))<option value="NTR">Non-Trucking saja</option>@endif
+                        </select>
+                        <select name="document" class="form-select form-select-sm no-select2" aria-label="Pilih jenis dokumen">
+                            <option value="auto">Sesuai status</option>
+                            <option value="proforma">Pro Forma</option>
+                            <option value="invoice">Invoice</option>
                         </select>
                         <button class="btn btn-sm btn-outline-secondary text-nowrap"><i class="fas fa-print me-1"></i> Cetak</button>
                     </form>

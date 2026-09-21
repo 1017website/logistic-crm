@@ -191,6 +191,58 @@ class InvoiceWorkflowTest extends TestCase
             ->assertSee($secondDo->do_number);
     }
 
+    public function test_finance_can_merge_compatible_drafts_for_one_customer(): void
+    {
+        [$finance, $customer, $firstDo] = $this->makePodReadyOrder();
+        $secondDo = $this->makeAdditionalPodReadyOrder($finance, $customer);
+
+        $firstPayload = $this->invoicePayload($customer, $firstDo, 'separate');
+        $firstPayload['selections'] = [$firstDo->id . ':TR'];
+        $secondPayload = $this->invoicePayload($customer, $secondDo, 'separate');
+        $secondPayload['selections'] = [$secondDo->id . ':TR'];
+        $this->actingAs($finance)->post(route('invoices.store'), $firstPayload)->assertSessionHas('success');
+        $this->post(route('invoices.store'), $secondPayload)->assertSessionHas('success');
+
+        $drafts = Invoice::where('customer_id', $customer->id)->orderBy('id')->get();
+        $this->assertCount(2, $drafts);
+
+        $this->post(route('invoices.merge-drafts', $customer), [
+            'invoice_ids' => $drafts->pluck('id')->all(),
+        ])->assertSessionHas('success');
+
+        $merged = Invoice::with('items')->where('customer_id', $customer->id)->sole();
+        $this->assertSame($drafts->first()->id, $merged->id);
+        $this->assertCount(2, $merged->items);
+        $this->assertSame(2, $merged->do_count);
+        $this->assertSame('1400000', $merged->total_hpp);
+        $this->assertSame('2000000', $merged->total_jual);
+        $this->assertSoftDeleted('invoices', ['id' => $drafts->last()->id]);
+    }
+
+    public function test_print_title_follows_invoice_status_and_allows_explicit_document_choice(): void
+    {
+        [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
+        $payload = $this->invoicePayload($customer, $deliveryOrder, 'separate');
+        $payload['selections'] = [$deliveryOrder->id . ':TR'];
+        $this->actingAs($finance)->post(route('invoices.store'), $payload)->assertSessionHas('success');
+        $invoice = Invoice::where('customer_id', $customer->id)->sole();
+
+        $this->get(route('invoices.print', $invoice))
+            ->assertOk()
+            ->assertSee('PRO FORMA INVOICE')
+            ->assertSee('Versi Invoice');
+        $this->get(route('invoices.print', [$invoice, 'document' => 'invoice']))
+            ->assertOk()
+            ->assertSee('<div class="ttl">INVOICE</div>', false)
+            ->assertDontSee('<div class="ttl">PRO FORMA INVOICE</div>', false);
+
+        $this->post(route('invoices.submit', $invoice))->assertSessionHas('success');
+        $this->get(route('invoices.print', $invoice->fresh()))
+            ->assertOk()
+            ->assertSee('<div class="ttl">INVOICE</div>', false)
+            ->assertDontSee('<div class="ttl">PRO FORMA INVOICE</div>', false);
+    }
+
     public function test_closed_delivery_order_waits_for_manual_invoice_selection(): void
     {
         [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();

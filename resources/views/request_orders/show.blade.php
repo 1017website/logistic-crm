@@ -94,7 +94,7 @@
                 </div>
                 <table class="table table-sm mb-0" style="font-size:12px">
                     <thead><tr>
-                        <th>Layanan</th><th class="text-end">Qty</th><th class="text-end">Beli</th>
+                        <th>Layanan</th><th>Tipe</th><th class="text-end">Qty</th><th class="text-end">Beli</th>
                         <th class="text-end">Jual</th><th class="text-end">Subtotal</th>
                         @if($canEditRequestPricing)<th></th>@endif
                     </tr></thead>
@@ -102,6 +102,7 @@
                         @forelse($requestOrder->items as $it)
                         <tr>
                             <td>{{ $it->service_name }} <span class="text-muted">{{ $it->unit }}</span></td>
+                            <td><span class="badge {{ $it->service_type === 'NTR' ? 'bg-secondary' : 'bg-primary' }}">{{ $it->service_type ?: 'TR' }}</span></td>
                             <td class="text-end">{{ rtrim(rtrim(number_format($it->qty,3),'0'),'.') }}</td>
                             <td class="text-end">{{ idr($it->buy_price) }}</td>
                             <td class="text-end">{{ idr($it->sell_price) }}</td>
@@ -117,20 +118,18 @@
                             @endif
                         </tr>
                         @empty
-                        <tr><td colspan="{{ $canEditRequestPricing ? 6 : 5 }}" class="text-muted py-3 text-center">Belum ada item layanan. Menunggu Finance melengkapi layanan dan harga.</td></tr>
+                        <tr><td colspan="{{ $canEditRequestPricing ? 7 : 6 }}" class="text-muted py-3 text-center">Belum ada item layanan. Menunggu Finance melengkapi layanan dan harga.</td></tr>
                         @endforelse
                     </tbody>
                     <tfoot><tr style="font-weight:700">
-                        <td colspan="4" class="text-end">Total Revenue</td>
+                        <td colspan="5" class="text-end">Total Revenue</td>
                         <td class="text-end" style="color:var(--primary)">{{ idr($itemRevenue) }}</td>
                         @if($canEditRequestPricing)<td></td>@endif
                     </tr></tfoot>
                 </table>
-                @if($requestOrder->jobDetails->isNotEmpty())
                 <div class="alert alert-info mt-2 mb-0 py-2" style="font-size:11px">
-                    <i class="fas fa-info-circle me-1"></i>Total pada tabel ini hanya berasal dari Item Layanan. Nilai jual dan HPP utama berasal dari <b>Rincian Biaya per Pekerjaan</b> yang diisi Finance di bawah.
+                    <i class="fas fa-info-circle me-1"></i>Total pada tabel ini hanya berasal dari Item Layanan. Nilai jual dan HPP utama berasal dari <b>Rincian Biaya per Pekerjaan</b>. Pilih tipe TR atau NTR pada setiap item; invoice memakai Item Layanan hanya untuk tipe yang belum memiliki nilai pada rincian pekerjaan agar tidak dihitung dua kali.
                 </div>
-                @endif
                 @if($requestOrder->invoice_status !== 'uninvoiced')
                 <div class="alert alert-light border mt-2 mb-0 py-2" style="font-size:11px">Item dikunci karena Request DO sudah masuk invoice.</div>
                 @elseif($requestOrder->request_status === 'approval' && $canEditRequestPricing)
@@ -567,7 +566,10 @@
             <input type="hidden" name="_method" id="itemMethod" value="POST">
             <div class="modal-header"><h6 class="modal-title" id="itemModalTitle">Tambah Item Layanan & Harga</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body" style="font-size:13px">
-                <div class="mb-2"><label class="form-label">Nama Layanan <span class="text-danger">*</span></label><input type="text" name="service_name" id="itemService" class="form-control form-control-sm" required></div>
+                <div class="row g-2 mb-2">
+                    <div class="col-8"><label class="form-label">Nama Layanan <span class="text-danger">*</span></label><input type="text" name="service_name" id="itemService" class="form-control form-control-sm" required></div>
+                    <div class="col-4"><label class="form-label">Tipe <span class="text-danger">*</span></label><select name="service_type" id="itemServiceType" class="form-select form-select-sm no-select2" required><option value="TR">Trucking (TR)</option><option value="NTR">Non-Trucking (NTR)</option></select></div>
+                </div>
                 <div class="row g-2 mb-2">
                     <div class="col-4"><label class="form-label">Satuan</label><input type="text" name="unit" id="itemUnit" class="form-control form-control-sm" placeholder="trip/unit"></div>
                     <div class="col-4"><label class="form-label">Tonase</label><input type="number" step="0.001" min="0" name="tonnage" id="itemTonnage" class="form-control form-control-sm"></div>
@@ -590,6 +592,7 @@ function openAddItem() {
     form.reset(); form.action = itemStoreUrl;
     document.getElementById('itemMethod').value = 'POST';
     document.getElementById('itemModalTitle').textContent = 'Tambah Item Layanan & Harga';
+    document.getElementById('itemServiceType').value = 'TR';
     document.getElementById('itemQty').value = 1;
     document.getElementById('itemBuy').value = 0;
     document.getElementById('itemSell').value = 0;
@@ -600,6 +603,7 @@ function openEditItem(item) {
     document.getElementById('itemMethod').value = 'PUT';
     document.getElementById('itemModalTitle').textContent = 'Edit Item Layanan & Harga';
     document.getElementById('itemService').value = item.service_name || '';
+    document.getElementById('itemServiceType').value = item.service_type || 'TR';
     document.getElementById('itemUnit').value = item.unit || '';
     document.getElementById('itemTonnage').value = item.tonnage || '';
     document.getElementById('itemQty').value = item.qty || 1;

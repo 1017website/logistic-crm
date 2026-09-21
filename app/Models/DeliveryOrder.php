@@ -169,7 +169,12 @@ class DeliveryOrder extends Model
 
         $result = [];
         foreach ($requestOrder->jobDetails as $detail) {
-            $type = strtoupper(trim((string) $detail->job_code)) === 'TR' ? 'TR' : 'NTR';
+            $code = strtoupper(trim((string) $detail->job_code));
+            $type = match ($code) {
+                'TR' => 'TR',
+                'NTR' => 'NTR',
+                default => str_contains(strtolower((string) $detail->job_name), 'truck') ? 'TR' : 'NTR',
+            };
             $result[$type] ??= [
                 'type' => $type,
                 'hpp' => 0.0,
@@ -180,6 +185,31 @@ class DeliveryOrder extends Model
             $result[$type]['jual'] += (float) $detail->riil_jual;
             if ($detail->job_name) {
                 $result[$type]['names'][] = $detail->job_name;
+            }
+        }
+
+        // Item Layanan dapat menjadi sumber nilai tipe yang belum dicatat pada
+        // Rincian Biaya per Pekerjaan. Satu tipe tidak dijumlahkan dari kedua
+        // tabel agar input Finance yang merepresentasikan layanan yang sama
+        // tidak terhitung dua kali.
+        $jobTypes = collect($result)
+            ->filter(fn(array $row) => $row['hpp'] > 0 || $row['jual'] > 0)
+            ->keys();
+        foreach ($requestOrder->items as $item) {
+            $type = $item->service_type === 'NTR' ? 'NTR' : 'TR';
+            if ($jobTypes->contains($type)) {
+                continue;
+            }
+            $result[$type] ??= [
+                'type' => $type,
+                'hpp' => 0.0,
+                'jual' => 0.0,
+                'names' => [],
+            ];
+            $result[$type]['hpp'] += (float) $item->qty * (float) $item->buy_price;
+            $result[$type]['jual'] += (float) $item->qty * (float) $item->sell_price;
+            if ($item->service_name) {
+                $result[$type]['names'][] = $item->service_name;
             }
         }
 

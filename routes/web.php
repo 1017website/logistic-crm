@@ -251,6 +251,7 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
         Route::post('/invoices/{invoice}/review-edit', [InvoiceController::class, 'reviewEdit'])->name('invoices.review-edit');
     });
     Route::middleware('role:Admin,Finance')->group(function () {
+        Route::post('/customers/{customer}/invoices/merge-drafts', [InvoiceController::class, 'mergeDrafts'])->name('invoices.merge-drafts');
         Route::delete('/invoices/{invoice}', [InvoiceController::class, 'destroy'])->name('invoices.destroy');
     });
 

@@ -42,8 +42,9 @@ class RequestOrderItemController extends Controller
 
     private function validateData(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'service_name' => 'required|string|max:255',
+            'service_type' => 'nullable|in:TR,NTR',
             'unit' => 'nullable|string|max:50',
             'tonnage' => 'nullable|numeric|min:0',
             'qty' => 'required|numeric|min:0.001',
@@ -51,6 +52,9 @@ class RequestOrderItemController extends Controller
             'sell_price' => 'required|numeric|min:0',
             'description' => 'nullable|string|max:1000',
         ]);
+        $data['service_type'] = $data['service_type'] ?? 'TR';
+
+        return $data;
     }
 
     private function ensureEditable(RequestOrder $requestOrder): void

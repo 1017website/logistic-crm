@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Models\DeliveryOrder;
 use App\Models\OrderJobDetail;
 use App\Models\RequestOrder;
+use App\Models\RequestOrderItem;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
@@ -54,6 +55,89 @@ class LogisticRevisionTest extends TestCase
         $this->assertSame(1000000.0, $breakdown['TR']['jual']);
         $this->assertSame(250000.0, $breakdown['NTR']['jual']);
         $this->assertSame('Jasa Bongkar', $breakdown['NTR']['description']);
+    }
+
+    public function test_invoice_breakdown_uses_typed_service_item_when_job_type_is_missing(): void
+    {
+        $requestOrder = new RequestOrder();
+        $requestOrder->setRelation('jobDetails', new Collection([
+            new OrderJobDetail([
+                'job_code' => 'TR',
+                'job_name' => 'Trucking',
+                'riil_biaya' => 700000,
+                'riil_jual' => 1000000,
+            ]),
+        ]));
+        $requestOrder->setRelation('items', new Collection([
+            new RequestOrderItem([
+                'service_type' => 'NTR',
+                'service_name' => 'Biaya bongkar',
+                'qty' => 2,
+                'buy_price' => 100000,
+                'sell_price' => 150000,
+            ]),
+        ]));
+
+        $deliveryOrder = new DeliveryOrder();
+        $deliveryOrder->setRelation('requestOrder', $requestOrder);
+        $breakdown = $deliveryOrder->invoiceBreakdown();
+
+        $this->assertSame(1000000.0, $breakdown['TR']['jual']);
+        $this->assertSame(200000.0, $breakdown['NTR']['hpp']);
+        $this->assertSame(300000.0, $breakdown['NTR']['jual']);
+        $this->assertSame('Biaya bongkar', $breakdown['NTR']['description']);
+    }
+
+    public function test_invoice_breakdown_does_not_double_count_item_when_job_type_exists(): void
+    {
+        $requestOrder = new RequestOrder();
+        $requestOrder->setRelation('jobDetails', new Collection([
+            new OrderJobDetail([
+                'job_code' => 'NTR',
+                'job_name' => 'Biaya bongkar final',
+                'riil_biaya' => 125000,
+                'riil_jual' => 275000,
+            ]),
+        ]));
+        $requestOrder->setRelation('items', new Collection([
+            new RequestOrderItem([
+                'service_type' => 'NTR',
+                'service_name' => 'Biaya bongkar rencana',
+                'qty' => 1,
+                'buy_price' => 100000,
+                'sell_price' => 250000,
+            ]),
+        ]));
+
+        $deliveryOrder = new DeliveryOrder();
+        $deliveryOrder->setRelation('requestOrder', $requestOrder);
+        $breakdown = $deliveryOrder->invoiceBreakdown();
+
+        $this->assertSame(125000.0, $breakdown['NTR']['hpp']);
+        $this->assertSame(275000.0, $breakdown['NTR']['jual']);
+        $this->assertSame('Biaya bongkar final', $breakdown['NTR']['description']);
+    }
+
+    public function test_legacy_trucking_job_without_code_is_still_trucking(): void
+    {
+        $requestOrder = new RequestOrder();
+        $requestOrder->setRelation('jobDetails', new Collection([
+            new OrderJobDetail([
+                'job_code' => null,
+                'job_name' => 'Trucking',
+                'riil_biaya' => 1000000,
+                'riil_jual' => 1450000,
+            ]),
+        ]));
+        $requestOrder->setRelation('items', new Collection());
+
+        $deliveryOrder = new DeliveryOrder();
+        $deliveryOrder->setRelation('requestOrder', $requestOrder);
+        $breakdown = $deliveryOrder->invoiceBreakdown();
+
+        $this->assertArrayHasKey('TR', $breakdown);
+        $this->assertArrayNotHasKey('NTR', $breakdown);
+        $this->assertSame(1450000.0, $breakdown['TR']['jual']);
     }
 
     public function test_accounting_owns_request_pricing_while_sales_admin_and_manager_own_approval(): void

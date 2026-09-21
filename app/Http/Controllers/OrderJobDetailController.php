@@ -6,6 +6,7 @@ use App\Models\OrderJobDetail;
 use App\Models\Pekerjaan;
 use App\Models\RequestOrder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 /**
  * Rincian biaya per pekerjaan untuk sebuah Request DO.
@@ -80,6 +81,9 @@ class OrderJobDetailController extends Controller
                 $data['job_name'] = $data['job_name'] ?: $p->name;
                 $data['job_code'] = $data['job_code'] ?: $p->code;
             }
+        }
+        if (empty($data['job_code']) && !empty($data['job_name'])) {
+            $data['job_code'] = Str::contains(Str::lower($data['job_name']), 'truck') ? 'TR' : 'NTR';
         }
         foreach (['anggaran_biaya','anggaran_jual','riil_biaya','riil_jual','dibayar'] as $k) {
             $data[$k] = $data[$k] ?? 0;

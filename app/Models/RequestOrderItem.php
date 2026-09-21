@@ -10,9 +10,14 @@ class RequestOrderItem extends Model
     protected $table = 'request_order_items';
 
     protected $fillable = [
-        'request_order_id', 'service_name', 'unit', 'qty', 'tonnage',
+        'request_order_id', 'service_name', 'service_type', 'unit', 'qty', 'tonnage',
         'buy_price', 'sell_price', 'description',
     ];
+
+    public function getServiceTypeLabelAttribute(): string
+    {
+        return $this->service_type === 'NTR' ? 'Non-Trucking' : 'Trucking';
+    }
 
     protected $casts = [
         'qty'        => 'decimal:3',

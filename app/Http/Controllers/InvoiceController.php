@@ -414,6 +414,84 @@ class InvoiceController extends Controller
         return back()->with('success', 'Invoice resmi diterbitkan.');
     }
 
+    public function mergeDrafts(Request $request, Customer $customer)
+    {
+        $data = $request->validate([
+            'invoice_ids' => 'required|array|min:2',
+            'invoice_ids.*' => 'required|integer|distinct',
+        ]);
+
+        $result = DB::transaction(function () use ($data, $customer) {
+            $ids = collect($data['invoice_ids'])->map(fn($id) => (int) $id)->sort()->values();
+            $drafts = Invoice::with(['items', 'payments'])
+                ->whereKey($ids->all())
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            if ($drafts->count() !== $ids->count()
+                || $drafts->contains(fn(Invoice $invoice) => (int) $invoice->customer_id !== (int) $customer->id)) {
+                throw ValidationException::withMessages([
+                    'invoice_ids' => 'Daftar draft tidak valid atau bukan milik customer yang sama.',
+                ]);
+            }
+            foreach ($drafts as $draft) {
+                if ($draft->status !== 'draft' || $draft->payments->isNotEmpty()) {
+                    throw ValidationException::withMessages([
+                        'invoice_ids' => 'Hanya draft tanpa pembayaran yang dapat digabungkan.',
+                    ]);
+                }
+                $this->authorizeInvoiceEdit($draft);
+            }
+
+            $groups = $drafts->groupBy(fn(Invoice $invoice) => json_encode([
+                'jenis' => $invoice->jenis,
+                'periode' => $invoice->periode_invoice?->toDateString(),
+                'ppn' => (string) $invoice->ppn_persen,
+                'tempo' => $invoice->tgl_tempo?->toDateString(),
+                'tempo_manual' => (bool) $invoice->tgl_tempo_manual,
+            ]));
+
+            $mergedSources = 0;
+            $mergedGroups = 0;
+            foreach ($groups as $group) {
+                if ($group->count() < 2) {
+                    continue;
+                }
+
+                $target = $group->first();
+                $sources = $group->slice(1);
+                InvoiceItem::whereIn('invoice_id', $sources->pluck('id'))->update([
+                    'invoice_id' => $target->id,
+                ]);
+                foreach ($sources as $source) {
+                    $source->delete();
+                    $mergedSources++;
+                }
+
+                $target->load('items');
+                $this->recalcTotals(
+                    $target,
+                    (float) $target->items->sum('hpp'),
+                    (float) $target->items->sum('jual'),
+                    (float) $target->ppn_persen
+                );
+                $mergedGroups++;
+            }
+
+            return compact('mergedSources', 'mergedGroups');
+        }, 3);
+
+        if ($result['mergedSources'] === 0) {
+            return back()->withErrors([
+                'general' => 'Tidak ada draft yang kompatibel untuk digabung. Tipe, periode, PPN, dan jatuh tempo harus sama.',
+            ]);
+        }
+
+        return back()->with('success', $result['mergedSources'] . ' draft digabungkan menjadi '
+            . $result['mergedGroups'] . ' invoice berdasarkan tipe layanan dan ketentuan tagihannya.');
+    }
+
     public function unsubmit(Invoice $invoice)
     {
         DB::transaction(function () use ($invoice) {
@@ -937,8 +1015,15 @@ class InvoiceController extends Controller
 
     private function printPayload(Request $request, Invoice $invoice, \App\Services\DocumentSignatureService $documentSignature): array
     {
-        $data = $request->validate(['type' => 'nullable|in:all,TR,NTR']);
+        $data = $request->validate([
+            'type' => 'nullable|in:all,TR,NTR',
+            'document' => 'nullable|in:auto,proforma,invoice',
+        ]);
         $printType = $data['type'] ?? 'all';
+        $documentMode = $data['document'] ?? 'auto';
+        if ($documentMode === 'auto') {
+            $documentMode = $invoice->status === 'draft' ? 'proforma' : 'invoice';
+        }
         $invoice->load(['customer', 'items.requestOrder', 'items.deliveryOrder.requestOrder']);
         $printItems = $invoice->items
             ->when($printType !== 'all', fn(Collection $items) => $items->where('item_type', $printType))->values();
@@ -967,7 +1052,7 @@ class InvoiceController extends Controller
         $company['signatory_phone'] = $salesManager
             ? $salesManager->phone
             : User::where('name', $company['signatory_name'])->value('phone');
-        return compact('invoice', 'printType', 'printItems', 'printSubtotal', 'printPpn', 'printGrand', 'company', 'signature');
+        return compact('invoice', 'printType', 'documentMode', 'printItems', 'printSubtotal', 'printPpn', 'printGrand', 'company', 'signature');
     }
 
 }
