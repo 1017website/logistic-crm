@@ -1,7 +1,30 @@
 @extends('layouts.app')
 @section('title', 'Invoice')
 @section('page-title', 'Invoice')
-@section('page-subtitle', 'Status penagihan terpusat · satu invoice dapat memuat banyak DO · TR dan Non-TR dipisahkan')
+@section('page-subtitle', 'Status penagihan terpusat · pilih DO satu kali · draft TR dan Non-TR dipisahkan otomatis')
+
+@push('styles')
+<style>
+    #addInvoiceModal .invoice-do-heading,
+    #addInvoiceModal .invoice-component-row,
+    #addInvoiceModal .invoice-selection-toolbar,
+    #addInvoiceModal .invoice-selection-summary { min-width: 0; }
+
+    @media (max-width: 575.98px) {
+        #addInvoiceModal .modal-dialog { margin: .5rem; }
+        #addInvoiceModal .modal-body { padding: 1rem; }
+        #addInvoiceModal .invoice-do-heading,
+        #addInvoiceModal .invoice-component-row,
+        #addInvoiceModal .invoice-selection-toolbar,
+        #addInvoiceModal .invoice-selection-summary { flex-wrap: wrap; }
+        #addInvoiceModal .invoice-do-meta { flex-basis: calc(100% - 28px); }
+        #addInvoiceModal .invoice-pod-meta { margin-left: 28px; }
+        #addInvoiceModal .invoice-component-name { flex-basis: calc(100% - 42px); }
+        #addInvoiceModal .invoice-component-hpp { margin-left: 42px; }
+        #addInvoiceModal .invoice-selection-summary { justify-content: flex-start !important; row-gap: .25rem !important; }
+    }
+</style>
+@endpush
 
 @section('content')
 @php $u = auth()->user(); @endphp
@@ -112,10 +135,10 @@
                                 <i class="fas fa-chevron-down me-1"></i> Lihat Invoice
                             </button>
                             @if($tab === 'draft' && ($u->isFinance() || $u->isAdmin()) && $bundle['invoices']->count() > 1 && $bundle['customer'])
-                            <form method="POST" action="{{ route('invoices.merge-drafts', $bundle['customer']) }}" onsubmit="return confirm('Gabungkan draft yang kompatibel untuk customer ini? Nomor draft paling awal akan dipertahankan.')">
+                            <form method="POST" action="{{ route('invoices.merge-drafts', $bundle['customer']) }}" onsubmit="return confirm('Gabungkan draft yang kompatibel untuk customer ini? Draft TR dan NTR dapat menjadi satu invoice. Nomor draft paling awal akan dipertahankan.')">
                                 @csrf
                                 @foreach($bundle['invoices'] as $mergeInvoice)<input type="hidden" name="invoice_ids[]" value="{{ $mergeInvoice->id }}">@endforeach
-                                <button class="btn btn-sm btn-outline-dark" title="Gabungkan draft berdasarkan tipe, periode, PPN, dan jatuh tempo"><i class="fas fa-object-group me-1"></i> Gabungkan Draft</button>
+                                <button class="btn btn-sm btn-outline-dark" title="Gabungkan draft dengan periode, PPN, dan jatuh tempo yang sama"><i class="fas fa-object-group me-1"></i> Gabungkan Draft</button>
                             </form>
                             @endif
                         </div>
@@ -209,7 +232,7 @@
 @endforeach
 
 {{-- Modal Buat Invoice (multi-DO) --}}
-<div class="modal fade" id="addInvoiceModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+<div class="modal fade" id="addInvoiceModal" tabindex="-1" data-bs-keyboard="true"><div class="modal-dialog modal-lg"><div class="modal-content">
     <form method="POST" action="{{ route('invoices.store') }}" id="invoiceForm">@csrf
         <div class="modal-header"><h6 class="modal-title">Buat Invoice</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body" style="font-size:13px">
@@ -231,39 +254,32 @@
                     <small class="text-muted" id="invTopHint">TOP otomatis dihitung ulang saat invoice diterbitkan. Bisa diubah manual.</small>
                 </div>
             </div>
+            <input type="hidden" name="billing_mode" value="separate">
             <div class="row g-2 mb-3">
                 <div class="col-md-4">
-                    <label class="form-label">Komponen Invoice</label>
-                    <input type="hidden" name="billing_mode" value="separate">
-                    <div class="d-flex gap-3 pt-1">
-                        <div class="form-check"><input class="form-check-input invoice-type" type="checkbox" id="invoiceTypeTR" value="TR" disabled><label class="form-check-label" for="invoiceTypeTR">Trucking (TR)</label></div>
-                        <div class="form-check"><input class="form-check-input invoice-type" type="checkbox" id="invoiceTypeNTR" value="NTR" disabled><label class="form-check-label" for="invoiceTypeNTR">Non-Trucking (NTR)</label></div>
-                    </div>
-                    <small class="text-muted">Pilih salah satu atau keduanya. Setiap tipe dibuat terpisah dan dapat memuat banyak DO.</small>
-                </div>
-                <div class="col-md-3">
                     <label class="form-label">Jenis yang dikenakan PPN</label>
                     <div class="d-flex gap-3 pt-1">
                         <div class="form-check"><input class="form-check-input ppn-type" type="checkbox" name="ppn_types[]" id="ppnTypeTR" value="TR"><label class="form-check-label" for="ppnTypeTR">TR</label></div>
                         <div class="form-check"><input class="form-check-input ppn-type" type="checkbox" name="ppn_types[]" id="ppnTypeNTR" value="NTR"><label class="form-check-label" for="ppnTypeNTR">Non-TR</label></div>
                     </div>
+                    <small class="text-muted">Pilihan aktif mengikuti isi DO yang dipilih.</small>
                 </div>
-                <div class="col-md-2" id="ppnPercentWrap" style="display:none"><label class="form-label" for="ppnPersen">PPN (%)</label>
+                <div class="col-md-3" id="ppnPercentWrap" style="display:none"><label class="form-label" for="ppnPersen">PPN (%)</label>
                     <input class="form-control form-control-sm ppn-percent" type="number" name="ppn_persen" id="ppnPersen" value="0" min="0" max="100" step="0.01" inputmode="decimal">
                 </div>
-                <div class="col-md-3"><label class="form-label">Catatan</label><input type="text" name="notes" class="form-control form-control-sm" placeholder="Opsional"></div>
+                <div class="col-md-5"><label class="form-label">Catatan</label><input type="text" name="notes" class="form-control form-control-sm" placeholder="Opsional"></div>
             </div>
             <div class="mb-2">
-                <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
-                    <label class="form-label mb-0">Pilih beberapa DO siap tagih <small class="text-muted">(customer yang sama, setelah DO ditutup)</small></label>
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-1 invoice-selection-toolbar">
+                    <label class="form-label mb-0">Pilih DO siap tagih <small class="text-muted">(TR dan Non-TR diproses otomatis)</small></label>
                     <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllDosBtn" disabled>Pilih Semua DO</button>
                 </div>
                 <div id="doListWrap" class="border rounded p-2" style="max-height:320px;overflow:auto">
                     <div class="text-muted">Pilih customer dulu.</div>
                 </div>
             </div>
-            <div class="d-flex justify-content-end gap-3" style="font-size:13px">
-                <div><b id="selectedDoCount">0 DO dipilih · 0 komponen</b></div>
+            <div class="d-flex justify-content-end gap-3 invoice-selection-summary" style="font-size:13px">
+                <div><b id="selectedDoCount">0 DO dipilih</b></div>
                 <div>Total HPP: <b id="sumHpp">Rp 0</b></div>
                 <div>Total Jual: <b id="sumJual" style="color:var(--primary)">Rp 0</b></div>
             </div>
@@ -299,7 +315,6 @@ async function loadAvailableDos(customerId){
     if (!wrap) return;
     wrap.innerHTML = '<div class="text-muted">Memuat...</div>';
     document.getElementById('selectAllDosBtn').disabled = true;
-    document.querySelectorAll('.invoice-type').forEach(input => { input.checked = false; input.indeterminate = false; input.disabled = true; });
     recalcInv();
     if (!customerId) { wrap.innerHTML = '<div class="text-muted">Pilih customer dulu.</div>'; recalcInv(); return; }
     try {
@@ -315,29 +330,39 @@ async function loadAvailableDos(customerId){
             recalcInv(); return;
         }
         wrap.innerHTML = dos.map(d => {
-            const components = d.types.map(t => `
-                <label class="d-flex align-items-center gap-2 py-1 ps-3 border-top ${t.available ? '' : 'text-muted'}" style="${t.available ? 'cursor:pointer' : 'opacity:.65'}">
-                    <input type="checkbox" name="selections[]" value="${d.id}:${t.type}" class="doChk"
-                           data-hpp="${t.hpp}" data-jual="${t.jual}" ${t.available ? '' : 'disabled'}>
-                    <span class="badge ${t.type === 'TR' ? 'bg-primary' : 'bg-secondary'}">${t.type}</span>
-                    <span class="flex-fill">${esc(t.description)}</span>
-                    <span class="text-muted">HPP ${fmtRp(t.hpp)}</span>
-                    <span style="color:var(--primary)">Jual ${fmtRp(t.jual)}</span>
-                    ${t.available ? '' : '<small>Sudah diinvoice</small>'}
-                </label>`).join('');
+            const availableTypes = d.types.filter(t => t.available);
+            const hpp = availableTypes.reduce((sum, type) => sum + Number(type.hpp || 0), 0);
+            const jual = availableTypes.reduce((sum, type) => sum + Number(type.jual || 0), 0);
+            const typeNames = availableTypes.map(type => type.type).join(',');
+            const components = d.types.map(t => {
+                const lines = (t.lines || []).map(line => `
+                    <div class="d-flex justify-content-between gap-2 ps-4 py-1 small">
+                        <span>${esc(line.item_name)}</span>
+                        <span class="text-nowrap" style="color:var(--primary)">${fmtRp(line.jual)}</span>
+                    </div>`).join('');
+                return `<div class="border-top py-1 ${t.available ? '' : 'text-muted'}" style="${t.available ? '' : 'opacity:.65'}">
+                    <div class="d-flex align-items-center gap-2 ps-2 invoice-component-row">
+                        <span class="badge ${t.type === 'TR' ? 'bg-primary' : 'bg-secondary'}">${t.type}</span>
+                        <span class="flex-fill invoice-component-name">${esc(t.description)}</span>
+                        <span class="text-muted text-nowrap invoice-component-value invoice-component-hpp">HPP ${fmtRp(t.hpp)}</span>
+                        <span class="text-nowrap invoice-component-value" style="color:var(--primary)">Jual ${fmtRp(t.jual)}</span>
+                        ${t.available ? '' : '<small>Sudah diinvoice</small>'}
+                    </div>
+                    ${lines}
+                </div>`;
+            }).join('');
 
-            return `<div class="mb-2">
-                <div class="d-flex justify-content-between gap-2 pb-1">
-                    <span><b>${esc(d.do_number)}</b> <span class="text-muted">${esc(d.do_date)} · ${esc(d.origin)} → ${esc(d.destination)}</span></span>
-                    <small class="text-muted">POD ${esc(d.pod_at)}</small>
+            return `<label class="d-block mb-2 border rounded p-2" style="cursor:pointer">
+                <div class="d-flex align-items-start gap-2 invoice-do-heading">
+                    <input type="checkbox" name="selections[]" value="${d.id}" class="doChk mt-1"
+                           data-hpp="${hpp}" data-jual="${jual}" data-types="${esc(typeNames)}">
+                    <span class="flex-fill invoice-do-meta"><b>${esc(d.do_number)}</b> <span class="text-muted">${esc(d.do_date)} · ${esc(d.origin)} → ${esc(d.destination)}</span></span>
+                    <small class="text-muted text-nowrap invoice-pod-meta">POD ${esc(d.pod_at)}</small>
                 </div>
-                ${components}
-            </div>`;
+                <div class="mt-1">${components}</div>
+            </label>`;
         }).join('');
         wrap.querySelectorAll('.doChk').forEach(c => c.addEventListener('change', recalcInv));
-        document.querySelectorAll('.invoice-type').forEach(input => {
-            input.disabled = !wrap.querySelector(`.doChk[value$=":${input.value}"]:not(:disabled)`);
-        });
         const selectAll = document.getElementById('selectAllDosBtn'); if (selectAll) selectAll.disabled = false;
         recalcInv();
     } catch(e) {
@@ -381,7 +406,6 @@ function applyCustomerTop() {
 }
 document.getElementById('invTglBuat')?.addEventListener('change', applyCustomerTop);
 const _ppnTypes = [...document.querySelectorAll('.ppn-type')];
-const _invoiceTypes = [...document.querySelectorAll('.invoice-type')];
 function togglePpnInput(){
     const taxable = _ppnTypes.some(input => input.checked);
     const wrap = document.getElementById('ppnPercentWrap');
@@ -389,12 +413,6 @@ function togglePpnInput(){
     document.querySelectorAll('.ppn-percent').forEach(input => input.required = taxable);
 }
 _ppnTypes.forEach(input => input.addEventListener('change', togglePpnInput));
-_invoiceTypes.forEach(input => input.addEventListener('change', function(){
-    document.querySelectorAll(`.doChk[value$=":${this.value}"]:not(:disabled)`).forEach(component => {
-        component.checked = this.checked;
-    });
-    recalcInv();
-}));
 togglePpnInput();
 // Saat modal dibuka, muat ulang sesuai customer yang sedang terpilih.
 document.getElementById('addInvoiceModal')?.addEventListener('show.bs.modal', function(event){
@@ -406,20 +424,13 @@ document.getElementById('addInvoiceModal')?.addEventListener('show.bs.modal', fu
 });
 
 function recalcInv(){
-    let hpp=0, jual=0, n=0;
+    let hpp=0, jual=0;
     const selectedDos = new Set();
     const selectedTypes = new Set();
     document.querySelectorAll('.doChk:checked').forEach(c=>{
-        hpp+=+c.dataset.hpp; jual+=+c.dataset.jual; n++;
-        const [doId, type] = String(c.value).split(':');
-        selectedDos.add(doId);
-        selectedTypes.add(type);
-    });
-    _invoiceTypes.forEach(input => {
-        const components = [...document.querySelectorAll(`.doChk[value$=":${input.value}"]:not(:disabled)`)];
-        const selectedCount = components.filter(component => component.checked).length;
-        input.checked = components.length > 0 && selectedCount === components.length;
-        input.indeterminate = selectedCount > 0 && selectedCount < components.length;
+        hpp+=+c.dataset.hpp; jual+=+c.dataset.jual;
+        selectedDos.add(String(c.value));
+        String(c.dataset.types || '').split(',').filter(Boolean).forEach(type => selectedTypes.add(type));
     });
     _ppnTypes.forEach(input => {
         input.disabled = !selectedTypes.has(input.value);
@@ -427,10 +438,10 @@ function recalcInv(){
     });
     togglePpnInput();
     const count = document.getElementById('selectedDoCount');
-    if (count) count.textContent = `${selectedDos.size} DO dipilih · ${n} komponen`;
+    if (count) count.textContent = `${selectedDos.size} DO dipilih`;
     const eh = document.getElementById('sumHpp'); if (eh) eh.textContent = fmtRp(hpp);
     const ej = document.getElementById('sumJual'); if (ej) ej.textContent = fmtRp(jual);
-    const btn = document.getElementById('invSubmitBtn'); if (btn) btn.disabled = n===0;
+    const btn = document.getElementById('invSubmitBtn'); if (btn) btn.disabled = selectedDos.size===0;
     const allChecks = [...document.querySelectorAll('.doChk:not(:disabled)')];
     const selectAll = document.getElementById('selectAllDosBtn');
     if (selectAll) selectAll.textContent = allChecks.length && allChecks.every(c => c.checked) ? 'Batalkan Semua' : 'Pilih Semua DO';

@@ -2207,7 +2207,9 @@
             const ctx = scope || document;
             $(ctx).find('.modal').each(function() {
                 this.setAttribute('data-bs-backdrop', 'static');
-                this.setAttribute('data-bs-keyboard', 'false');
+                if (this.getAttribute('data-bs-keyboard') !== 'true') {
+                    this.setAttribute('data-bs-keyboard', 'false');
+                }
             });
         }
 

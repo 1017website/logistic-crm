@@ -56,7 +56,7 @@
 
         <div class="card"><div class="card-body p-3">
             <h6 style="font-weight:700;font-size:13px;text-transform:uppercase;color:#6b7280">DO dalam Invoice</h6>
-            <table class="table table-sm mb-0" style="font-size:12px">
+            <div class="table-responsive"><table class="table table-sm mb-0" style="font-size:12px">
                 <thead><tr><th>No DO</th><th>Nama</th><th>Uraian</th><th>Jenis Truck</th><th class="text-end">Qty</th><th class="text-end">Harga</th><th class="text-end">Jumlah</th>@if($canEditInvoice)<th></th>@endif</tr></thead>
                 <tbody>
                     @foreach($invoice->items as $it)
@@ -88,7 +88,7 @@
                     <tr style="font-weight:800"><td colspan="6" class="text-end text-danger">Sisa Tagihan</td><td class="text-end text-danger">{{ idr($invoice->outstanding) }}</td>@if($canEditInvoice)<td></td>@endif</tr>
                     @endif
                 </tfoot>
-            </table>
+            </table></div>
         </div></div>
 
         @if($invoice->payments->isNotEmpty())
@@ -158,7 +158,7 @@
             <form method="POST" action="{{ route('invoices.ppn', $invoice->id) }}" id="invoicePpnForm">@csrf @method('PUT')
                 <label class="form-label mb-1" style="font-size:12px"><b>Pilih jenis invoice</b></label>
                 <div class="d-flex gap-3 border rounded p-2 mb-2">
-                    @foreach(['TR' => 'Trucking (TR)', 'NTR' => 'Non-Trucking (Non-TR)'] as $type => $label)
+                    @foreach(['TR' => 'Trucking (TR)', 'NTR' => 'Non-Trucking (Non-TR)', 'MIX' => 'Semua layanan (TR dan Non-TR)'] as $type => $label)
                         @if($taxInvoices->has($type))
                         <div class="form-check">
                             <input class="form-check-input invoice-ppn-type" type="checkbox" name="ppn_types[]" id="invoicePpnType{{ $type }}" value="{{ $type }}" @checked($selectedTaxTypes->contains($type))>

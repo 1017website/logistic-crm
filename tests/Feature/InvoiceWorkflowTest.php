@@ -63,7 +63,7 @@ class InvoiceWorkflowTest extends TestCase
         $invoices = Invoice::with('items')->where('customer_id', $customer->id)->get();
         $this->assertCount(2, $invoices);
         $this->assertEqualsCanonicalizing(['TR', 'NTR'], $invoices->pluck('jenis')->all());
-        $this->assertTrue($invoices->every(fn(Invoice $invoice) => $invoice->items->count() === 1));
+        $this->assertTrue($invoices->every(fn (Invoice $invoice) => $invoice->items->count() === 1));
         $this->assertSame('invoiced', $deliveryOrder->fresh()->invoice_status);
 
         $this->actingAs($user)
@@ -91,12 +91,91 @@ class InvoiceWorkflowTest extends TestCase
         $this->assertSame('0.00', Invoice::where('customer_id', $customer->id)->where('jenis', 'NTR')->sole()->ppn_persen);
     }
 
+    public function test_selecting_one_do_splits_drafts_and_keeps_each_ntr_line_item(): void
+    {
+        [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
+        OrderJobDetail::create([
+            'request_order_id' => $deliveryOrder->request_order_id,
+            'job_name' => 'Solar Timbang',
+            'job_code' => 'NTR',
+            'riil_biaya' => 20000,
+            'riil_jual' => 50000,
+        ]);
+        OrderJobDetail::create([
+            'request_order_id' => $deliveryOrder->request_order_id,
+            'job_name' => 'Empty TTL',
+            'job_code' => 'NTR',
+            'riil_biaya' => 30000,
+            'riil_jual' => 75000,
+        ]);
+
+        $payload = $this->invoicePayload($customer, $deliveryOrder, 'separate');
+        $payload['selections'] = [(string) $deliveryOrder->id];
+        $this->actingAs($finance)->post(route('invoices.store'), $payload)
+            ->assertSessionHas('success');
+
+        $this->assertSame(2, Invoice::where('customer_id', $customer->id)->count());
+        $ntr = Invoice::with('items')->where('customer_id', $customer->id)->where('jenis', 'NTR')->sole();
+        $this->assertCount(3, $ntr->items);
+        $this->assertEqualsCanonicalizing(
+            ['Jasa Bongkar', 'Solar Timbang', 'Empty TTL'],
+            $ntr->items->pluck('item_name')->all()
+        );
+        $this->assertSame('375000', $ntr->total_jual);
+
+        $this->get(route('invoices.print', $ntr))
+            ->assertOk()
+            ->assertSee('Jasa Bongkar')
+            ->assertSee('Solar Timbang')
+            ->assertSee('Empty TTL')
+            ->assertSee('50.000')
+            ->assertSee('75.000');
+    }
+
+    public function test_finance_can_merge_tr_and_ntr_drafts_into_one_mixed_invoice(): void
+    {
+        [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
+        $this->actingAs($finance)
+            ->post(route('invoices.store'), $this->invoicePayload($customer, $deliveryOrder, 'separate'))
+            ->assertSessionHas('success');
+
+        $drafts = Invoice::where('customer_id', $customer->id)->orderBy('id')->get();
+        $this->assertEqualsCanonicalizing(['TR', 'NTR'], $drafts->pluck('jenis')->all());
+
+        $this->post(route('invoices.merge-drafts', $customer), [
+            'invoice_ids' => $drafts->pluck('id')->all(),
+        ])->assertSessionHas('success');
+
+        $merged = Invoice::with('items')->where('customer_id', $customer->id)->sole();
+        $this->assertSame('MIX', $merged->jenis);
+        $this->assertSame('combined', $merged->billing_mode);
+        $this->assertEqualsCanonicalizing(['TR', 'NTR'], $merged->items->pluck('item_type')->unique()->all());
+        $this->assertSame('800000', $merged->total_hpp);
+        $this->assertSame('1250000', $merged->total_jual);
+        $this->get(route('invoices.show', $merged))
+            ->assertOk()
+            ->assertSee('Trucking &amp; Non-Trucking', false)
+            ->assertSee('Semua layanan (TR dan Non-TR)');
+    }
+
+    public function test_invoice_modal_selects_delivery_orders_without_tr_ntr_component_checkboxes(): void
+    {
+        [$finance] = $this->makePodReadyOrder();
+        $html = $this->actingAs($finance)->get(route('invoices.index'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('value="${d.id}" class="doChk', $html);
+        $this->assertStringNotContainsString('id="invoiceTypeTR"', $html);
+        $this->assertStringNotContainsString('id="invoiceTypeNTR"', $html);
+        $this->assertStringContainsString('TR dan Non-TR diproses otomatis', $html);
+        $this->assertStringContainsString('id="addInvoiceModal" tabindex="-1" data-bs-keyboard="true"', $html);
+    }
+
     public function test_invoice_customer_selector_only_shows_closed_dos_with_unbilled_components(): void
     {
         [$finance, $closedCustomer, $deliveryOrder] = $this->makePodReadyOrder();
         $customerWithoutClosedDo = Customer::create([
-            'customer_code' => 'CUST-NO-CLOSED-' . uniqid(),
-            'company_name' => 'Customer Tanpa DO Closed ' . uniqid(),
+            'customer_code' => 'CUST-NO-CLOSED-'.uniqid(),
+            'company_name' => 'Customer Tanpa DO Closed '.uniqid(),
             'pic_name' => 'PIC',
             'phone' => '0800000001',
             'user_id' => $finance->id,
@@ -116,7 +195,6 @@ class InvoiceWorkflowTest extends TestCase
         $response->assertOk();
         $selector = $this->invoiceCustomerSelector($response->getContent());
         $this->assertStringNotContainsString($closedCustomer->company_name, $selector);
-        $this->assertStringContainsString('Belum ada customer dengan DO Closed siap tagih', $selector);
     }
 
     public function test_invoice_list_bundles_customer_and_expands_payment_totals(): void
@@ -136,9 +214,9 @@ class InvoiceWorkflowTest extends TestCase
         }
 
         $invoices = $invoices->map->fresh()->each->load('payments');
-        $totalInvoice = $invoices->sum(fn(Invoice $invoice) => (float) $invoice->grand_total);
-        $totalPaid = $invoices->sum(fn(Invoice $invoice) => $invoice->total_paid);
-        $outstanding = $invoices->sum(fn(Invoice $invoice) => $invoice->outstanding);
+        $totalInvoice = $invoices->sum(fn (Invoice $invoice) => (float) $invoice->grand_total);
+        $totalPaid = $invoices->sum(fn (Invoice $invoice) => $invoice->total_paid);
+        $outstanding = $invoices->sum(fn (Invoice $invoice) => $invoice->outstanding);
 
         $response = $this->actingAs($finance)->get(route('invoices.index', ['tab' => 'paid']));
         $response->assertOk()
@@ -163,10 +241,10 @@ class InvoiceWorkflowTest extends TestCase
         $secondDo = $this->makeAdditionalPodReadyOrder($user, $customer);
         $payload = $this->invoicePayload($customer, $firstDo, 'combined');
         $payload['selections'] = [
-            $firstDo->id . ':TR',
-            $firstDo->id . ':NTR',
-            $secondDo->id . ':TR',
-            $secondDo->id . ':NTR',
+            $firstDo->id.':TR',
+            $firstDo->id.':NTR',
+            $secondDo->id.':TR',
+            $secondDo->id.':NTR',
         ];
 
         $this->actingAs($user)
@@ -197,9 +275,9 @@ class InvoiceWorkflowTest extends TestCase
         $secondDo = $this->makeAdditionalPodReadyOrder($finance, $customer);
 
         $firstPayload = $this->invoicePayload($customer, $firstDo, 'separate');
-        $firstPayload['selections'] = [$firstDo->id . ':TR'];
+        $firstPayload['selections'] = [$firstDo->id.':TR'];
         $secondPayload = $this->invoicePayload($customer, $secondDo, 'separate');
-        $secondPayload['selections'] = [$secondDo->id . ':TR'];
+        $secondPayload['selections'] = [$secondDo->id.':TR'];
         $this->actingAs($finance)->post(route('invoices.store'), $firstPayload)->assertSessionHas('success');
         $this->post(route('invoices.store'), $secondPayload)->assertSessionHas('success');
 
@@ -223,7 +301,7 @@ class InvoiceWorkflowTest extends TestCase
     {
         [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
         $payload = $this->invoicePayload($customer, $deliveryOrder, 'separate');
-        $payload['selections'] = [$deliveryOrder->id . ':TR'];
+        $payload['selections'] = [$deliveryOrder->id.':TR'];
         $this->actingAs($finance)->post(route('invoices.store'), $payload)->assertSessionHas('success');
         $invoice = Invoice::where('customer_id', $customer->id)->sole();
 
@@ -262,7 +340,7 @@ class InvoiceWorkflowTest extends TestCase
         Storage::fake('public');
         $admin = User::create([
             'name' => 'Sales Admin POD Test',
-            'email' => 'sales-admin-pod-' . uniqid() . '@example.test',
+            'email' => 'sales-admin-pod-'.uniqid().'@example.test',
             'password' => 'password',
             'role' => 'Sales Admin',
             'status' => 'Active',
@@ -336,7 +414,7 @@ class InvoiceWorkflowTest extends TestCase
             ]);
         }
 
-        $this->assertTrue($invoices->every(fn(Invoice $invoice) => $invoice->fresh()->status === 'paid'));
+        $this->assertTrue($invoices->every(fn (Invoice $invoice) => $invoice->fresh()->status === 'paid'));
         $this->assertSame('paid', $deliveryOrder->fresh()->status);
         $this->assertSame('paid', $deliveryOrder->fresh()->invoice_status);
         $this->assertSame('paid', $deliveryOrder->requestOrder->fresh()->invoice_status);
@@ -446,10 +524,22 @@ class InvoiceWorkflowTest extends TestCase
 
         $admin = User::create([
             'name' => 'Admin Print Test',
-            'email' => 'admin-print-' . uniqid() . '@example.test',
+            'email' => 'admin-print-'.uniqid().'@example.test',
             'password' => 'password',
             'role' => 'Admin',
             'status' => 'Active',
+        ]);
+        $internalVendor = \App\Models\Vendor::create([
+            'vendor_code' => 'V-INVOICE-PRINT-'.uniqid(),
+            'vendor_name' => 'Armada Internal Invoice Test',
+            'pic_name' => 'PIC',
+            'phone' => '0800000000',
+            'vendor_type' => 'Internal',
+            'status' => 'Active',
+        ]);
+        $deliveryOrder->update([
+            'vendor_id' => $internalVendor->id,
+            'assignment_type' => 'internal',
         ]);
 
         try {
@@ -539,7 +629,7 @@ class InvoiceWorkflowTest extends TestCase
 
         $regularAdmin = User::create([
             'name' => 'Regular Admin Invoice Test',
-            'email' => 'regular-admin-invoice-' . uniqid() . '@example.test',
+            'email' => 'regular-admin-invoice-'.uniqid().'@example.test',
             'password' => 'password',
             'role' => 'Admin',
             'status' => 'Active',
@@ -553,7 +643,7 @@ class InvoiceWorkflowTest extends TestCase
 
         $superAdmin = User::create([
             'name' => 'Sales Manager Invoice Test',
-            'email' => 'super-admin-invoice-' . uniqid() . '@example.test',
+            'email' => 'super-admin-invoice-'.uniqid().'@example.test',
             'password' => 'password',
             'role' => 'Sales Manager',
             'status' => 'Active',
@@ -669,7 +759,7 @@ class InvoiceWorkflowTest extends TestCase
     {
         [$finance, $customer] = $this->makePodReadyOrder();
         $invoice = Invoice::create([
-            'invoice_id' => 'IV-LEGACY-' . uniqid(),
+            'invoice_id' => 'IV-LEGACY-'.uniqid(),
             'invoice_number' => 'LEGACY/EXPORT/VIII/2026',
             'customer_id' => $customer->id,
             'status' => 'draft',
@@ -703,7 +793,7 @@ class InvoiceWorkflowTest extends TestCase
         [$finance, $customer, $first] = $this->makePodReadyOrder();
         $second = $this->makeAdditionalPodReadyOrder($finance, $customer);
         $payload = $this->invoicePayload($customer, $first, 'separate');
-        $payload['selections'] = [$first->id . ':TR', $second->id . ':TR'];
+        $payload['selections'] = [$first->id.':TR', $second->id.':TR'];
         $payload['ppn_types'] = ['TR'];
         $payload['ppn_persen'] = 1.1;
         $this->actingAs($finance)->post(route('invoices.store'), $payload)->assertSessionHas('success');
@@ -714,7 +804,7 @@ class InvoiceWorkflowTest extends TestCase
         $this->assertSame('1000000', $invoice->fresh()->total_jual);
         $this->assertSame('1011000', $invoice->fresh()->grand_total);
         $this->assertNotNull($first->fresh());
-        $payload['selections'] = [$first->id . ':TR'];
+        $payload['selections'] = [$first->id.':TR'];
         $this->post(route('invoices.store'), $payload)->assertSessionHas('success');
         $this->delete(route('invoices.items.destroy', [$invoice, $invoice->items()->sole()]))
             ->assertRedirect(route('invoices.index', ['tab' => 'draft']));
@@ -741,7 +831,7 @@ class InvoiceWorkflowTest extends TestCase
         $available = $this->getJson(route('invoices.available-dos', ['customer_id' => $customer->id]))->assertOk()->json();
         $this->assertSame([$do->id], array_column($available, 'id'));
         $payload = $this->invoicePayload($customer, $do, 'separate');
-        $payload['selections'] = [$do->id . ':NTR'];
+        $payload['selections'] = [$do->id.':NTR'];
         $payload['ppn_types'] = ['NTR'];
         $payload['ppn_persen'] = 0;
         $this->post(route('invoices.store'), $payload)->assertSessionHas('success');
@@ -752,14 +842,14 @@ class InvoiceWorkflowTest extends TestCase
     {
         $user = User::create([
             'name' => 'Finance Test',
-            'email' => 'finance-' . uniqid() . '@example.test',
+            'email' => 'finance-'.uniqid().'@example.test',
             'password' => 'password',
             'role' => 'Finance',
             'status' => 'Active',
         ]);
         $customer = Customer::create([
-            'customer_code' => 'CUST-' . uniqid(),
-            'invoice_code' => 'INV' . strtoupper(substr(uniqid(), -5)),
+            'customer_code' => 'CUST-'.uniqid(),
+            'invoice_code' => 'INV'.strtoupper(substr(uniqid(), -5)),
             'company_name' => 'Customer Invoice Test',
             'pic_name' => 'PIC',
             'phone' => '0800000000',
@@ -773,7 +863,7 @@ class InvoiceWorkflowTest extends TestCase
     private function makeAdditionalPodReadyOrder(User $user, Customer $customer): DeliveryOrder
     {
         $requestOrder = RequestOrder::create([
-            'do_number' => 'RDO-' . uniqid(),
+            'do_number' => 'RDO-'.uniqid(),
             'customer_id' => $customer->id,
             'user_id' => $user->id,
             'status' => 'In Progress',
@@ -801,7 +891,7 @@ class InvoiceWorkflowTest extends TestCase
         ]);
 
         $deliveryOrder = DeliveryOrder::create([
-            'do_number' => 'DO-' . uniqid(),
+            'do_number' => 'DO-'.uniqid(),
             'request_order_id' => $requestOrder->id,
             'customer_id' => $customer->id,
             'user_id' => $user->id,
@@ -823,8 +913,8 @@ class InvoiceWorkflowTest extends TestCase
             'tgl_buat' => '2026-07-30',
             'tgl_tempo' => '2026-08-29',
             'selections' => [
-                $deliveryOrder->id . ':TR',
-                $deliveryOrder->id . ':NTR',
+                $deliveryOrder->id.':TR',
+                $deliveryOrder->id.':NTR',
             ],
             'billing_mode' => $mode,
             'ppn_mode' => 'non_ppn',

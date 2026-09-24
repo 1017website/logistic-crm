@@ -2,19 +2,25 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\ExcelExport;
 use App\Models\Customer;
+use App\Models\DeletionRequest;
 use App\Models\DeliveryOrder;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoicePayment;
+use App\Models\Notification;
 use App\Models\RequestOrder;
+use App\Models\Setting;
 use App\Models\User;
+use App\Services\DocumentSignatureService;
 use App\Services\InvoiceBillingService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -49,13 +55,13 @@ class InvoiceController extends Controller
             $query->where('jenis', $jenis);
         }
         if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $periode)) {
-            $query->whereDate('periode_invoice', $periode . '-01');
+            $query->whereDate('periode_invoice', $periode.'-01');
         }
         if ($search) {
-            $query->where(fn($q) => $q
+            $query->where(fn ($q) => $q
                 ->where('invoice_id', 'like', "%{$search}%")
                 ->orWhere('invoice_number', 'like', "%{$search}%")
-                ->orWhereHas('customer', fn($q) => $q->where('company_name', 'like', "%{$search}%")));
+                ->orWhereHas('customer', fn ($q) => $q->where('company_name', 'like', "%{$search}%")));
         }
 
         // Pagination dilakukan per customer agar satu bundle tidak terpotong ke halaman lain.
@@ -73,7 +79,7 @@ class InvoiceController extends Controller
         if ($pageCustomerIds->isNotEmpty()) {
             $listedInvoices = (clone $query)
                 ->where(function ($customerQuery) use ($pageCustomerIds) {
-                    $ids = $pageCustomerIds->filter(fn($id) => $id !== null)->values();
+                    $ids = $pageCustomerIds->filter(fn ($id) => $id !== null)->values();
                     if ($ids->isNotEmpty()) {
                         $customerQuery->whereIn('customer_id', $ids);
                     }
@@ -88,10 +94,10 @@ class InvoiceController extends Controller
         }
 
         $invoicesByCustomer = $listedInvoices->groupBy(
-            fn(Invoice $invoice) => $invoice->customer_id === null ? 'legacy-null' : 'customer-' . $invoice->customer_id
+            fn (Invoice $invoice) => $invoice->customer_id === null ? 'legacy-null' : 'customer-'.$invoice->customer_id
         );
         $bundlePage->setCollection($bundlePage->getCollection()->map(function ($row) use ($invoicesByCustomer) {
-            $key = $row->customer_id === null ? 'legacy-null' : 'customer-' . $row->customer_id;
+            $key = $row->customer_id === null ? 'legacy-null' : 'customer-'.$row->customer_id;
             /** @var Collection<int, Invoice> $bundleInvoices */
             $bundleInvoices = $invoicesByCustomer->get($key, collect());
 
@@ -100,10 +106,10 @@ class InvoiceController extends Controller
                 'customer' => $bundleInvoices->first()?->customer,
                 'invoices' => $bundleInvoices,
                 'invoice_count' => $bundleInvoices->count(),
-                'total_hpp' => $bundleInvoices->sum(fn(Invoice $invoice) => (float) $invoice->total_hpp),
-                'total_invoice' => $bundleInvoices->sum(fn(Invoice $invoice) => (float) ($invoice->grand_total ?: $invoice->total_jual)),
-                'total_paid' => $bundleInvoices->sum(fn(Invoice $invoice) => $invoice->total_paid),
-                'outstanding' => $bundleInvoices->sum(fn(Invoice $invoice) => $invoice->outstanding),
+                'total_hpp' => $bundleInvoices->sum(fn (Invoice $invoice) => (float) $invoice->total_hpp),
+                'total_invoice' => $bundleInvoices->sum(fn (Invoice $invoice) => (float) ($invoice->grand_total ?: $invoice->total_jual)),
+                'total_paid' => $bundleInvoices->sum(fn (Invoice $invoice) => $invoice->total_paid),
+                'outstanding' => $bundleInvoices->sum(fn (Invoice $invoice) => $invoice->outstanding),
             ];
         }));
         $invoiceBundles = $bundlePage;
@@ -112,14 +118,14 @@ class InvoiceController extends Controller
         $availableDos = $this->availableInvoiceDos();
         $eligibleCustomerIds = $availableDos->pluck('customer_id')->unique();
         $readyDos = $availableDos->filter(function (array $do) use ($customerId, $search, $jenis) {
-            return (!$customerId || (int) $do['customer_id'] === (int) $customerId)
-                && (!$search || str_contains(mb_strtolower($do['do_number'] . ' ' . $do['customer_name']), mb_strtolower($search)))
-                && (!isset(Invoice::TYPES[$jenis]) || collect($do['types'])->contains(fn($type) => $type['available'] && $type['type'] === $jenis));
+            return (! $customerId || (int) $do['customer_id'] === (int) $customerId)
+                && (! $search || str_contains(mb_strtolower($do['do_number'].' '.$do['customer_name']), mb_strtolower($search)))
+                && (! isset(Invoice::TYPES[$jenis]) || collect($do['types'])->contains(fn ($type) => $type['available'] && $type['type'] === $jenis));
         });
         $invoiceCustomers = Customer::whereIn('id', $eligibleCustomerIds)
             ->orderBy('company_name')
             ->get(['id', 'company_name', 'customer_code', 'invoice_code', 'top_days']);
-        $pendingDeletionIds = \App\Models\DeletionRequest::pendingIdsFor(Invoice::class);
+        $pendingDeletionIds = DeletionRequest::pendingIdsFor(Invoice::class);
 
         return view('invoices.index', compact(
             'invoiceBundles',
@@ -144,7 +150,7 @@ class InvoiceController extends Controller
     public function availableDos(Request $request)
     {
         $customerId = $request->integer('customer_id');
-        if (!$customerId) {
+        if (! $customerId) {
             return response()->json([]);
         }
 
@@ -164,7 +170,7 @@ class InvoiceController extends Controller
             'invoiceItems.invoice',
         ])
             ->whereIn('status', ['closed', 'invoiced'])
-            ->whereHas('requestOrder', fn($q) => $q->where('do_approved', true))
+            ->whereHas('requestOrder', fn ($q) => $q->where('do_approved', true))
             ->orderByDesc('do_date')
             ->orderByDesc('id');
 
@@ -175,15 +181,15 @@ class InvoiceController extends Controller
         return $query->get()
             ->map(function (DeliveryOrder $do) {
                 $usedTypes = $do->invoiceItems
-                    ->filter(fn(InvoiceItem $item) => $item->invoice !== null)
+                    ->filter(fn (InvoiceItem $item) => $item->invoice !== null)
                     ->pluck('item_type')
                     ->filter()
                     ->unique();
 
                 $types = collect($do->invoiceBreakdown())
-                    ->map(fn(array $row, string $type) => [
+                    ->map(fn (array $row, string $type) => [
                         ...$row,
-                        'available' => !$usedTypes->contains($type),
+                        'available' => ! $usedTypes->contains($type),
                     ])
                     ->values();
 
@@ -200,7 +206,7 @@ class InvoiceController extends Controller
                     'types' => $types,
                 ];
             })
-            ->filter(fn(array $do) => collect($do['types'])->contains('available', true))
+            ->filter(fn (array $do) => collect($do['types'])->contains('available', true))
             ->values();
     }
 
@@ -212,7 +218,9 @@ class InvoiceController extends Controller
             'periode_invoice' => 'nullable|date_format:Y-m',
             'tgl_tempo' => 'nullable|date|after_or_equal:tgl_buat',
             'selections' => 'required|array|min:1',
-            'selections.*' => ['required', 'string', 'regex:/^\d+:(TR|NTR)$/'],
+            // Form baru mengirim ID DO saja. Format lama ID:TR/ID:NTR tetap
+            // diterima agar bookmark, cache form, dan integrasi lama tidak putus.
+            'selections.*' => ['required', 'string', 'regex:/^\d+(?::(TR|NTR))?$/'],
             // Nilai combined lama tetap diterima agar form/cache lama tidak error,
             // tetapi penyimpanan di bawah selalu memisahkan TR dan NTR.
             'billing_mode' => 'nullable|in:combined,separate',
@@ -228,30 +236,31 @@ class InvoiceController extends Controller
         if ($ppnTypes->isEmpty() && ($data['ppn_mode'] ?? null) === 'ppn') {
             $ppnTypes = collect(['TR', 'NTR']);
         }
-        if ($ppnTypes->isNotEmpty() && !isset($data['ppn_persen'])) {
+        if ($ppnTypes->isNotEmpty() && ! isset($data['ppn_persen'])) {
             throw ValidationException::withMessages([
                 'ppn_persen' => 'Isi persentase PPN antara 0 dan 100.',
             ]);
         }
 
-        $selectionMap = collect($data['selections'])
+        $requestedSelections = collect($data['selections'])
             ->unique()
-            ->mapWithKeys(function (string $selection) {
-                [$doId, $type] = explode(':', $selection, 2);
-                return [$doId . ':' . $type => ['do_id' => (int) $doId, 'type' => $type]];
+            ->map(function (string $selection) {
+                [$doId, $type] = array_pad(explode(':', $selection, 2), 2, null);
+
+                return ['do_id' => (int) $doId, 'type' => $type];
             });
 
-        $created = DB::transaction(function () use ($data, $selectionMap, $ppnTypes) {
+        $created = DB::transaction(function () use ($data, $requestedSelections, $ppnTypes) {
             // Lock customer menyerialkan nomor urut per customer.
             $customer = Customer::query()->lockForUpdate()->findOrFail($data['customer_id']);
-            $doIds = $selectionMap->pluck('do_id')->unique()->sort()->values();
+            $doIds = $requestedSelections->pluck('do_id')->unique()->sort()->values();
 
             // Lock DO menyerialkan pemakaian komponen TR/NTR di invoice.
             $dos = DeliveryOrder::with(['requestOrder.jobDetails', 'requestOrder.items'])
                 ->whereKey($doIds)
                 ->where('customer_id', $customer->id)
                 ->whereIn('status', ['closed', 'invoiced'])
-                ->whereHas('requestOrder', fn($q) => $q->where('do_approved', true))
+                ->whereHas('requestOrder', fn ($q) => $q->where('do_approved', true))
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get()
@@ -267,30 +276,44 @@ class InvoiceController extends Controller
                 ->whereIn('delivery_order_id', $doIds)
                 ->lockForUpdate()
                 ->get()
-                ->mapWithKeys(fn(InvoiceItem $item) => [
-                    $item->delivery_order_id . ':' . $item->item_type => true,
+                ->mapWithKeys(fn (InvoiceItem $item) => [
+                    $item->delivery_order_id.':'.$item->item_type => true,
                 ]);
 
-            $rows = $selectionMap->map(function (array $selection, string $key) use ($dos, $existing) {
-                if ($existing->has($key)) {
-                    throw ValidationException::withMessages([
-                        'selections' => "Komponen {$selection['type']} pada DO terpilih sudah masuk invoice lain.",
-                    ]);
-                }
-
+            $rows = $requestedSelections->flatMap(function (array $selection) use ($dos, $existing) {
                 $do = $dos->get($selection['do_id']);
                 $breakdown = $do->invoiceBreakdown();
-                if (!isset($breakdown[$selection['type']])) {
+                $types = $selection['type'] ? collect([$selection['type']]) : collect(array_keys($breakdown));
+                $availableTypes = $types->filter(function (string $type) use ($selection, $existing) {
+                    $key = $selection['do_id'].':'.$type;
+                    if (! $existing->has($key)) {
+                        return true;
+                    }
+                    if ($selection['type']) {
+                        throw ValidationException::withMessages([
+                            'selections' => "Komponen {$type} pada DO terpilih sudah masuk invoice lain.",
+                        ]);
+                    }
+
+                    return false;
+                });
+
+                if ($selection['type'] && ! isset($breakdown[$selection['type']])) {
                     throw ValidationException::withMessages([
                         'selections' => "Komponen {$selection['type']} tidak tersedia pada {$do->do_number}.",
                     ]);
                 }
+                if ($availableTypes->isEmpty()) {
+                    throw ValidationException::withMessages([
+                        'selections' => "Semua komponen pada {$do->do_number} sudah masuk invoice lain.",
+                    ]);
+                }
 
-                return [
+                return $availableTypes->map(fn (string $type) => [
                     'do' => $do,
-                    ...$breakdown[$selection['type']],
-                ];
-            })->values();
+                    ...$breakdown[$type],
+                ]);
+            })->unique(fn (array $row) => $row['do']->id.':'.$row['type'])->values();
 
             // Kebijakan baru: komponen Trucking dan Non-Trucking selalu terpisah,
             // tetapi setiap invoice tetap dapat memuat banyak DO customer yang sama.
@@ -307,7 +330,7 @@ class InvoiceController extends Controller
 
                 // ID sementara unik menghindari race nomor internal global.
                 $invoice = Invoice::create([
-                    'invoice_id' => 'TMP-' . Str::uuid(),
+                    'invoice_id' => 'TMP-'.Str::uuid(),
                     'invoice_number' => Invoice::buildInvoiceNumber(
                         $seq,
                         $customer->invoice_number_code,
@@ -318,14 +341,14 @@ class InvoiceController extends Controller
                     'status' => 'draft',
                     'tgl_buat' => $data['tgl_buat'],
                     'periode_invoice' => Carbon::parse(
-                        ($data['periode_invoice'] ?? Carbon::parse($data['tgl_buat'])->format('Y-m')) . '-01'
+                        ($data['periode_invoice'] ?? Carbon::parse($data['tgl_buat'])->format('Y-m')).'-01'
                     )->startOfMonth()->toDateString(),
                     // Due date wajib ada; kalau kosong pakai TOP customer (atau
                     // default global). Invoice tanpa due date tidak akan pernah
                     // terhitung menua di laporan piutang.
                     'tgl_tempo' => ($data['tgl_tempo'] ?? null)
                         ?: $customer->dueDateFrom($data['tgl_buat']),
-                    'tgl_tempo_manual' => !empty($data['tgl_tempo'])
+                    'tgl_tempo_manual' => ! empty($data['tgl_tempo'])
                         && $data['tgl_tempo'] !== $defaultDueDate,
                     'jenis' => $jenis,
                     'billing_mode' => 'separate',
@@ -333,25 +356,27 @@ class InvoiceController extends Controller
                     'notes' => $data['notes'] ?? null,
                 ]);
                 $invoice->update([
-                    'invoice_id' => 'IV' . Carbon::parse($data['tgl_buat'])->format('ym')
-                        . str_pad((string) $invoice->id, 4, '0', STR_PAD_LEFT),
+                    'invoice_id' => 'IV'.Carbon::parse($data['tgl_buat'])->format('ym')
+                        .str_pad((string) $invoice->id, 4, '0', STR_PAD_LEFT),
                 ]);
 
                 foreach ($groupRows as $row) {
                     /** @var DeliveryOrder $do */
                     $do = $row['do'];
-                    $invoice->items()->create([
-                        'request_order_id' => $do->request_order_id,
-                        'delivery_order_id' => $do->id,
-                        'item_type' => $row['type'],
-                        'item_name' => $row['type'] === 'TR' ? 'Trucking' : 'Non-Trucking',
-                        'description' => $row['description'],
-                        'truck_type' => $do->requestOrder?->jenis_truck,
-                        'quantity' => 1,
-                        'unit_price' => $row['jual'],
-                        'hpp' => $row['hpp'],
-                        'jual' => $row['jual'],
-                    ]);
+                    foreach ($row['lines'] as $line) {
+                        $invoice->items()->create([
+                            'request_order_id' => $do->request_order_id,
+                            'delivery_order_id' => $do->id,
+                            'item_type' => $row['type'],
+                            'item_name' => $line['item_name'],
+                            'description' => $line['description'],
+                            'truck_type' => $do->requestOrder?->jenis_truck,
+                            'quantity' => $line['quantity'],
+                            'unit_price' => $line['unit_price'],
+                            'hpp' => $line['hpp'],
+                            'jual' => $line['jual'],
+                        ]);
+                    }
                 }
 
                 $this->recalcTotals(
@@ -387,8 +412,8 @@ class InvoiceController extends Controller
                 throw ValidationException::withMessages(['general' => 'Hanya draft yang bisa diterbitkan.']);
             }
 
-            $period = !empty($data['periode_invoice'])
-                ? Carbon::parse($data['periode_invoice'] . '-01')->startOfMonth()
+            $period = ! empty($data['periode_invoice'])
+                ? Carbon::parse($data['periode_invoice'].'-01')->startOfMonth()
                 : ($locked->periode_invoice ?: $locked->tgl_buat ?: $locked->created_at)->copy()->startOfMonth();
             $submittedAt = now();
             $locked->update([
@@ -403,7 +428,7 @@ class InvoiceController extends Controller
             $doIds = $locked->items()->pluck('delivery_order_id')->filter()->unique();
 
             DeliveryOrder::whereIn('id', $doIds)->where('status', 'closed')->get()
-                ->each(fn(DeliveryOrder $do) => $do->transition(
+                ->each(fn (DeliveryOrder $do) => $do->transition(
                     'invoiced',
                     "Invoice {$locked->invoice_number} diterbitkan.",
                     auth()->id()
@@ -422,7 +447,7 @@ class InvoiceController extends Controller
         ]);
 
         $result = DB::transaction(function () use ($data, $customer) {
-            $ids = collect($data['invoice_ids'])->map(fn($id) => (int) $id)->sort()->values();
+            $ids = collect($data['invoice_ids'])->map(fn ($id) => (int) $id)->sort()->values();
             $drafts = Invoice::with(['items', 'payments'])
                 ->whereKey($ids->all())
                 ->orderBy('id')
@@ -430,7 +455,7 @@ class InvoiceController extends Controller
                 ->get();
 
             if ($drafts->count() !== $ids->count()
-                || $drafts->contains(fn(Invoice $invoice) => (int) $invoice->customer_id !== (int) $customer->id)) {
+                || $drafts->contains(fn (Invoice $invoice) => (int) $invoice->customer_id !== (int) $customer->id)) {
                 throw ValidationException::withMessages([
                     'invoice_ids' => 'Daftar draft tidak valid atau bukan milik customer yang sama.',
                 ]);
@@ -444,8 +469,7 @@ class InvoiceController extends Controller
                 $this->authorizeInvoiceEdit($draft);
             }
 
-            $groups = $drafts->groupBy(fn(Invoice $invoice) => json_encode([
-                'jenis' => $invoice->jenis,
+            $groups = $drafts->groupBy(fn (Invoice $invoice) => json_encode([
                 'periode' => $invoice->periode_invoice?->toDateString(),
                 'ppn' => (string) $invoice->ppn_persen,
                 'tempo' => $invoice->tgl_tempo?->toDateString(),
@@ -470,6 +494,11 @@ class InvoiceController extends Controller
                 }
 
                 $target->load('items');
+                $types = $target->items->pluck('item_type')->filter()->unique();
+                $target->update([
+                    'jenis' => $types->count() === 1 ? $types->first() : 'MIX',
+                    'billing_mode' => $types->count() === 1 ? 'separate' : 'combined',
+                ]);
                 $this->recalcTotals(
                     $target,
                     (float) $target->items->sum('hpp'),
@@ -484,12 +513,12 @@ class InvoiceController extends Controller
 
         if ($result['mergedSources'] === 0) {
             return back()->withErrors([
-                'general' => 'Tidak ada draft yang kompatibel untuk digabung. Tipe, periode, PPN, dan jatuh tempo harus sama.',
+                'general' => 'Tidak ada draft yang kompatibel untuk digabung. Periode, PPN, dan jatuh tempo harus sama.',
             ]);
         }
 
-        return back()->with('success', $result['mergedSources'] . ' draft digabungkan menjadi '
-            . $result['mergedGroups'] . ' invoice berdasarkan tipe layanan dan ketentuan tagihannya.');
+        return back()->with('success', $result['mergedSources'].' draft digabungkan menjadi '
+            .$result['mergedGroups'].' invoice. Draft TR dan NTR yang kompatibel menjadi satu invoice gabungan.');
     }
 
     public function unsubmit(Invoice $invoice)
@@ -525,7 +554,7 @@ class InvoiceController extends Controller
 
         $result = DB::transaction(function () use ($invoice, $data) {
             $locked = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
-            if (!in_array($locked->status, ['invoice', 'termin'], true)) {
+            if (! in_array($locked->status, ['invoice', 'termin'], true)) {
                 throw ValidationException::withMessages([
                     'general' => 'Pembayaran hanya dapat dicatat pada invoice terbit atau invoice termin.',
                 ]);
@@ -586,7 +615,7 @@ class InvoiceController extends Controller
 
         return back()->with('success', $result['is_paid']
             ? 'Pelunasan dicatat. Invoice dan DO terkait otomatis menjadi lunas setelah seluruh komponennya lunas.'
-            : 'Pembayaran titip / termin dicatat. Sisa tagihan ' . idr($result['remaining']) . '.');
+            : 'Pembayaran titip / termin dicatat. Sisa tagihan '.idr($result['remaining']).'.');
     }
 
     public function updateNumber(Request $request, Invoice $invoice)
@@ -605,13 +634,13 @@ class InvoiceController extends Controller
     {
         $user = auth()->user();
         $canSetDraftTax = $invoice->status === 'draft' && ($user->isFinance() || $user->isAdmin());
-        if (!$canSetDraftTax) {
+        if (! $canSetDraftTax) {
             $this->authorizeInvoiceEdit($invoice);
         }
 
         $data = $request->validate([
             'ppn_types' => 'nullable|array',
-            'ppn_types.*' => 'in:TR,NTR',
+            'ppn_types.*' => 'in:TR,NTR,MIX',
             'ppn_persen' => 'required_with:ppn_types|nullable|numeric|between:0,100|decimal:0,2',
         ], [
             'ppn_persen.required_with' => 'Isi persentase PPN antara 0 dan 100.',
@@ -635,10 +664,15 @@ class InvoiceController extends Controller
         });
 
         $taxedLabels = $selectedTypes
-            ->map(fn(string $type) => $type === 'TR' ? 'Trucking (TR)' : 'Non-Trucking (Non-TR)')
+            ->map(fn (string $type) => match ($type) {
+                'TR' => 'Trucking (TR)',
+                'NTR' => 'Non-Trucking (Non-TR)',
+                default => 'semua layanan (TR dan Non-TR)',
+            })
             ->implode(' dan ');
+
         return back()->with('success', $selectedTypes->isNotEmpty()
-            ? 'PPN ' . rtrim(rtrim(number_format($ppnPersen, 2, '.', ''), '0'), '.') . '% diterapkan untuk ' . $taxedLabels . '.'
+            ? 'PPN '.rtrim(rtrim(number_format($ppnPersen, 2, '.', ''), '0'), '.').'% diterapkan untuk '.$taxedLabels.'.'
             : 'Draft Trucking dan Non-Trucking diubah menjadi Non-PPN.');
     }
 
@@ -663,7 +697,9 @@ class InvoiceController extends Controller
 
     public function requestEdit(Request $request, Invoice $invoice)
     {
-        if (!auth()->user()->isFinance()) abort(403);
+        if (! auth()->user()->isFinance()) {
+            abort(403);
+        }
         if ($invoice->status !== 'invoice') {
             return back()->withErrors(['general' => 'Permintaan edit hanya untuk invoice terbit yang belum memiliki pembayaran.']);
         }
@@ -679,14 +715,13 @@ class InvoiceController extends Controller
             'edit_review_note' => null,
         ]);
 
-        User::where('role', 'Sales Manager')->where('status', 'Active')->each(fn(User $admin) =>
-            \App\Models\Notification::send(
-                $admin->id,
-                'invoice_edit_request',
-                'Permintaan edit invoice',
-                $invoice->invoice_number . ' menunggu persetujuan Sales Manager.',
-                route('invoices.show', $invoice)
-            )
+        User::where('role', 'Sales Manager')->where('status', 'Active')->each(fn (User $admin) => Notification::send(
+            $admin->id,
+            'invoice_edit_request',
+            'Permintaan edit invoice',
+            $invoice->invoice_number.' menunggu persetujuan Sales Manager.',
+            route('invoices.show', $invoice)
+        )
         );
 
         return back()->with('success', 'Permintaan edit dikirim ke Sales Manager.');
@@ -694,7 +729,9 @@ class InvoiceController extends Controller
 
     public function reviewEdit(Request $request, Invoice $invoice)
     {
-        if (!auth()->user()->isSalesManager() && !auth()->user()->isSuperAdmin()) abort(403);
+        if (! auth()->user()->isSalesManager() && ! auth()->user()->isSuperAdmin()) {
+            abort(403);
+        }
         $data = $request->validate([
             'action' => 'required|in:approve,reject',
             'note' => 'nullable|string|max:1000',
@@ -717,8 +754,11 @@ class InvoiceController extends Controller
 
     public function finishEdit(Invoice $invoice)
     {
-        if (!auth()->user()->isFinance() || $invoice->edit_request_status !== 'approved') abort(403);
+        if (! auth()->user()->isFinance() || $invoice->edit_request_status !== 'approved') {
+            abort(403);
+        }
         $invoice->update(['edit_request_status' => 'none']);
+
         return back()->with('success', 'Edit selesai dan invoice dikunci kembali.');
     }
 
@@ -756,7 +796,7 @@ class InvoiceController extends Controller
             $requestId = $item->request_order_id;
             $item->delete();
 
-            $empty = !$locked->items()->exists();
+            $empty = ! $locked->items()->exists();
             if ($empty) {
                 $locked->delete();
             } else {
@@ -766,7 +806,7 @@ class InvoiceController extends Controller
                     (float) $locked->items()->sum('jual'), (float) $locked->ppn_persen);
             }
 
-            if (!$doId && $requestId && !InvoiceItem::where('request_order_id', $requestId)->exists()) {
+            if (! $doId && $requestId && ! InvoiceItem::where('request_order_id', $requestId)->exists()) {
                 RequestOrder::whereKey($requestId)->update(['invoice_status' => 'uninvoiced']);
             }
             app(InvoiceBillingService::class)->sync([$doId], 'Komponen DO dikeluarkan dari draft invoice.');
@@ -776,7 +816,7 @@ class InvoiceController extends Controller
 
         return ($empty ? redirect()->route('invoices.index', ['tab' => 'draft']) : back())
             ->with('success', 'Komponen DO dikeluarkan dan dapat dipilih kembali.'
-                . ($empty ? ' Draft kosong dihapus.' : ''));
+                .($empty ? ' Draft kosong dihapus.' : ''));
     }
 
     public function destroy(Invoice $invoice)
@@ -811,7 +851,7 @@ class InvoiceController extends Controller
             ->with('success', 'Invoice dihapus dan komponen DO dilepas untuk ditagih ulang.');
     }
 
-    public function print(Request $request, Invoice $invoice, \App\Services\DocumentSignatureService $documentSignature)
+    public function print(Request $request, Invoice $invoice, DocumentSignatureService $documentSignature)
     {
         return view('invoices.print', [
             ...$this->printPayload($request, $invoice, $documentSignature),
@@ -819,19 +859,20 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function pdf(Request $request, Invoice $invoice, \App\Services\DocumentSignatureService $documentSignature)
+    public function pdf(Request $request, Invoice $invoice, DocumentSignatureService $documentSignature)
     {
         $payload = [...$this->printPayload($request, $invoice, $documentSignature), 'isPdf' => true];
         $logo = $payload['company']['logo'] ?? null;
-        if ($logo && !str_starts_with($logo, 'data:') && \Illuminate\Support\Facades\Storage::disk('public')->exists($logo)) {
-            $mime = \Illuminate\Support\Facades\Storage::disk('public')->mimeType($logo) ?: 'image/png';
-            $payload['company']['logo'] = 'data:' . $mime . ';base64,'
-                . base64_encode(\Illuminate\Support\Facades\Storage::disk('public')->get($logo));
-        } elseif ($logo && !str_starts_with($logo, 'data:')) {
+        if ($logo && ! str_starts_with($logo, 'data:') && Storage::disk('public')->exists($logo)) {
+            $mime = Storage::disk('public')->mimeType($logo) ?: 'image/png';
+            $payload['company']['logo'] = 'data:'.$mime.';base64,'
+                .base64_encode(Storage::disk('public')->get($logo));
+        } elseif ($logo && ! str_starts_with($logo, 'data:')) {
             $payload['company']['logo'] = null;
         }
+
         return Pdf::loadView('invoices.print', $payload)->setPaper('a4', 'landscape')
-            ->download('invoice-' . Str::slug($invoice->invoice_number ?: $invoice->invoice_id) . '.pdf');
+            ->download('invoice-'.Str::slug($invoice->invoice_number ?: $invoice->invoice_id).'.pdf');
     }
 
     public function exportInvoice(Invoice $invoice)
@@ -839,7 +880,7 @@ class InvoiceController extends Controller
         $invoice->load(['customer', 'items.deliveryOrder', 'items.requestOrder']);
         $headers = ['No Invoice', 'Customer', 'No DO', 'Nama', 'Uraian', 'Jenis Truck', 'Qty', 'Harga', 'Jumlah'];
         $rows = $invoice->items->isNotEmpty()
-            ? $invoice->items->map(fn(InvoiceItem $item) => [
+            ? $invoice->items->map(fn (InvoiceItem $item) => [
                 $invoice->invoice_number,
                 $invoice->customer?->company_name ?? '-',
                 $item->deliveryOrder?->do_number ?? $item->requestOrder?->do_number ?? '-',
@@ -858,8 +899,8 @@ class InvoiceController extends Controller
                 '-', 1, (float) $invoice->total_jual, (float) $invoice->total_jual,
             ]];
 
-        return \App\Helpers\ExcelExport::download(
-            'invoice-' . ($invoice->invoice_id ?: $invoice->id), $headers, $rows, 'Invoice'
+        return ExcelExport::download(
+            'invoice-'.($invoice->invoice_id ?: $invoice->id), $headers, $rows, 'Invoice'
         );
     }
 
@@ -883,7 +924,7 @@ class InvoiceController extends Controller
             $query->where('jenis', $jenis);
         }
         if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $periode)) {
-            $query->whereDate('periode_invoice', $periode . '-01');
+            $query->whereDate('periode_invoice', $periode.'-01');
         }
 
         $headers = [
@@ -912,7 +953,7 @@ class InvoiceController extends Controller
                 ]];
             }
 
-            return $inv->items->map(fn(InvoiceItem $item) => [
+            return $inv->items->map(fn (InvoiceItem $item) => [
                 $inv->invoice_id,
                 $inv->invoice_number,
                 $inv->customer?->company_name ?? '-',
@@ -934,8 +975,8 @@ class InvoiceController extends Controller
             ]);
         })->all();
 
-        return \App\Helpers\ExcelExport::download(
-            'invoices-' . date('Ymd'),
+        return ExcelExport::download(
+            'invoices-'.date('Ymd'),
             $headers,
             $rows,
             'Invoices'
@@ -945,19 +986,26 @@ class InvoiceController extends Controller
     public function exportPdf(Request $request)
     {
         $query = Invoice::with(['customer', 'items.deliveryOrder', 'items.requestOrder', 'payments']);
-        if ($request->status === 'settled') $query->whereIn('status', ['termin', 'paid']);
-        elseif ($request->filled('status') && $request->status !== 'all') $query->where('status', $request->status);
-        if ($request->filled('customer_id')) $query->where('customer_id', $request->integer('customer_id'));
-        if (array_key_exists((string) $request->jenis, Invoice::TYPES)) $query->where('jenis', $request->jenis);
+        if ($request->status === 'settled') {
+            $query->whereIn('status', ['termin', 'paid']);
+        } elseif ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('customer_id')) {
+            $query->where('customer_id', $request->integer('customer_id'));
+        }
+        if (array_key_exists((string) $request->jenis, Invoice::TYPES)) {
+            $query->where('jenis', $request->jenis);
+        }
         if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $request->periode)) {
-            $query->whereDate('periode_invoice', $request->periode . '-01');
+            $query->whereDate('periode_invoice', $request->periode.'-01');
         }
         $invoices = $query->orderByDesc('tgl_buat')->get();
         $customer = $request->filled('customer_id') ? Customer::find($request->integer('customer_id')) : null;
 
         return Pdf::loadView('invoices.export_pdf', compact('invoices', 'customer'))
             ->setPaper('a4', 'landscape')
-            ->download('rekap-invoice-' . ($customer ? Str::slug($customer->company_name) : 'semua-customer') . '.pdf');
+            ->download('rekap-invoice-'.($customer ? Str::slug($customer->company_name) : 'semua-customer').'.pdf');
     }
 
     private function recalcTotals(Invoice $invoice, float $hpp, float $jual, float $ppnPersen): void
@@ -996,24 +1044,24 @@ class InvoiceController extends Controller
             ->where('status', 'draft')
             ->whereIn('jenis', ['TR', 'NTR'])
             ->get()
-            ->filter(fn(Invoice $candidate) => $this->invoiceBillingKeys($candidate)->all() === $billingKeys->all())
-            ->whenEmpty(fn(Collection $items) => $items->push($invoice))
+            ->filter(fn (Invoice $candidate) => $this->invoiceBillingKeys($candidate)->all() === $billingKeys->all())
+            ->whenEmpty(fn (Collection $items) => $items->push($invoice))
             ->values();
     }
 
     private function invoiceBillingKeys(Invoice $invoice): Collection
     {
         return $invoice->items
-            ->map(fn(InvoiceItem $item) => $item->delivery_order_id
-                ? 'do:' . $item->delivery_order_id
-                : ($item->request_order_id ? 'request:' . $item->request_order_id : null))
+            ->map(fn (InvoiceItem $item) => $item->delivery_order_id
+                ? 'do:'.$item->delivery_order_id
+                : ($item->request_order_id ? 'request:'.$item->request_order_id : null))
             ->filter()
             ->unique()
             ->sort()
             ->values();
     }
 
-    private function printPayload(Request $request, Invoice $invoice, \App\Services\DocumentSignatureService $documentSignature): array
+    private function printPayload(Request $request, Invoice $invoice, DocumentSignatureService $documentSignature): array
     {
         $data = $request->validate([
             'type' => 'nullable|in:all,TR,NTR',
@@ -1026,33 +1074,33 @@ class InvoiceController extends Controller
         }
         $invoice->load(['customer', 'items.requestOrder', 'items.deliveryOrder.requestOrder']);
         $printItems = $invoice->items
-            ->when($printType !== 'all', fn(Collection $items) => $items->where('item_type', $printType))->values();
+            ->when($printType !== 'all', fn (Collection $items) => $items->where('item_type', $printType))->values();
         if ($printItems->isEmpty()) {
             throw ValidationException::withMessages(['type' => 'Tipe layanan yang dipilih tidak ada pada invoice ini.']);
         }
         $printSubtotal = (float) $printItems->sum('jual');
         $printPpn = round($printSubtotal * (float) $invoice->ppn_persen / 100);
         $printGrand = $printSubtotal + $printPpn;
-        $companyName = \App\Models\Setting::get('company_name', 'Perusahaan');
+        $companyName = Setting::get('company_name', 'Perusahaan');
         $salesManager = User::where('role', 'Sales Manager')->where('status', 'Active')->orderBy('id')->first();
-        $logo = \App\Models\Setting::get('company_doc_logo') ?: \App\Models\Setting::get('company_logo', '');
+        $logo = Setting::get('company_doc_logo') ?: Setting::get('company_logo', '');
         $company = [
             'name' => $companyName,
-            'address' => \App\Models\Setting::get('company_address', ''),
-            'phone' => \App\Models\Setting::get('company_phone', ''),
-            'email' => \App\Models\Setting::get('company_email', ''),
-            'website' => \App\Models\Setting::get('company_website', ''),
+            'address' => Setting::get('company_address', ''),
+            'phone' => Setting::get('company_phone', ''),
+            'email' => Setting::get('company_email', ''),
+            'website' => Setting::get('company_website', ''),
             'logo' => $logo,
-            'signatory_name' => $salesManager?->name ?: (\App\Models\Setting::get('company_signatory_name') ?: $companyName),
+            'signatory_name' => $salesManager?->name ?: (Setting::get('company_signatory_name') ?: $companyName),
             'signatory_title' => $salesManager
                 ? ($salesManager->position ?: 'Sales Manager')
-                : (\App\Models\Setting::get('company_signatory_title') ?: 'Direktur'),
+                : (Setting::get('company_signatory_title') ?: 'Direktur'),
         ];
         $signature = $documentSignature->make('invoice', $invoice->getKey());
         $company['signatory_phone'] = $salesManager
             ? $salesManager->phone
             : User::where('name', $company['signatory_name'])->value('phone');
+
         return compact('invoice', 'printType', 'documentMode', 'printItems', 'printSubtotal', 'printPpn', 'printGrand', 'company', 'signature');
     }
-
 }

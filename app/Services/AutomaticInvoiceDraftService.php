@@ -30,7 +30,7 @@ class AutomaticInvoiceDraftService
                 ->lockForUpdate()
                 ->findOrFail($deliveryOrder->id);
 
-            if ($do->status !== 'closed' || !$do->pod_at || !$do->requestOrder?->do_approved) {
+            if ($do->status !== 'closed' || ! $do->pod_at || ! $do->requestOrder?->do_approved) {
                 throw ValidationException::withMessages([
                     'general' => 'Draft invoice otomatis hanya dapat dibuat setelah DO ditutup, POD diterima, dan harga disetujui.',
                 ]);
@@ -44,7 +44,7 @@ class AutomaticInvoiceDraftService
                 ->unique();
 
             $rows = collect($do->invoiceBreakdown())
-                ->reject(fn(array $row, string $type) => $usedTypes->contains($type));
+                ->reject(fn (array $row, string $type) => $usedTypes->contains($type));
 
             if ($rows->isEmpty()) {
                 return collect();
@@ -56,7 +56,7 @@ class AutomaticInvoiceDraftService
             foreach ($rows as $type => $row) {
                 $seq = Invoice::nextCustomerSeq($customer->id);
                 $invoice = Invoice::create([
-                    'invoice_id' => 'TMP-' . Str::uuid(),
+                    'invoice_id' => 'TMP-'.Str::uuid(),
                     'invoice_number' => Invoice::buildInvoiceNumber($seq, $customer->invoice_number_code, $invoiceDate),
                     'customer_seq' => $seq,
                     'customer_id' => $customer->id,
@@ -69,25 +69,27 @@ class AutomaticInvoiceDraftService
                     'jenis' => $type,
                     'billing_mode' => 'separate',
                     'operator_id' => $operatorId,
-                    'notes' => 'Draft otomatis saat DO ' . $do->do_number . ' ditutup.',
+                    'notes' => 'Draft otomatis saat DO '.$do->do_number.' ditutup.',
                 ]);
                 $invoice->update([
-                    'invoice_id' => 'IV' . Carbon::parse($invoiceDate)->format('ym')
-                        . str_pad((string) $invoice->id, 4, '0', STR_PAD_LEFT),
+                    'invoice_id' => 'IV'.Carbon::parse($invoiceDate)->format('ym')
+                        .str_pad((string) $invoice->id, 4, '0', STR_PAD_LEFT),
                 ]);
 
-                $invoice->items()->create([
-                    'request_order_id' => $do->request_order_id,
-                    'delivery_order_id' => $do->id,
-                    'item_type' => $type,
-                    'item_name' => $type === 'TR' ? 'Trucking' : 'Non-Trucking',
-                    'description' => $row['description'],
-                    'truck_type' => $do->requestOrder?->jenis_truck,
-                    'quantity' => 1,
-                    'unit_price' => $row['jual'],
-                    'hpp' => $row['hpp'],
-                    'jual' => $row['jual'],
-                ]);
+                foreach ($row['lines'] as $line) {
+                    $invoice->items()->create([
+                        'request_order_id' => $do->request_order_id,
+                        'delivery_order_id' => $do->id,
+                        'item_type' => $type,
+                        'item_name' => $line['item_name'],
+                        'description' => $line['description'],
+                        'truck_type' => $do->requestOrder?->jenis_truck,
+                        'quantity' => $line['quantity'],
+                        'unit_price' => $line['unit_price'],
+                        'hpp' => $line['hpp'],
+                        'jual' => $line['jual'],
+                    ]);
+                }
 
                 $invoice->update([
                     'total_hpp' => $row['hpp'],
