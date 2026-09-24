@@ -3,6 +3,95 @@
 @section('page-title', $invoice->invoice_id)
 @section('page-subtitle', $invoice->invoice_number)
 
+@push('styles')
+<style>
+    .invoice-detail-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .invoice-detail-actions,
+    .invoice-print-actions,
+    .invoice-file-actions {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+    }
+
+    .invoice-detail-actions {
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        margin-left: auto;
+    }
+
+    .invoice-print-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .invoice-print-actions .form-select {
+        width: 156px;
+    }
+
+    .invoice-detail-actions .btn {
+        display: inline-flex;
+        min-height: 32px;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .invoice-file-actions .btn {
+        min-width: 72px;
+    }
+
+    .invoice-back-button {
+        min-width: 88px;
+    }
+
+    @media (max-width: 767.98px) {
+        .invoice-detail-heading,
+        .invoice-detail-actions,
+        .invoice-print-actions,
+        .invoice-file-actions {
+            width: 100%;
+        }
+
+        .invoice-detail-actions {
+            margin-left: 0;
+        }
+
+        .invoice-print-actions {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+        }
+
+        .invoice-print-actions .form-select {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .invoice-file-actions .btn {
+            flex: 1 1 0;
+            min-height: 44px;
+        }
+    }
+
+    @media (max-width: 479.98px) {
+        .invoice-print-actions {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+
+        .invoice-print-actions .btn {
+            grid-column: 1 / -1;
+            min-height: 44px;
+        }
+    }
+</style>
+@endpush
+
 @section('content')
 @php
     $u = auth()->user();
@@ -17,13 +106,13 @@
         @foreach($errors->all() as $e)<div class="alert alert-danger py-2" style="font-size:13px">{{ $e }}</div>@endforeach
 
         <div class="card mb-3"><div class="card-body p-3">
-            <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+            <div class="invoice-detail-heading mb-3">
                 <div>
                     <h5 class="mb-1" style="font-weight:800">{{ $invoice->invoice_number }}</h5>
                     <span class="badge bg-{{ $invoice->status_color }}">{{ $invoice->status_label }}</span>
                 </div>
-                <div class="d-flex gap-2">
-                    <form method="GET" action="{{ route('invoices.print', $invoice->id) }}" target="_blank" class="d-flex gap-1 flex-wrap justify-content-end">
+                <div class="invoice-detail-actions">
+                    <form method="GET" action="{{ route('invoices.print', $invoice->id) }}" target="_blank" class="invoice-print-actions">
                         <select name="type" class="form-select form-select-sm no-select2" aria-label="Pilih tipe cetak">
                             <option value="all">Semua layanan</option>
                             @if($invoice->items->contains('item_type', 'TR'))<option value="TR">Trucking saja</option>@endif
@@ -36,9 +125,11 @@
                         </select>
                         <button class="btn btn-sm btn-outline-secondary text-nowrap"><i class="fas fa-print me-1"></i> Cetak</button>
                     </form>
-                    <a href="{{ route('invoices.pdf', $invoice) }}" class="btn btn-sm btn-outline-danger text-nowrap"><i class="fas fa-file-pdf me-1"></i> PDF</a>
-                    <a href="{{ route('invoices.excel', $invoice) }}" class="btn btn-sm btn-outline-success text-nowrap"><i class="fas fa-file-excel me-1"></i> Excel</a>
-                    <a href="{{ route('invoices.index', (array) request()->query('list', ['tab'=>$hasPayment ? 'paid' : $invoice->status])) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Kembali</a>
+                    <div class="invoice-file-actions" aria-label="Aksi invoice">
+                        <a href="{{ route('invoices.pdf', $invoice) }}" class="btn btn-sm btn-outline-danger text-nowrap"><i class="fas fa-file-pdf me-1"></i> PDF</a>
+                        <a href="{{ route('invoices.excel', $invoice) }}" class="btn btn-sm btn-outline-success text-nowrap"><i class="fas fa-file-excel me-1"></i> Excel</a>
+                        <a href="{{ route('invoices.index', (array) request()->query('list', ['tab'=>$hasPayment ? 'paid' : $invoice->status])) }}" class="btn btn-sm btn-outline-secondary text-nowrap invoice-back-button"><i class="fas fa-arrow-left me-1"></i> Kembali</a>
+                    </div>
                 </div>
             </div>
             <div class="row g-2" style="font-size:13px">
