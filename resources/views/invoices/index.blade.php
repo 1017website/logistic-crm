@@ -10,6 +10,112 @@
     #addInvoiceModal .invoice-selection-toolbar,
     #addInvoiceModal .invoice-selection-summary { min-width: 0; }
 
+    .ready-invoice-card .card-body {
+        padding: 1rem;
+    }
+
+    .ready-invoice-intro {
+        margin-bottom: .75rem;
+        font-size: .82rem;
+    }
+
+    .table-responsive > .ready-invoice-table {
+        width: 100%;
+        min-width: 0;
+        table-layout: fixed;
+        font-size: .82rem;
+    }
+
+    .ready-invoice-table .ready-col-customer { width: 24%; }
+    .ready-invoice-table .ready-col-count { width: 11%; }
+    .ready-invoice-table .ready-col-list { width: 51%; }
+    .ready-invoice-table .ready-col-action { width: 14%; }
+
+    .ready-invoice-table th,
+    .ready-invoice-table td {
+        padding: .65rem .5rem;
+        vertical-align: top;
+    }
+
+    .ready-invoice-customer {
+        max-width: 100%;
+        font-size: .82rem;
+        font-weight: 600;
+        line-height: 1.35;
+        text-align: left;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .ready-do-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .35rem .45rem;
+        min-width: 0;
+    }
+
+    .ready-do-number {
+        display: inline-flex;
+        max-width: 100%;
+        padding: .2rem .4rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 4px;
+        background: #f8fafc;
+        color: #374151;
+        font-size: .75rem;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 767.98px) {
+        .table-responsive > .ready-invoice-table {
+            min-width: 0 !important;
+        }
+
+        .ready-invoice-table colgroup,
+        .ready-invoice-table thead {
+            display: none;
+        }
+
+        .ready-invoice-table,
+        .ready-invoice-table tbody,
+        .ready-invoice-table tr,
+        .ready-invoice-table td {
+            display: block;
+            width: 100%;
+        }
+
+        .ready-invoice-table tr {
+            padding: .75rem 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .ready-invoice-table tbody tr:first-child {
+            padding-top: 0;
+        }
+
+        .ready-invoice-table td {
+            padding: .25rem 0;
+            border: 0;
+        }
+
+        .ready-invoice-table td[data-label]::before {
+            content: attr(data-label);
+            display: block;
+            margin-bottom: .2rem;
+            color: #6b7280;
+            font-size: .68rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .ready-invoice-table .btn:not(.btn-link) {
+            width: 100%;
+            min-height: 44px;
+            margin-top: .25rem;
+        }
+    }
+
     @media (max-width: 575.98px) {
         #addInvoiceModal .modal-dialog { margin: .5rem; }
         #addInvoiceModal .modal-body { padding: 1rem; }
@@ -85,20 +191,26 @@
     </form>
 
     @if($tab === 'ready')
-    <div class="card"><div class="card-body">
-        <p class="text-muted">DO yang sudah ditutup tersedia di sini. Pilih customer untuk menambahkan beberapa DO ke draft invoice.</p>
-        <div class="table-responsive"><table class="table table-hover">
+    <div class="card ready-invoice-card"><div class="card-body">
+        <p class="text-muted ready-invoice-intro">DO yang sudah ditutup tersedia di sini. Pilih customer untuk menambahkan beberapa DO ke draft invoice.</p>
+        <div class="table-responsive"><table class="table table-hover mb-0 ready-invoice-table">
+            <colgroup>
+                <col class="ready-col-customer">
+                <col class="ready-col-count">
+                <col class="ready-col-list">
+                <col class="ready-col-action">
+            </colgroup>
             <thead><tr><th>Customer</th><th>DO Siap Invoice</th><th>Daftar DO</th><th>Aksi</th></tr></thead>
             <tbody>
             @forelse($readyDos->groupBy('customer_id') as $readyCustomerId => $customerDos)
                 <tr>
-                    <td><button type="button" class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#addInvoiceModal" data-customer-id="{{ $readyCustomerId }}">{{ $customerDos->first()['customer_name'] }}</button></td>
-                    <td>{{ $customerDos->count() }} DO</td>
-                    <td>@foreach($customerDos as $readyDo)<span class="d-inline-block me-2">{{ $readyDo['do_number'] }}</span>@endforeach</td>
-                    <td><button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addInvoiceModal" data-customer-id="{{ $readyCustomerId }}">Tambah Draft</button></td>
+                    <td><button type="button" class="btn btn-link p-0 ready-invoice-customer" data-bs-toggle="modal" data-bs-target="#addInvoiceModal" data-customer-id="{{ $readyCustomerId }}">{{ $customerDos->first()['customer_name'] }}</button></td>
+                    <td data-label="Jumlah">{{ $customerDos->count() }} DO</td>
+                    <td data-label="Daftar DO"><div class="ready-do-list">@foreach($customerDos as $readyDo)<span class="ready-do-number">{{ $readyDo['do_number'] }}</span>@endforeach</div></td>
+                    <td><button type="button" class="btn btn-sm btn-outline-primary text-nowrap" data-bs-toggle="modal" data-bs-target="#addInvoiceModal" data-customer-id="{{ $readyCustomerId }}">Tambah Draft</button></td>
                 </tr>
             @empty
-                <tr><td colspan="4" class="text-center text-muted">Belum ada DO siap invoice sesuai filter.</td></tr>
+                <tr><td colspan="4" class="text-center text-muted py-3">Belum ada DO siap invoice sesuai filter.</td></tr>
             @endforelse
             </tbody>
         </table></div>

@@ -491,6 +491,31 @@ class InvoiceWorkflowTest extends TestCase
         $this->assertSame('invoiced', $deliveryOrder->fresh()->invoice_status);
     }
 
+    public function test_delivery_order_filter_shows_only_dos_with_unbilled_invoice_components(): void
+    {
+        [$finance, $customer, $readyDo] = $this->makePodReadyOrder();
+        $fullyDraftedDo = $this->makeAdditionalPodReadyOrder($finance, $customer);
+        $partiallyDraftedDo = $this->makeAdditionalPodReadyOrder($finance, $customer);
+
+        $this->actingAs($finance)
+            ->post(route('invoices.store'), $this->invoicePayload($customer, $fullyDraftedDo, 'combined'))
+            ->assertSessionHas('success');
+
+        $partialPayload = $this->invoicePayload($customer, $partiallyDraftedDo, 'separate');
+        $partialPayload['selections'] = [$partiallyDraftedDo->id.':TR'];
+        $this->post(route('invoices.store'), $partialPayload)->assertSessionHas('success');
+
+        $this->get(route('delivery-orders.index', [
+            'status' => 'ready_invoice',
+            'start_date' => '2026-07-01',
+            'end_date' => '2026-07-31',
+        ]))->assertOk()
+            ->assertSee('DO Siap Invoice')
+            ->assertSee($readyDo->do_number)
+            ->assertSee($partiallyDraftedDo->do_number)
+            ->assertDontSee($fullyDraftedDo->do_number);
+    }
+
     public function test_paid_invoice_synchronizes_delivery_order_to_paid(): void
     {
         [$user, $customer, $deliveryOrder] = $this->makePodReadyOrder();

@@ -35,9 +35,14 @@
                     <div class="col-md-3">
                         <select name="status" class="form-select form-select-sm">
                             <option value="all">Semua Tahap</option>
-                            @foreach($flowOptions as $key => $label)
-                            <option value="{{ $key }}" @selected($status == $key)>{{ $label }}</option>
-                            @endforeach
+                            <optgroup label="Penagihan">
+                                <option value="ready_invoice" @selected($status === 'ready_invoice')>DO Siap Invoice</option>
+                            </optgroup>
+                            <optgroup label="Tahap DO">
+                                @foreach($flowOptions as $key => $label)
+                                <option value="{{ $key }}" @selected($status == $key)>{{ $label }}</option>
+                                @endforeach
+                            </optgroup>
                         </select>
                     </div>
                     <div class="col-md-3"><input type="text" name="search" class="form-control form-control-sm" placeholder="Cari DO, customer, armada..." value="{{ $search }}"></div>

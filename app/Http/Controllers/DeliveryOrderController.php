@@ -118,7 +118,13 @@ class DeliveryOrderController extends Controller
         $query = DeliveryOrder::with(['customer', 'vendor', 'salesUser', 'requestOrder.items', 'requestOrder.jobDetails'])
             ->whereBetween('do_date', [$startDate, $endDate]);
 
-        if ($status && $status !== 'all') $query->where('status', $status);
+        if ($status === 'ready_invoice') {
+            $query->whereIn('status', ['closed', 'invoiced'])
+                ->whereIn('invoice_status', ['uninvoiced', 'partial'])
+                ->whereHas('requestOrder', fn ($requestOrder) => $requestOrder->where('do_approved', true));
+        } elseif ($status && $status !== 'all') {
+            $query->where('status', $status);
+        }
         if ($search) {
             $query->where(fn($q) => $q
                 ->where('do_number', 'like', "%$search%")
