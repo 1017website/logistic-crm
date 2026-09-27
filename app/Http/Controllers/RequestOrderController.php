@@ -684,7 +684,17 @@ class RequestOrderController extends Controller
                 $requestOrder, null, 'do_approved', auth()->id(),
                 ($validated['note'] ?? null) ?: 'DO disetujui. Jual ' . number_format($requestOrder->total_revenue) . ' / HPP ' . number_format($requestOrder->total_cost) . '.'
             );
-            $msg = 'DO disetujui & siap diinvoice.';
+            $deliveryOrder = $requestOrder->deliveryOrder()->first();
+            if ($deliveryOrder?->status === 'cost_revision') {
+                $deliveryOrder->transition(
+                    'verifikasi_pod',
+                    'Revisi biaya disetujui ulang. POD menunggu verifikasi dan penutupan ulang.',
+                    auth()->id()
+                );
+                $msg = 'Revisi biaya disetujui. DO menunggu verifikasi ulang POD sebelum kembali ke Siap Invoice.';
+            } else {
+                $msg = 'DO disetujui & siap diinvoice.';
+            }
         } else {
             // Unapprove setelah DO final terbit membuka jalur koreksi harga untuk
             // Finance. Tanpa ini harga yang salah tidak dapat diperbaiki sama

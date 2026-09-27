@@ -396,6 +396,101 @@ class InvoiceWorkflowTest extends TestCase
             ->assertSee('1 DO');
     }
 
+    public function test_finance_can_return_ready_do_for_cost_revision_and_reverification(): void
+    {
+        [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
+        $salesAdmin = User::create([
+            'name' => 'Emir Sales Admin',
+            'email' => 'sales-admin-revision-'.uniqid().'@example.test',
+            'password' => 'password',
+            'role' => 'Sales Admin',
+            'status' => 'Active',
+        ]);
+        $deliveryOrder->update([
+            'actual_cost' => 800000,
+            'other_cost' => 50000,
+            'pod_verified_by' => $salesAdmin->id,
+            'pod_verified_at' => now()->subHour(),
+            'closed_by' => $salesAdmin->id,
+            'closed_at' => now()->subHour(),
+        ]);
+
+        $this->actingAs($finance)
+            ->get(route('delivery-orders.show', $deliveryOrder))
+            ->assertOk()
+            ->assertSee('Kembalikan untuk Revisi Biaya');
+
+        $this->post(route('delivery-orders.cost-revision', $deliveryOrder), [
+            'reason' => 'Tambahan biaya bongkar belum dimasukkan.',
+        ])->assertRedirect(route('request-orders.show', $deliveryOrder->request_order_id))
+            ->assertSessionHas('success');
+
+        $deliveryOrder->refresh();
+        $requestOrder = $deliveryOrder->requestOrder()->firstOrFail();
+        $this->assertSame('cost_revision', $deliveryOrder->status);
+        $this->assertSame('Revisi Biaya oleh Finance', $deliveryOrder->flow_label);
+        $this->assertNotNull($deliveryOrder->pod_at, 'POD harus tetap tersimpan selama revisi biaya.');
+        $this->assertNull($deliveryOrder->pod_verified_at);
+        $this->assertNull($deliveryOrder->closed_at);
+        $this->assertFalse($requestOrder->do_approved);
+        $this->assertTrue($requestOrder->price_correction_open);
+        $this->assertTrue($requestOrder->pricing_editable);
+
+        $this->getJson(route('invoices.available-dos', ['customer_id' => $customer->id]))
+            ->assertOk()
+            ->assertExactJson([]);
+
+        $detail = $requestOrder->jobDetails()->where('job_code', 'NTR')->firstOrFail();
+        $this->put(route('job-details.update', $detail), [
+            'job_name' => $detail->job_name,
+            'job_code' => $detail->job_code,
+            'riil_biaya' => 150000,
+            'riil_jual' => 300000,
+            'status_pembayaran' => 'Tempo',
+        ])->assertSessionHas('success');
+        $this->assertSame('150000', (string) $detail->fresh()->riil_biaya);
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => $salesAdmin->id,
+            'type' => 'request_do_price_correction',
+        ]);
+
+        $this->actingAs($salesAdmin)
+            ->post(route('request-orders.approve-do', $requestOrder), ['action' => 'approve'])
+            ->assertSessionHas('success');
+        $this->assertSame('verifikasi_pod', $deliveryOrder->fresh()->status);
+        $this->assertTrue($requestOrder->fresh()->do_approved);
+        $this->assertFalse($requestOrder->fresh()->price_correction_open);
+
+        $this->post(route('delivery-orders.close', $deliveryOrder), [
+            'actual_cost' => 950000,
+            'other_cost' => 50000,
+            'note' => 'POD dan revisi biaya sudah diverifikasi ulang.',
+        ])->assertSessionHas('success');
+
+        $this->assertSame('closed', $deliveryOrder->fresh()->status);
+        $this->assertSame('Done', $requestOrder->fresh()->status);
+        $this->actingAs($finance)
+            ->getJson(route('invoices.available-dos', ['customer_id' => $customer->id]))
+            ->assertOk()
+            ->assertJsonPath('0.id', $deliveryOrder->id);
+    }
+
+    public function test_do_cannot_be_returned_for_cost_revision_after_entering_draft_invoice(): void
+    {
+        [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
+
+        $this->actingAs($finance)
+            ->post(route('invoices.store'), $this->invoicePayload($customer, $deliveryOrder, 'combined'))
+            ->assertSessionHas('success');
+
+        $this->post(route('delivery-orders.cost-revision', $deliveryOrder), [
+            'reason' => 'Perlu koreksi biaya.',
+        ])->assertSessionHasErrors('general');
+
+        $this->assertSame('closed', $deliveryOrder->fresh()->status);
+        $this->assertSame('invoiced', $deliveryOrder->fresh()->invoice_status);
+    }
+
     public function test_paid_invoice_synchronizes_delivery_order_to_paid(): void
     {
         [$user, $customer, $deliveryOrder] = $this->makePodReadyOrder();

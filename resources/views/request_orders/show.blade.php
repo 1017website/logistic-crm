@@ -18,7 +18,7 @@
 @if($requestOrder->price_correction_open && $requestOrder->request_status === 'assigned')
 <div class="alert alert-warning py-2" style="font-size:13px">
     <i class="fas fa-unlock me-2"></i><b>Koreksi harga dibuka.</b>
-    Finance dapat memperbaiki item layanan &amp; rincian pekerjaan. Setelah selesai, harga perlu di-approve ulang Sales Manager
+    Finance dapat memperbaiki item layanan &amp; rincian pekerjaan. Setelah selesai, harga perlu disetujui ulang oleh Sales Admin atau Sales Manager
     karena DO tidak dapat ditutup selama harga belum disetujui.
 </div>
 @elseif($requestOrder->request_status === 'assigned' && !$requestOrder->do_approved)
@@ -223,7 +223,7 @@
                 <div class="mt-3 pt-2 border-top">
                     <div class="d-flex align-items-center flex-wrap gap-2">
                     @if($requestOrder->do_approved)
-                        <span class="badge bg-success"><i class="fas fa-check me-1"></i> DO Disetujui (siap invoice)</span>
+                        <span class="badge bg-success"><i class="fas fa-check me-1"></i> {{ $requestOrder->deliveryOrder->contains(fn ($deliveryOrder) => in_array($deliveryOrder->status, ['cost_revision', 'verifikasi_pod'], true)) ? 'DO Disetujui (menunggu verifikasi POD)' : 'DO Disetujui (siap invoice)' }}</span>
                         <form method="POST" action="{{ route('request-orders.approve-do', $requestOrder->id) }}" class="d-inline">
                             @csrf <input type="hidden" name="action" value="unapprove">
                             <button class="btn btn-sm btn-link text-danger" style="font-size:11px">Batalkan approval</button>

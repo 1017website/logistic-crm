@@ -336,9 +336,8 @@ class RequestOrder extends Model
     }
 
     /**
-     * Beri tahu Sales Manager ketika harga direvisi lewat jalur koreksi setelah
-     * DO final terbit. Tahap flow tidak diubah — DO tetap berjalan, hanya harga
-     * yang menunggu persetujuan ulang.
+     * Beri tahu pihak approval ketika harga direvisi setelah DO final terbit.
+     * Tahap flow tidak diubah; hanya harga yang menunggu persetujuan ulang.
      */
     public function notifyPriceCorrection(string $changeNote, ?int $userId = null): bool
     {
@@ -349,7 +348,7 @@ class RequestOrder extends Model
         $actorId = $userId ?? auth()->id();
         OrderStatusLog::record($this, null, 'price_correction', $actorId, $changeNote);
 
-        User::where('role', 'Sales Manager')->where('status', 'Active')->each(function (User $manager) {
+        User::whereIn('role', ['Sales Manager', 'Sales Admin'])->where('status', 'Active')->each(function (User $manager) {
             Notification::send(
                 $manager->id,
                 'request_do_price_correction',

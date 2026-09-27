@@ -44,6 +44,7 @@ class DeliveryOrder extends Model
         'in_delivery' => 'Delivery',
         'pod' => 'Menunggu Upload POD',
         'verifikasi_pod' => 'POD Diterima (Menunggu Verifikasi)',
+        'cost_revision' => 'Revisi Biaya oleh Finance',
         'closed' => 'DO Ditutup',
         'invoiced' => 'Invoice Terbit',
         'paid' => 'Lunas',
@@ -67,6 +68,19 @@ class DeliveryOrder extends Model
             && $this->requestOrder?->request_status === 'assigned'
             && $this->requestOrder?->invoice_status === 'uninvoiced'
             && ! $this->pod_file && ! $this->pod_at && ! $this->closed_at
+            && ! InvoiceItem::where(function ($query) {
+                $query->where('delivery_order_id', $this->id)
+                    ->orWhere('request_order_id', $this->request_order_id);
+            })->exists();
+    }
+
+    public function getCanReopenCostRevisionAttribute(): bool
+    {
+        return ! $this->trashed() && $this->status === 'closed'
+            && $this->invoice_status === 'uninvoiced'
+            && (bool) $this->pod_at
+            && $this->requestOrder?->request_status === 'assigned'
+            && $this->requestOrder?->invoice_status === 'uninvoiced'
             && ! InvoiceItem::where(function ($query) {
                 $query->where('delivery_order_id', $this->id)
                     ->orWhere('request_order_id', $this->request_order_id);
@@ -147,6 +161,7 @@ class DeliveryOrder extends Model
             'pickup' => 'primary',
             'in_delivery' => 'warning',
             'pod', 'verifikasi_pod' => 'purple',
+            'cost_revision' => 'warning',
             'closed' => 'indigo',
             'invoiced' => 'warning',
             'paid' => 'success',

@@ -26,6 +26,64 @@ use Illuminate\Validation\ValidationException;
  */
 class DeliveryOrderController extends Controller
 {
+    public function reopenCostRevision(Request $request, DeliveryOrder $deliveryOrder)
+    {
+        $data = $request->validate([
+            'reason' => 'required|string|max:1000',
+        ], [
+            'reason.required' => 'Alasan revisi biaya wajib diisi.',
+        ]);
+
+        $order = DB::transaction(function () use ($deliveryOrder, $data) {
+            $order = \App\Models\RequestOrder::query()
+                ->lockForUpdate()
+                ->findOrFail($deliveryOrder->request_order_id);
+            $do = DeliveryOrder::query()->lockForUpdate()->findOrFail($deliveryOrder->id);
+
+            $hasInvoiceItem = \App\Models\InvoiceItem::query()
+                ->where('delivery_order_id', $do->id)
+                ->orWhere('request_order_id', $order->id)
+                ->exists();
+            if ($do->status !== 'closed'
+                || $do->invoice_status !== 'uninvoiced'
+                || $order->request_status !== 'assigned'
+                || $order->invoice_status !== 'uninvoiced'
+                || ! $do->pod_at
+                || $hasInvoiceItem) {
+                throw ValidationException::withMessages([
+                    'general' => 'DO hanya dapat dikembalikan untuk revisi biaya saat masih berada di DO Siap Invoice dan belum masuk draft invoice.',
+                ]);
+            }
+
+            $note = 'DO dikembalikan untuk revisi biaya oleh '.auth()->user()->name
+                .'. Alasan: '.$data['reason'];
+            $order->update([
+                'do_approved' => false,
+                'price_correction_open' => true,
+                'status' => 'In Progress',
+            ]);
+            \App\Models\OrderStatusLog::record(
+                $order,
+                null,
+                'price_correction_open',
+                auth()->id(),
+                $note
+            );
+            $do->update([
+                'pod_verified_by' => null,
+                'pod_verified_at' => null,
+                'closed_by' => null,
+                'closed_at' => null,
+            ]);
+            $do->transition('cost_revision', $note, auth()->id());
+
+            return $order;
+        }, 3);
+
+        return redirect()->route('request-orders.show', $order)
+            ->with('success', 'DO dibuka untuk revisi biaya. Perbaiki atau tambahkan rincian biaya, lalu ajukan untuk persetujuan ulang.');
+    }
+
     public function returnToRequest(Request $request, DeliveryOrder $deliveryOrder)
     {
         $data = $request->validate(['reason' => 'required|string|max:1000']);

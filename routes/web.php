@@ -200,6 +200,7 @@ Route::middleware(['auth', 'prevent.duplicate'])->group(function () {
     });
     // Finance: invoice & payment (Finance / Admin)
     Route::middleware('role:Admin,Finance')->group(function () {
+        Route::post('/delivery-orders/{deliveryOrder}/cost-revision', [DeliveryOrderController::class, 'reopenCostRevision'])->name('delivery-orders.cost-revision');
         Route::post('/delivery-orders/{deliveryOrder}/invoice', [DeliveryOrderController::class, 'invoice'])->name('delivery-orders.invoice');
         Route::post('/delivery-orders/{deliveryOrder}/pay', [DeliveryOrderController::class, 'pay'])->name('delivery-orders.pay');
     });

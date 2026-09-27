@@ -280,8 +280,22 @@
         </div></div>
         @endif
 
+        @if($do->status === 'cost_revision')
+        <div class="card mb-3 border-warning"><div class="card-body p-3">
+            <h6 style="font-weight:700"><i class="fas fa-tools me-1 text-warning"></i> Revisi Biaya Berjalan</h6>
+            <p class="text-muted mb-2" style="font-size:12px">
+                POD tetap tersimpan. Finance perlu memperbaiki atau menambahkan rincian biaya pada Request DO, kemudian harga harus disetujui ulang sebelum POD ditutup kembali.
+            </p>
+            @if($do->requestOrder)
+            <a href="{{ route('request-orders.show', $do->requestOrder) }}" class="btn btn-warning btn-sm w-100">
+                <i class="fas fa-edit me-1"></i> Buka Pengisian Biaya
+            </a>
+            @endif
+        </div></div>
+        @endif
+
         {{-- FINANCE terpusat di menu Invoice --}}
-        @if($do->pod_at && $u->canAccess('finance'))
+        @if($do->pod_at && $u->canAccess('finance') && $do->status !== 'cost_revision')
         <div class="card mb-3" style="border-color:#d97706"><div class="card-body p-3">
             <h6 style="font-weight:700"><i class="fas fa-file-invoice-dollar me-1" style="color:#d97706"></i> Penagihan</h6>
             <p class="mb-2" style="font-size:12px">
@@ -306,6 +320,19 @@
             <a href="{{ route('invoices.index', ['tab' => 'ready', 'customer_id' => $do->customer_id]) }}" class="btn btn-warning btn-sm w-100">
                 <i class="fas fa-receipt me-1"></i> Buka Menu Invoice
             </a>
+            @if($do->can_reopen_cost_revision)
+            <button type="button" class="btn btn-sm btn-outline-warning w-100 mt-2" data-bs-toggle="collapse" data-bs-target="#costRevisionForm" aria-expanded="false" aria-controls="costRevisionForm">
+                <i class="fas fa-undo me-1"></i> Kembalikan untuk Revisi Biaya
+            </button>
+            <div class="collapse mt-2" id="costRevisionForm">
+                <form method="POST" action="{{ route('delivery-orders.cost-revision', $do) }}" class="border rounded p-2 bg-light" onsubmit="return confirm('Kembalikan DO ini untuk revisi biaya? DO akan keluar dari daftar Siap Invoice sampai disetujui dan diverifikasi ulang.')">
+                    @csrf
+                    <label for="costRevisionReason" class="form-label mb-1" style="font-size:12px;font-weight:700">Alasan revisi biaya <span class="text-danger">*</span></label>
+                    <textarea id="costRevisionReason" name="reason" class="form-control form-control-sm mb-2" rows="2" maxlength="1000" required placeholder="Jelaskan biaya yang perlu ditambah atau diperbaiki">{{ old('reason') }}</textarea>
+                    <button class="btn btn-warning btn-sm w-100"><i class="fas fa-check me-1"></i> Lanjutkan Revisi Biaya</button>
+                </form>
+            </div>
+            @endif
         </div></div>
         @endif
 
