@@ -51,6 +51,45 @@
         min-width: 88px;
     }
 
+    .invoice-items-table {
+        width: 100%;
+        min-width: 0 !important;
+        table-layout: fixed;
+    }
+
+    .invoice-items-table .invoice-col-do { width: 13%; }
+    .invoice-items-table .invoice-col-name { width: 15%; }
+    .invoice-items-table .invoice-col-description { width: 20%; }
+    .invoice-items-table .invoice-col-truck { width: 17%; }
+    .invoice-items-table .invoice-col-qty { width: 8%; }
+    .invoice-items-table .invoice-col-price,
+    .invoice-items-table .invoice-col-total { width: 13.5%; }
+
+    .invoice-items-table.invoice-items-table-editable .invoice-col-do { width: 11%; }
+    .invoice-items-table.invoice-items-table-editable .invoice-col-name { width: 13%; }
+    .invoice-items-table.invoice-items-table-editable .invoice-col-description { width: 18%; }
+    .invoice-items-table.invoice-items-table-editable .invoice-col-truck { width: 15%; }
+    .invoice-items-table.invoice-items-table-editable .invoice-col-qty { width: 7%; }
+    .invoice-items-table.invoice-items-table-editable .invoice-col-price,
+    .invoice-items-table.invoice-items-table-editable .invoice-col-total { width: 13%; }
+    .invoice-items-table .invoice-col-actions { width: 10%; }
+
+    .invoice-items-table th,
+    .invoice-items-table td {
+        vertical-align: middle;
+        overflow-wrap: anywhere;
+    }
+
+    .invoice-items-table .form-control {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .invoice-items-table .invoice-number-cell,
+    .invoice-items-table .invoice-actions-cell {
+        white-space: nowrap;
+    }
+
     @media (max-width: 767.98px) {
         .invoice-detail-heading,
         .invoice-detail-actions,
@@ -76,6 +115,10 @@
         .invoice-file-actions .btn {
             flex: 1 1 0;
             min-height: 44px;
+        }
+
+        .invoice-items-table {
+            min-width: 760px !important;
         }
     }
 
@@ -147,19 +190,29 @@
 
         <div class="card"><div class="card-body p-3">
             <h6 style="font-weight:700;font-size:13px;text-transform:uppercase;color:#6b7280">DO dalam Invoice</h6>
-            <div class="table-responsive"><table class="table table-sm mb-0" style="font-size:12px">
+            <div class="table-responsive"><table class="table table-sm mb-0 invoice-items-table {{ $canEditInvoice ? 'invoice-items-table-editable' : '' }}" style="font-size:12px">
+                <colgroup>
+                    <col class="invoice-col-do">
+                    <col class="invoice-col-name">
+                    <col class="invoice-col-description">
+                    <col class="invoice-col-truck">
+                    <col class="invoice-col-qty">
+                    <col class="invoice-col-price">
+                    <col class="invoice-col-total">
+                    @if($canEditInvoice)<col class="invoice-col-actions">@endif
+                </colgroup>
                 <thead><tr><th>No DO</th><th>Nama</th><th>Uraian</th><th>Jenis Truck</th><th class="text-end">Qty</th><th class="text-end">Harga</th><th class="text-end">Jumlah</th>@if($canEditInvoice)<th></th>@endif</tr></thead>
                 <tbody>
                     @foreach($invoice->items as $it)
                     <tr>
-                        <td>{{ $it->deliveryOrder?->do_number ?? $it->requestOrder?->do_number ?? '-' }}</td>
+                        <td class="invoice-number-cell">{{ $it->deliveryOrder?->do_number ?? $it->requestOrder?->do_number ?? '-' }}</td>
                         <td>@if($canEditInvoice)<input form="item-form-{{ $it->id }}" name="item_name" class="form-control form-control-sm" value="{{ $it->item_name }}" required>@else <span class="badge {{ $it->item_type === 'TR' ? 'bg-primary' : 'bg-secondary' }}">{{ $it->item_type }}</span> {{ $it->item_name }} @endif</td>
                         <td>@if($canEditInvoice)<input form="item-form-{{ $it->id }}" name="description" class="form-control form-control-sm" value="{{ $it->description }}">@else{{ $it->description }}@endif</td>
                         <td>@if($canEditInvoice)<input form="item-form-{{ $it->id }}" name="truck_type" class="form-control form-control-sm" value="{{ $it->truck_type ?: $it->requestOrder?->jenis_truck }}">@else{{ $it->truck_type ?: $it->requestOrder?->jenis_truck ?: '-' }}@endif</td>
                         <td class="text-end">@if($canEditInvoice)<input form="item-form-{{ $it->id }}" type="number" step="0.001" min="0.001" name="quantity" class="form-control form-control-sm text-end" value="{{ (float)($it->quantity ?: 1) }}" required>@else{{ (float)($it->quantity ?: 1) }}@endif</td>
                         <td class="text-end">@if($canEditInvoice)<input form="item-form-{{ $it->id }}" type="number" min="0" name="unit_price" class="form-control form-control-sm text-end" value="{{ (float)($it->unit_price ?: $it->jual) }}" required>@else{{ idr($it->unit_price ?: $it->jual) }}@endif</td>
                         <td class="text-end">{{ idr($it->jual) }}</td>
-                        @if($canEditInvoice)<td class="text-nowrap">
+                        @if($canEditInvoice)<td class="text-nowrap invoice-actions-cell">
                             <form id="item-form-{{ $it->id }}" method="POST" action="{{ route('invoices.items.update', [$invoice, $it]) }}" class="d-inline">@csrf @method('PUT')<button class="btn btn-sm btn-outline-primary" title="Simpan perubahan"><i class="fas fa-save"></i></button></form>
                             @if($canRemoveDraftItem)
                             <form method="POST" action="{{ route('invoices.items.destroy', [$invoice, $it]) }}" class="d-inline" onsubmit="return confirm('Keluarkan DO ini dari draft? DO akan tersedia untuk dipilih kembali.')">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger" title="Keluarkan DO dari draft"><i class="fas fa-times"></i></button></form>
