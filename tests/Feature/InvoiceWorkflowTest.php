@@ -864,13 +864,29 @@ class InvoiceWorkflowTest extends TestCase
     public function test_invoice_can_be_downloaded_as_pdf_and_excel_with_detail_columns(): void
     {
         [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
+        $deliveryOrder->requestOrder()->update([
+            'keterangan' => 'Pengiriman kontainer Surabaya ke Jakarta',
+        ]);
         $this->actingAs($finance)->post(route('invoices.store'), $this->invoicePayload($customer, $deliveryOrder, 'separate'));
         $invoice = Invoice::where('customer_id', $customer->id)->where('jenis', 'TR')->sole();
 
         $this->actingAs($finance)->get(route('invoices.pdf', $invoice))
             ->assertOk()->assertHeader('content-type', 'application/pdf');
-        $this->actingAs($finance)->get(route('invoices.excel', $invoice))
+        $response = $this->actingAs($finance)->get(route('invoices.excel', $invoice))
             ->assertOk()->assertDownload();
+
+        $path = tempnam(sys_get_temp_dir(), 'invoice-detail-export-');
+        try {
+            file_put_contents($path, $response->streamedContent());
+            $sheet = IOFactory::load($path)->getActiveSheet();
+            $this->assertSame('Deskripsi Pekerjaan', $sheet->getCell('F1')->getValue());
+            $this->assertSame('Pengiriman kontainer Surabaya ke Jakarta', $sheet->getCell('F2')->getValue());
+            $this->assertSame('Jenis Truck', $sheet->getCell('G1')->getValue());
+            $this->assertSame('Jumlah', $sheet->getCell('J1')->getValue());
+        } finally {
+            @unlink($path);
+        }
+
         $this->actingAs($finance)->get(route('invoices.export-pdf', ['customer_id' => $customer->id, 'status' => 'draft']))
             ->assertOk()->assertHeader('content-type', 'application/pdf');
     }

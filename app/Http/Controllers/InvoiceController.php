@@ -878,7 +878,10 @@ class InvoiceController extends Controller
     public function exportInvoice(Invoice $invoice)
     {
         $invoice->load(['customer', 'items.deliveryOrder', 'items.requestOrder']);
-        $headers = ['No Invoice', 'Customer', 'No DO', 'Nama', 'Uraian', 'Jenis Truck', 'Qty', 'Harga', 'Jumlah'];
+        $headers = [
+            'No Invoice', 'Customer', 'No DO', 'Nama', 'Uraian', 'Deskripsi Pekerjaan',
+            'Jenis Truck', 'Qty', 'Harga', 'Jumlah',
+        ];
         $rows = $invoice->items->isNotEmpty()
             ? $invoice->items->map(fn (InvoiceItem $item) => [
                 $invoice->invoice_number,
@@ -886,6 +889,9 @@ class InvoiceController extends Controller
                 $item->deliveryOrder?->do_number ?? $item->requestOrder?->do_number ?? '-',
                 $item->item_name,
                 $item->description,
+                $item->requestOrder?->keterangan
+                    ?: $item->requestOrder?->notes
+                    ?: $item->description,
                 $item->truck_type,
                 (float) $item->quantity,
                 (float) $item->unit_price,
@@ -895,6 +901,7 @@ class InvoiceController extends Controller
                 $invoice->invoice_number,
                 $invoice->customer?->company_name ?? '-',
                 '-', $invoice->jenis_label ?: 'Invoice',
+                $invoice->notes ?: 'Ringkasan invoice (rincian DO tidak tersedia)',
                 $invoice->notes ?: 'Ringkasan invoice (rincian DO tidak tersedia)',
                 '-', 1, (float) $invoice->total_jual, (float) $invoice->total_jual,
             ]];
