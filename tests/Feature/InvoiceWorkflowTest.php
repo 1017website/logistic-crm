@@ -887,6 +887,22 @@ class InvoiceWorkflowTest extends TestCase
             @unlink($path);
         }
 
+        $response = $this->actingAs($finance)->get(route('invoices.export', [
+            'status' => 'draft',
+            'customer_id' => $customer->id,
+        ]))->assertOk()->assertDownload();
+
+        $path = tempnam(sys_get_temp_dir(), 'invoice-recap-export-');
+        try {
+            file_put_contents($path, $response->streamedContent());
+            $sheet = IOFactory::load($path)->getActiveSheet();
+            $this->assertSame('Deskripsi Pekerjaan', $sheet->getCell('K1')->getValue());
+            $this->assertSame('Pengiriman kontainer Surabaya ke Jakarta', $sheet->getCell('K2')->getValue());
+            $this->assertSame('Jenis Truck', $sheet->getCell('L1')->getValue());
+        } finally {
+            @unlink($path);
+        }
+
         $this->actingAs($finance)->get(route('invoices.export-pdf', ['customer_id' => $customer->id, 'status' => 'draft']))
             ->assertOk()->assertHeader('content-type', 'application/pdf');
     }
@@ -918,7 +934,8 @@ class InvoiceWorkflowTest extends TestCase
             $sheet = IOFactory::load($path)->getActiveSheet();
             $this->assertSame($invoice->invoice_id, $sheet->getCell('A2')->getValue());
             $this->assertSame('LEGACY/EXPORT/VIII/2026', $sheet->getCell('B2')->getValue());
-            $this->assertSame(1000000.0, $sheet->getCell('N2')->getValue());
+            $this->assertSame('Deskripsi Pekerjaan', $sheet->getCell('K1')->getValue());
+            $this->assertSame(1000000.0, $sheet->getCell('O2')->getValue());
         } finally {
             @unlink($path);
         }

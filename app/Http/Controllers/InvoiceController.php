@@ -889,9 +889,7 @@ class InvoiceController extends Controller
                 $item->deliveryOrder?->do_number ?? $item->requestOrder?->do_number ?? '-',
                 $item->item_name,
                 $item->description,
-                $item->requestOrder?->keterangan
-                    ?: $item->requestOrder?->notes
-                    ?: $item->description,
+                $this->invoiceItemJobDescription($item),
                 $item->truck_type,
                 (float) $item->quantity,
                 (float) $item->unit_price,
@@ -936,7 +934,7 @@ class InvoiceController extends Controller
 
         $headers = [
             'Invoice ID', 'No Invoice', 'Customer', 'Status', 'Periode Invoice', 'Tgl Buat', 'Tgl Submit', 'No DO',
-            'Nama', 'Uraian', 'Jenis Truck', 'Qty', 'Harga', 'Jumlah', 'PPN Invoice',
+            'Nama', 'Uraian', 'Deskripsi Pekerjaan', 'Jenis Truck', 'Qty', 'Harga', 'Jumlah', 'PPN Invoice',
             'Grand Total Invoice', 'Total Terbayar', 'Sisa Tagihan',
         ];
         $rows = $query->orderByDesc('tgl_buat')->get()->flatMap(function (Invoice $inv) {
@@ -951,6 +949,7 @@ class InvoiceController extends Controller
                     $inv->submitted_at?->format('Y-m-d H:i:s'),
                     '-',
                     $inv->jenis_label ?: 'Invoice',
+                    $inv->notes ?: 'Ringkasan invoice (rincian DO tidak tersedia)',
                     $inv->notes ?: 'Ringkasan invoice (rincian DO tidak tersedia)',
                     '-', 1, (float) $inv->total_jual, (float) $inv->total_jual,
                     (float) $inv->ppn_nominal,
@@ -971,6 +970,7 @@ class InvoiceController extends Controller
                 $item->deliveryOrder?->do_number ?? $item->requestOrder?->do_number ?? '-',
                 $item->item_name,
                 $item->description,
+                $this->invoiceItemJobDescription($item),
                 $item->truck_type,
                 (float) $item->quantity,
                 (float) $item->unit_price,
@@ -988,6 +988,14 @@ class InvoiceController extends Controller
             $rows,
             'Invoices'
         );
+    }
+
+    private function invoiceItemJobDescription(InvoiceItem $item): string
+    {
+        return $item->requestOrder?->keterangan
+            ?: $item->requestOrder?->notes
+            ?: $item->description
+            ?: '-';
     }
 
     public function exportPdf(Request $request)
