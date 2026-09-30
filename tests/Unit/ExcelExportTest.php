@@ -67,4 +67,39 @@ class ExcelExportTest extends TestCase
             unlink($path);
         }
     }
+
+    public function test_download_applies_requested_vertical_merges(): void
+    {
+        $response = ExcelExport::download(
+            'merged-rows',
+            ['Request DO', 'Service'],
+            [['RDO-001', 'Trucking'], ['RDO-001', 'Bongkar']],
+            'Request DO',
+            ['A2:A3']
+        );
+
+        ob_start();
+        try {
+            $response->sendContent();
+            $content = ob_get_contents();
+        } finally {
+            ob_end_clean();
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'excel-merge-');
+        $spreadsheet = null;
+        try {
+            file_put_contents($path, $content);
+            $spreadsheet = IOFactory::load($path);
+            $sheet = $spreadsheet->getActiveSheet();
+
+            $this->assertContains('A2:A3', array_values($sheet->getMergeCells()));
+            $this->assertSame('RDO-001', $sheet->getCell('A2')->getValue());
+            $this->assertSame('Trucking', $sheet->getCell('B2')->getValue());
+            $this->assertSame('Bongkar', $sheet->getCell('B3')->getValue());
+        } finally {
+            $spreadsheet?->disconnectWorksheets();
+            unlink($path);
+        }
+    }
 }

@@ -42,7 +42,7 @@ class RequestOrderExportTest extends TestCase
         $this->assertSame('2026-09-02', $rows[1][33]);
     }
 
-    public function test_export_combines_services_into_one_row_per_request(): void
+    public function test_export_keeps_service_rows_and_merges_shared_request_data(): void
     {
         [$user, $customer] = $this->makeCustomer();
         $withoutItems = $this->makeOrder($user, $customer, ['order_date' => '2026-09-01']);
@@ -58,16 +58,20 @@ class RequestOrderExportTest extends TestCase
             ]);
         }
 
-        $rows = $this->exportRows($user, $customer);
+        $export = $this->exportData($user, $customer);
+        $rows = $export['rows'];
 
-        $this->assertCount(3, $rows);
-        $this->assertSame([$withItems->do_number, $withoutItems->do_number], array_column(array_slice($rows, 1), 0));
-        $this->assertSame('Trucking | Bongkar', $rows[1][22]);
-        $this->assertSame('rit | rit', $rows[1][23]);
-        $this->assertSame('2 | 2', $rows[1][25]);
-        $this->assertSame(600000.0, $rows[1][28]);
-        $this->assertSame(400000.0, $rows[1][29]);
-        $this->assertSame(200000.0, $rows[1][30]);
+        $this->assertCount(4, $rows);
+        $this->assertSame([$withItems->do_number, null, $withoutItems->do_number], array_column(array_slice($rows, 1), 0));
+        $this->assertSame('Trucking', $rows[1][22]);
+        $this->assertSame('Bongkar', $rows[2][22]);
+        $this->assertSame(300000.0, $rows[1][28]);
+        $this->assertSame(300000.0, $rows[2][28]);
+        $this->assertContains('A2:A3', $export['merges']);
+        $this->assertContains('V2:V3', $export['merges']);
+        $this->assertContains('AF2:AF3', $export['merges']);
+        $this->assertContains('AI2:AI3', $export['merges']);
+        $this->assertNotContains('W2:W3', $export['merges']);
     }
 
     public function test_export_maps_locations_tracking_and_sector(): void
@@ -127,6 +131,11 @@ class RequestOrderExportTest extends TestCase
     }
     private function exportRows(User $user, Customer $customer, array $filters = []): array
     {
+        return $this->exportData($user, $customer, $filters)['rows'];
+    }
+
+    private function exportData(User $user, Customer $customer, array $filters = []): array
+    {
         $response = $this->actingAs($user)->get(route('request-orders.export', array_merge([
             'start_date' => '2026-09-01',
             'end_date' => '2026-09-30',
@@ -139,7 +148,12 @@ class RequestOrderExportTest extends TestCase
             file_put_contents($path, $response->streamedContent());
             $spreadsheet = IOFactory::load($path);
 
-            return $spreadsheet->getActiveSheet()->toArray(formatData: false);
+            $sheet = $spreadsheet->getActiveSheet();
+
+            return [
+                'rows' => $sheet->toArray(formatData: false),
+                'merges' => array_values($sheet->getMergeCells()),
+            ];
         } finally {
             $spreadsheet?->disconnectWorksheets();
             unlink($path);

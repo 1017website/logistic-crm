@@ -19,8 +19,15 @@ class ExcelExport
      * @param array  $headers   Header kolom
      * @param array  $rows      Data rows (array of arrays)
      * @param string $sheetName Nama sheet
+     * @param array  $mergeRanges Rentang sel yang perlu digabungkan
      */
-    public static function download(string $filename, array $headers, array $rows, string $sheetName = 'Data'): StreamedResponse
+    public static function download(
+        string $filename,
+        array $headers,
+        array $rows,
+        string $sheetName = 'Data',
+        array $mergeRanges = []
+    ): StreamedResponse
     {
         $spreadsheet = new Spreadsheet();
         $sheet       = $spreadsheet->getActiveSheet();
@@ -61,6 +68,11 @@ class ExcelExport
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
             ]);
             $rowNum++;
+        }
+
+        foreach ($mergeRanges as $range) {
+            $sheet->mergeCells($range);
+            $sheet->getStyle($range)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
         }
 
         // Auto-size columns
