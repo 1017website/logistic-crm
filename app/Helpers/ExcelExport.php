@@ -72,7 +72,15 @@ class ExcelExport
 
         foreach ($mergeRanges as $range) {
             $sheet->mergeCells($range);
-            $sheet->getStyle($range)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+            $sheet->getStyle($range)->applyFromArray([
+                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER],
+                'borders' => [
+                    'outline' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['rgb' => '9CA3AF'],
+                    ],
+                ],
+            ]);
         }
 
         // Auto-size columns

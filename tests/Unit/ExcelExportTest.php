@@ -97,6 +97,9 @@ class ExcelExportTest extends TestCase
             $this->assertSame('RDO-001', $sheet->getCell('A2')->getValue());
             $this->assertSame('Trucking', $sheet->getCell('B2')->getValue());
             $this->assertSame('Bongkar', $sheet->getCell('B3')->getValue());
+            $this->assertSame(Border::BORDER_THIN, $sheet->getStyle('A2')->getBorders()->getTop()->getBorderStyle());
+            $this->assertSame(Border::BORDER_THIN, $sheet->getStyle('A3')->getBorders()->getBottom()->getBorderStyle());
+            $this->assertSame('9CA3AF', $sheet->getStyle('A2')->getBorders()->getLeft()->getColor()->getRGB());
         } finally {
             $spreadsheet?->disconnectWorksheets();
             unlink($path);
