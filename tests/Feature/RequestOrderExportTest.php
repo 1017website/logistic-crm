@@ -42,7 +42,7 @@ class RequestOrderExportTest extends TestCase
         $this->assertSame('2026-09-02', $rows[1][33]);
     }
 
-    public function test_export_restores_service_rows_and_keeps_requests_without_items(): void
+    public function test_export_combines_services_into_one_row_per_request(): void
     {
         [$user, $customer] = $this->makeCustomer();
         $withoutItems = $this->makeOrder($user, $customer, ['order_date' => '2026-09-01']);
@@ -60,8 +60,14 @@ class RequestOrderExportTest extends TestCase
 
         $rows = $this->exportRows($user, $customer);
 
-        $this->assertCount(4, $rows);
-        $this->assertSame([$withItems->do_number, $withItems->do_number, $withoutItems->do_number], array_column(array_slice($rows, 1), 0));
+        $this->assertCount(3, $rows);
+        $this->assertSame([$withItems->do_number, $withoutItems->do_number], array_column(array_slice($rows, 1), 0));
+        $this->assertSame('Trucking | Bongkar', $rows[1][22]);
+        $this->assertSame('rit | rit', $rows[1][23]);
+        $this->assertSame('2 | 2', $rows[1][25]);
+        $this->assertSame(600000.0, $rows[1][28]);
+        $this->assertSame(400000.0, $rows[1][29]);
+        $this->assertSame(200000.0, $rows[1][30]);
     }
 
     public function test_export_maps_locations_tracking_and_sector(): void

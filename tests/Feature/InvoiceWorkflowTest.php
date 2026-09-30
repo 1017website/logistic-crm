@@ -864,9 +864,6 @@ class InvoiceWorkflowTest extends TestCase
     public function test_invoice_can_be_downloaded_as_pdf_and_excel_with_detail_columns(): void
     {
         [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
-        $deliveryOrder->requestOrder()->update([
-            'keterangan' => 'Pengiriman kontainer Surabaya ke Jakarta',
-        ]);
         $this->actingAs($finance)->post(route('invoices.store'), $this->invoicePayload($customer, $deliveryOrder, 'separate'));
         $invoice = Invoice::where('customer_id', $customer->id)->where('jenis', 'TR')->sole();
 
@@ -879,10 +876,10 @@ class InvoiceWorkflowTest extends TestCase
         try {
             file_put_contents($path, $response->streamedContent());
             $sheet = IOFactory::load($path)->getActiveSheet();
-            $this->assertSame('Deskripsi Pekerjaan', $sheet->getCell('F1')->getValue());
-            $this->assertSame('Pengiriman kontainer Surabaya ke Jakarta', $sheet->getCell('F2')->getValue());
-            $this->assertSame('Jenis Truck', $sheet->getCell('G1')->getValue());
-            $this->assertSame('Jumlah', $sheet->getCell('J1')->getValue());
+            $this->assertSame('Deskripsi Pekerjaan', $sheet->getCell('E1')->getValue());
+            $this->assertSame('Trucking', $sheet->getCell('E2')->getValue());
+            $this->assertSame('Jenis Truck', $sheet->getCell('F1')->getValue());
+            $this->assertSame('Jumlah', $sheet->getCell('I1')->getValue());
         } finally {
             @unlink($path);
         }
@@ -896,9 +893,9 @@ class InvoiceWorkflowTest extends TestCase
         try {
             file_put_contents($path, $response->streamedContent());
             $sheet = IOFactory::load($path)->getActiveSheet();
-            $this->assertSame('Deskripsi Pekerjaan', $sheet->getCell('K1')->getValue());
-            $this->assertSame('Pengiriman kontainer Surabaya ke Jakarta', $sheet->getCell('K2')->getValue());
-            $this->assertSame('Jenis Truck', $sheet->getCell('L1')->getValue());
+            $this->assertSame('Deskripsi Pekerjaan', $sheet->getCell('J1')->getValue());
+            $this->assertSame('Trucking', $sheet->getCell('J2')->getValue());
+            $this->assertSame('Jenis Truck', $sheet->getCell('K1')->getValue());
         } finally {
             @unlink($path);
         }
@@ -934,8 +931,8 @@ class InvoiceWorkflowTest extends TestCase
             $sheet = IOFactory::load($path)->getActiveSheet();
             $this->assertSame($invoice->invoice_id, $sheet->getCell('A2')->getValue());
             $this->assertSame('LEGACY/EXPORT/VIII/2026', $sheet->getCell('B2')->getValue());
-            $this->assertSame('Deskripsi Pekerjaan', $sheet->getCell('K1')->getValue());
-            $this->assertSame(1000000.0, $sheet->getCell('O2')->getValue());
+            $this->assertSame('Deskripsi Pekerjaan', $sheet->getCell('J1')->getValue());
+            $this->assertSame(1000000.0, $sheet->getCell('N2')->getValue());
         } finally {
             @unlink($path);
         }

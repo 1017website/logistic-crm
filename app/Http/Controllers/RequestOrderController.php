@@ -829,38 +829,46 @@ class RequestOrderController extends Controller
 
         $rows = [];
         foreach ($sos as $so) {
-            // Request tanpa item layanan tetap diekspor sebagai satu baris.
-            $items = $so->items->isNotEmpty() ? $so->items : [null];
-            foreach ($items as $item) {
-                $rows[] = [
-                    $so->do_number,
-                    $so->customer?->company_name ?? '-',
-                    $so->flow_label,
-                    $so->operational_status_label,
-                    $so->operational_note,
-                    $so->cancel_reason,
-                    $so->rescheduled_for?->format('Y-m-d'),
-                    $so->dp_request_active ? 'Aktif' : 'Nonaktif',
-                    $so->dp_status_label,
-                    (float) $so->dp_amount,
-                    $so->dp_note,
-                    $so->dp_reviewed_at?->format('Y-m-d H:i:s'),
-                    $so->delivery_type, $so->muat ?: $so->origin, $so->bongkar ?: $so->destination,
-                    $so->no_container, $so->no_seal, $so->no_pol, $so->supir, $so->vendor?->vendor_name,
-                    $so->tracking_number, $so->sektor,
-                    $item?->service_name, $item?->unit,
-                    $item?->tonnage !== null ? (float) $item->tonnage : null,
-                    $item ? (float) $item->qty : null,
-                    $item ? (float) $item->buy_price : null,
-                    $item ? (float) $item->sell_price : null,
-                    $item ? (float) $item->subtotal_revenue : null,
-                    $item ? (float) $item->subtotal_cost : null,
-                    $item ? (float) $item->gross_profit : null,
-                    $so->currency, $so->status,
-                    $so->order_date?->format('Y-m-d'),
-                    $so->estimated_arrival?->format('Y-m-d'),
-                ];
-            }
+            $items = $so->items;
+            $itemValues = function (callable $value) use ($items) {
+                if ($items->isEmpty()) {
+                    return null;
+                }
+
+                $values = $items->map($value);
+
+                return $values->count() === 1 ? $values->first() : $values->implode(' | ');
+            };
+
+            $rows[] = [
+                $so->do_number,
+                $so->customer?->company_name ?? '-',
+                $so->flow_label,
+                $so->operational_status_label,
+                $so->operational_note,
+                $so->cancel_reason,
+                $so->rescheduled_for?->format('Y-m-d'),
+                $so->dp_request_active ? 'Aktif' : 'Nonaktif',
+                $so->dp_status_label,
+                (float) $so->dp_amount,
+                $so->dp_note,
+                $so->dp_reviewed_at?->format('Y-m-d H:i:s'),
+                $so->delivery_type, $so->muat ?: $so->origin, $so->bongkar ?: $so->destination,
+                $so->no_container, $so->no_seal, $so->no_pol, $so->supir, $so->vendor?->vendor_name,
+                $so->tracking_number, $so->sektor,
+                $itemValues(fn ($item) => $item->service_name),
+                $itemValues(fn ($item) => $item->unit),
+                $itemValues(fn ($item) => $item->tonnage !== null ? (float) $item->tonnage : ''),
+                $itemValues(fn ($item) => (float) $item->qty),
+                $itemValues(fn ($item) => (float) $item->buy_price),
+                $itemValues(fn ($item) => (float) $item->sell_price),
+                $items->isNotEmpty() ? (float) $items->sum(fn ($item) => $item->subtotal_revenue) : null,
+                $items->isNotEmpty() ? (float) $items->sum(fn ($item) => $item->subtotal_cost) : null,
+                $items->isNotEmpty() ? (float) $items->sum(fn ($item) => $item->gross_profit) : null,
+                $so->currency, $so->status,
+                $so->order_date?->format('Y-m-d'),
+                $so->estimated_arrival?->format('Y-m-d'),
+            ];
         }
 
         return \App\Helpers\ExcelExport::download(
