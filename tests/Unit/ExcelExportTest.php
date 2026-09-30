@@ -100,6 +100,9 @@ class ExcelExportTest extends TestCase
             $this->assertSame(Border::BORDER_THIN, $sheet->getStyle('A2')->getBorders()->getTop()->getBorderStyle());
             $this->assertSame(Border::BORDER_THIN, $sheet->getStyle('A3')->getBorders()->getBottom()->getBorderStyle());
             $this->assertSame('9CA3AF', $sheet->getStyle('A2')->getBorders()->getLeft()->getColor()->getRGB());
+            $this->assertSame(Border::BORDER_THIN, $sheet->getStyle('B2')->getBorders()->getRight()->getBorderStyle());
+            $this->assertSame(Border::BORDER_THIN, $sheet->getStyle('B3')->getBorders()->getBottom()->getBorderStyle());
+            $this->assertSame('9CA3AF', $sheet->getStyle('B2')->getBorders()->getRight()->getColor()->getRGB());
         } finally {
             $spreadsheet?->disconnectWorksheets();
             unlink($path);

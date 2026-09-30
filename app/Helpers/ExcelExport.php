@@ -65,7 +65,12 @@ class ExcelExport
                 ]);
             }
             $sheet->getStyle("A{$rowNum}:{$lastCol}{$rowNum}")->applyFromArray([
-                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['rgb' => '9CA3AF'],
+                    ],
+                ],
             ]);
             $rowNum++;
         }
