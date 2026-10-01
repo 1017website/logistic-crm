@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\DeliveryOrder;
 use App\Models\RequestOrder;
 use App\Models\User;
 use App\Models\Vendor;
@@ -35,7 +36,7 @@ class RequestOrderExportTest extends TestCase
         $rows = $this->exportRows($user, $customer, ['tab' => $tab, 'page' => 2]);
 
         $this->assertCount(2, $rows);
-        $this->assertSame(['Request DO', 'Customer', 'Flow', 'Status Operasional', 'Keterangan Status', 'Alasan Batal', 'Jadwal Reschedule', 'Request DP', 'Status DP', 'Nominal DP', 'Catatan DP', 'Direview Finance', 'Delivery Type', 'Lokasi Muat', 'Lokasi Bongkar', 'No Cont', 'No Seal', 'No Pol', 'Driver', 'Vendor', 'Tracking', 'Kode Sektor', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA'], $rows[0]);
+        $this->assertSame(['Request DO', 'Customer', 'Flow', 'Status Operasional', 'Keterangan Status', 'Alasan Batal', 'Jadwal Reschedule', 'Request DP', 'Status DP', 'Nominal DP', 'Catatan DP', 'Direview Finance', 'Delivery Type', 'Lokasi Muat', 'Lokasi Bongkar', 'No Cont', 'No Seal', 'No Pol', 'Driver', 'Vendor', 'Tracking', 'Kode Sektor', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA', 'Jenis Truck'], $rows[0]);
         $this->assertSame($order->do_number, $rows[1][0]);
         $this->assertSame($customer->company_name, $rows[1][1]);
         $this->assertSame(array_fill(0, 9, null), array_slice($rows[1], 22, 9));
@@ -71,6 +72,7 @@ class RequestOrderExportTest extends TestCase
         $this->assertContains('V2:V3', $export['merges']);
         $this->assertContains('AF2:AF3', $export['merges']);
         $this->assertContains('AI2:AI3', $export['merges']);
+        $this->assertContains('AJ2:AJ3', $export['merges']);
         $this->assertNotContains('W2:W3', $export['merges']);
     }
 
@@ -84,6 +86,7 @@ class RequestOrderExportTest extends TestCase
             'tracking_number' => 'TRACK-001',
             'sektor' => '0017',
             'kode_sektor' => 'LEGACY',
+            'jenis_truck' => "Trailer 20'",
         ]);
 
         $rows = $this->exportRows($user, $customer);
@@ -91,6 +94,7 @@ class RequestOrderExportTest extends TestCase
         $this->assertSame([
             'Trucking Trailer', 'Gudang Muat', 'Gudang Bongkar', null, null, null, null, null, 'TRACK-001', '0017',
         ], array_slice($rows[1], 12, 10));
+        $this->assertSame("Trailer 20'", $rows[1][35]);
     }
 
     public function test_export_uses_legacy_locations_when_operational_locations_are_empty(): void
@@ -129,6 +133,88 @@ class RequestOrderExportTest extends TestCase
             'Driver Export', 'Vendor Export', 'TRACK-001',
         ], array_slice($rows[1], 14, 7));
     }
+    public function test_final_do_export_includes_order_and_operational_details(): void
+    {
+        [$user, $customer] = $this->makeCustomer();
+        $vendor = Vendor::create([
+            'vendor_code' => uniqid('V-EXPORT-'), 'vendor_name' => 'Vendor Export',
+            'pic_name' => 'PIC', 'phone' => '0800000000', 'vendor_type' => 'External',
+        ]);
+        $order = $this->makeOrder($user, $customer, [
+            'muat' => 'Terminal Surabaya', 'bongkar' => 'SASL & SONS INDONESIA',
+            'no_container' => 'SPNU4644167', 'no_seal' => '001234',
+            'jenis_truck' => "Trailer 20'", 'no_pol' => 'L 1234 AB',
+            'supir' => 'Driver Request', 'vendor_id' => $vendor->id,
+            'tracking_number' => 'TRACK-001', 'sektor' => '0017',
+        ]);
+        $do = DeliveryOrder::create([
+            'do_number' => uniqid('DO-EXPORT-'), 'request_order_id' => $order->id,
+            'customer_id' => $customer->id, 'user_id' => $user->id,
+            'do_date' => '2097-10-02', 'origin' => 'Surabaya', 'destination' => 'Jakarta',
+            'driver_name' => 'Driver Final',
+        ]);
+        $response = $this->actingAs($user)->get(route('delivery-orders.export', [
+            'start_date' => '2097-10-02', 'end_date' => '2097-10-02',
+        ]))->assertOk()->assertDownload();
+        $path = tempnam(sys_get_temp_dir(), 'do-export-');
+        $spreadsheet = null;
+        try {
+            file_put_contents($path, $response->streamedContent());
+            $spreadsheet = IOFactory::load($path);
+            $rows = $spreadsheet->getActiveSheet()->toArray(formatData: false);
+            $this->assertCount(2, $rows);
+            $this->assertSame($do->do_number, $rows[1][0]);
+            $this->assertSame([
+                'Tgl Order', 'Lokasi Muat', 'Lokasi Bongkar', 'No Cont', 'No Seal',
+                'Jenis Truck', 'No Pol', 'Driver', 'Vendor', 'Tracking', 'Kode Sektor',
+            ], array_slice($rows[0], 17));
+            $this->assertSame([
+                '2026-09-02', 'Terminal Surabaya', 'SASL & SONS INDONESIA', 'SPNU4644167',
+                '001234', "Trailer 20'", 'L 1234 AB', 'Driver Final', 'Vendor Export', 'TRACK-001', '0017',
+            ], array_slice($rows[1], 17));
+        } finally {
+            $spreadsheet?->disconnectWorksheets();
+            unlink($path);
+        }
+    }
+
+    public function test_final_do_export_uses_legacy_locations_and_handles_missing_request(): void
+    {
+        [$user, $customer] = $this->makeCustomer();
+        $order = $this->makeOrder($user, $customer, ['supir' => 'Driver Request', 'kode_sektor' => 'LEGACY']);
+        foreach ([$order->id, null] as $requestOrderId) {
+            DeliveryOrder::create([
+                'do_number' => uniqid('DO-EXPORT-'), 'request_order_id' => $requestOrderId,
+                'customer_id' => $customer->id, 'user_id' => $user->id,
+                'do_date' => '2097-10-03', 'origin' => 'Surabaya', 'destination' => 'Jakarta',
+            ]);
+        }
+        $response = $this->actingAs($user)->get(route('delivery-orders.export', [
+            'start_date' => '2097-10-03', 'end_date' => '2097-10-03',
+        ]))->assertOk()->assertDownload();
+        $path = tempnam(sys_get_temp_dir(), 'do-export-');
+        $spreadsheet = null;
+        try {
+            file_put_contents($path, $response->streamedContent());
+            $spreadsheet = IOFactory::load($path);
+            $rows = $spreadsheet->getActiveSheet()->toArray(formatData: false);
+            $this->assertCount(3, $rows);
+            foreach (array_slice($rows, 1) as $row) {
+                $this->assertSame(['Surabaya', 'Jakarta'], array_slice($row, 18, 2));
+                if ($row[2] === $order->do_number) {
+                    $this->assertSame('Driver Request', $row[24]);
+                    $this->assertSame('LEGACY', $row[27]);
+                } else {
+                    $this->assertNull($row[17]);
+                    $this->assertSame(array_fill(0, 8, null), array_slice($row, 20));
+                }
+            }
+        } finally {
+            $spreadsheet?->disconnectWorksheets();
+            unlink($path);
+        }
+    }
+
     private function exportRows(User $user, Customer $customer, array $filters = []): array
     {
         return $this->exportData($user, $customer, $filters)['rows'];

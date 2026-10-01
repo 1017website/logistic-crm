@@ -864,6 +864,16 @@ class InvoiceWorkflowTest extends TestCase
     public function test_invoice_can_be_downloaded_as_pdf_and_excel_with_detail_columns(): void
     {
         [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
+        $deliveryOrder->requestOrder->update([
+            'depo' => 'TT: SAMATOR GAS INDUSTRI, PT (BAMBE) - BERLIAN',
+            'tujuan' => 'BALIKPAPAN (KUTAI)',
+            'komoditi' => 'LCO2',
+            'no_container' => 'CDLU2023098',
+            'no_seal' => null,
+            'no_pol' => 'L9534UV',
+            'jenis_truck' => "Trailer 20'",
+        ]);
+        $description = "Depo : TT: SAMATOR GAS INDUSTRI, PT (BAMBE) - BERLIAN Tujuan: BALIKPAPAN (KUTAI), Komoditas: LCO2 (No. Container: CDLU2023098, No Seal: -, No. Pol: L9534UV, Armada: Trailer 20')";
         $this->actingAs($finance)->post(route('invoices.store'), $this->invoicePayload($customer, $deliveryOrder, 'separate'));
         $invoice = Invoice::where('customer_id', $customer->id)->where('jenis', 'TR')->sole();
 
@@ -877,7 +887,7 @@ class InvoiceWorkflowTest extends TestCase
             file_put_contents($path, $response->streamedContent());
             $sheet = IOFactory::load($path)->getActiveSheet();
             $this->assertSame('Deskripsi Pekerjaan', $sheet->getCell('E1')->getValue());
-            $this->assertSame('Trucking', $sheet->getCell('E2')->getValue());
+            $this->assertSame($description, $sheet->getCell('E2')->getValue());
             $this->assertSame('Jenis Truck', $sheet->getCell('F1')->getValue());
             $this->assertSame('Jumlah', $sheet->getCell('I1')->getValue());
         } finally {
@@ -894,7 +904,9 @@ class InvoiceWorkflowTest extends TestCase
             file_put_contents($path, $response->streamedContent());
             $sheet = IOFactory::load($path)->getActiveSheet();
             $this->assertSame('Deskripsi Pekerjaan', $sheet->getCell('J1')->getValue());
-            $this->assertSame('Trucking', $sheet->getCell('J2')->getValue());
+            foreach (range(2, $sheet->getHighestRow()) as $row) {
+                $this->assertSame($description, $sheet->getCell('J'.$row)->getValue());
+            }
             $this->assertSame('Jenis Truck', $sheet->getCell('K1')->getValue());
         } finally {
             @unlink($path);

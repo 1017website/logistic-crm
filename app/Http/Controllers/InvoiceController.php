@@ -877,7 +877,7 @@ class InvoiceController extends Controller
 
     public function exportInvoice(Invoice $invoice)
     {
-        $invoice->load(['customer', 'items.deliveryOrder', 'items.requestOrder']);
+        $invoice->load(['customer', 'items.deliveryOrder.requestOrder', 'items.requestOrder']);
         $headers = [
             'No Invoice', 'Customer', 'No DO', 'Nama', 'Deskripsi Pekerjaan',
             'Jenis Truck', 'Qty', 'Harga', 'Jumlah',
@@ -888,7 +888,7 @@ class InvoiceController extends Controller
                 $invoice->customer?->company_name ?? '-',
                 $item->deliveryOrder?->do_number ?? $item->requestOrder?->do_number ?? '-',
                 $item->item_name,
-                $item->description,
+                $item->exportWorkDescription(),
                 $item->truck_type,
                 (float) $item->quantity,
                 (float) $item->unit_price,
@@ -914,7 +914,7 @@ class InvoiceController extends Controller
         $jenis = $request->get('jenis');
         $periode = $request->get('periode');
 
-        $query = Invoice::with(['customer', 'items.deliveryOrder', 'items.requestOrder', 'payments']);
+        $query = Invoice::with(['customer', 'items.deliveryOrder.requestOrder', 'items.requestOrder', 'payments']);
         if ($status === 'settled') {
             $query->whereIn('status', ['termin', 'paid']);
         } elseif ($status && $status !== 'all') {
@@ -966,7 +966,7 @@ class InvoiceController extends Controller
                 $inv->submitted_at?->format('Y-m-d H:i:s'),
                 $item->deliveryOrder?->do_number ?? $item->requestOrder?->do_number ?? '-',
                 $item->item_name,
-                $item->description,
+                $item->exportWorkDescription(),
                 $item->truck_type,
                 (float) $item->quantity,
                 (float) $item->unit_price,

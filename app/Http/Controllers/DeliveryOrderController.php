@@ -422,14 +422,15 @@ class DeliveryOrderController extends Controller
         $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->get('end_date', now()->endOfMonth()->format('Y-m-d'));
 
-        $dos = DeliveryOrder::with(['customer', 'vendor', 'requestOrder.items'])
+        $dos = DeliveryOrder::with(['customer', 'vendor', 'requestOrder.items', 'requestOrder.vendor'])
             ->whereBetween('do_date', [$startDate, $endDate])
             ->orderByDesc('do_date')->get();
 
-        $headers = ['DO Number', 'Tgl DO', 'Request DO', 'Customer', 'Armada/Vendor', 'Tipe', 'Origin', 'Destination', 'Flow', 'Pickup', 'Delivery', 'Revenue', 'Actual Cost', 'Other Cost', 'Gross Profit', 'POD At', 'Closed At'];
+        $headers = ['DO Number', 'Tgl DO', 'Request DO', 'Customer', 'Armada/Vendor', 'Tipe', 'Origin', 'Destination', 'Flow', 'Pickup', 'Delivery', 'Revenue', 'Actual Cost', 'Other Cost', 'Gross Profit', 'POD At', 'Closed At', 'Tgl Order', 'Lokasi Muat', 'Lokasi Bongkar', 'No Cont', 'No Seal', 'Jenis Truck', 'No Pol', 'Driver', 'Vendor', 'Tracking', 'Kode Sektor'];
 
         $rows = [];
         foreach ($dos as $d) {
+            $order = $d->requestOrder;
             $rows[] = [
                 $d->do_number,
                 $d->do_date?->format('Y-m-d'),
@@ -443,6 +444,17 @@ class DeliveryOrderController extends Controller
                 (float) $d->total_revenue, (float) $d->actual_cost, (float) $d->other_cost,
                 (float) $d->gross_profit,
                 $d->pod_at?->format('Y-m-d H:i'), $d->closed_at?->format('Y-m-d H:i'),
+                $order?->order_date?->format('Y-m-d'),
+                $order?->muat ?: ($d->origin ?: $order?->origin),
+                $order?->bongkar ?: ($d->destination ?: $order?->destination),
+                $order?->no_container,
+                $order?->no_seal,
+                $order?->jenis_truck,
+                $order?->no_pol,
+                $d->driver_name ?: $order?->supir,
+                $d->vendor?->vendor_name ?? $order?->vendor?->vendor_name,
+                $order?->tracking_number,
+                $order?->sektor ?: $order?->kode_sektor,
             ];
         }
 

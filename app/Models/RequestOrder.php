@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -291,9 +292,9 @@ class RequestOrder extends Model
         return self::FLOW[$status] ?? ($status === 'do_approved' ? 'DO Disetujui' : ucfirst($status));
     }
 
-    public static function generateDoNumber(): string
+    public static function generateDoNumber(string $orderDate): string
     {
-        $prefix = 'RDO-' . date('Ym') . '-';
+        $prefix = 'RDO-' . Carbon::parse($orderDate)->format('Ym') . '-';
         $last   = static::withTrashed()->where('do_number', 'like', $prefix . '%')
             ->orderByDesc('do_number')->value('do_number');
         $seq    = $last ? (intval(substr($last, -4)) + 1) : 1;

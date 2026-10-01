@@ -148,7 +148,7 @@ class RequestOrderController extends Controller
             $userId = $request->user_id ?: ($userId ?? auth()->id());
 
             $ro = RequestOrder::create([
-                'do_number'      => RequestOrder::generateDoNumber(),
+                'do_number'      => RequestOrder::generateDoNumber($request->order_date),
                 'customer_id'    => $request->customer_id,
                 'vendor_id'      => $request->vendor_id,
                 'lead_id'        => $request->lead_id,
@@ -825,7 +825,7 @@ class RequestOrderController extends Controller
 
         $sos = $query->orderByDesc('order_date')->get();
 
-        $headers = ['Request DO', 'Customer', 'Flow', 'Status Operasional', 'Keterangan Status', 'Alasan Batal', 'Jadwal Reschedule', 'Request DP', 'Status DP', 'Nominal DP', 'Catatan DP', 'Direview Finance', 'Delivery Type', 'Lokasi Muat', 'Lokasi Bongkar', 'No Cont', 'No Seal', 'No Pol', 'Driver', 'Vendor', 'Tracking', 'Kode Sektor', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA'];
+        $headers = ['Request DO', 'Customer', 'Flow', 'Status Operasional', 'Keterangan Status', 'Alasan Batal', 'Jadwal Reschedule', 'Request DP', 'Status DP', 'Nominal DP', 'Catatan DP', 'Direview Finance', 'Delivery Type', 'Lokasi Muat', 'Lokasi Bongkar', 'No Cont', 'No Seal', 'No Pol', 'Driver', 'Vendor', 'Tracking', 'Kode Sektor', 'Service', 'Unit', 'Tonase', 'Qty', 'Buy Price', 'Sell Price', 'Subtotal Revenue', 'Subtotal HPP', 'Gross Profit', 'Currency', 'Status', 'Tgl Order', 'ETA', 'Jenis Truck'];
 
         $rows = [];
         $mergeRanges = [];
@@ -850,7 +850,7 @@ class RequestOrderController extends Controller
                     $so->dp_reviewed_at?->format('Y-m-d H:i:s'),
                     $so->delivery_type, $so->muat ?: $so->origin, $so->bongkar ?: $so->destination,
                     $so->no_container, $so->no_seal, $so->no_pol, $so->supir, $so->vendor?->vendor_name,
-                    $so->tracking_number, $so->sektor,
+                    $so->tracking_number, $so->sektor ?: $so->kode_sektor,
                     $item?->service_name, $item?->unit,
                     $item?->tonnage !== null ? (float) $item->tonnage : null,
                     $item ? (float) $item->qty : null,
@@ -862,13 +862,14 @@ class RequestOrderController extends Controller
                     $so->currency, $so->status,
                     $so->order_date?->format('Y-m-d'),
                     $so->estimated_arrival?->format('Y-m-d'),
+                    $so->jenis_truck,
                 ];
                 $excelRow++;
             }
 
             $groupEndRow = $excelRow - 1;
             if ($groupEndRow > $groupStartRow) {
-                foreach ([...range('A', 'V'), 'AF', 'AG', 'AH', 'AI'] as $column) {
+                foreach ([...range('A', 'V'), 'AF', 'AG', 'AH', 'AI', 'AJ'] as $column) {
                     $mergeRanges[] = "{$column}{$groupStartRow}:{$column}{$groupEndRow}";
                 }
             }

@@ -14,6 +14,38 @@ class RequestOrderRevisionTest extends TestCase
 {
     use DatabaseTransactions;
 
+    public function test_backdated_request_number_continues_order_month_sequence(): void
+    {
+        [$user, $order, , $data] = $this->fixture();
+        $this->travelTo(\Carbon\Carbon::parse('2026-10-02 10:00:00'));
+        try {
+            $data['order_date'] = '2026-09-21';
+            $expected = RequestOrder::generateDoNumber($data['order_date']);
+            $this->actingAs($user)->post(route('request-orders.store'), $data + ['allow_duplicate' => true])
+                ->assertSessionHasNoErrors();
+            $created = RequestOrder::where('customer_id', $order->customer_id)->latest('id')->firstOrFail();
+            $this->assertSame($expected, $created->do_number);
+            $this->assertStringStartsWith('RDO-202609-', $created->do_number);
+            $this->assertSame('2026-09-21', $created->order_date->format('Y-m-d'));
+        } finally {
+            $this->travelBack();
+        }
+    }
+
+    public function test_request_number_sequences_are_separate_by_month_and_include_deleted_orders(): void
+    {
+        [, $order] = $this->fixture();
+        $september = $order->replicate()->fill(['do_number' => 'RDO-209709-0007', 'order_date' => '2097-09-21']);
+        $september->save();
+        $september->delete();
+        $october = $order->replicate()->fill(['do_number' => 'RDO-209710-0012', 'order_date' => '2097-10-01']);
+        $october->save();
+
+        $this->assertSame('RDO-209709-0008', RequestOrder::generateDoNumber('2097-09-30'));
+        $this->assertSame('RDO-209710-0013', RequestOrder::generateDoNumber('2097-10-01'));
+        $this->assertSame('RDO-209801-0001', RequestOrder::generateDoNumber('2098-01-01'));
+    }
+
     private function vendor(): Vendor
     {
         return Vendor::create([
