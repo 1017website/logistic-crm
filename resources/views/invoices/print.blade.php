@@ -41,6 +41,9 @@
     table.items td.r { text-align:right; white-space:nowrap; }
     table.items td.c { text-align:center; }
     table.items .det { font-size:9.5px; color:var(--muted); line-height:1.5; margin-top:2px; }
+    table.ntr-items tbody td { border:1px solid var(--line); background:#fff !important; }
+    table.ntr-items .ntr-do-group { page-break-inside:avoid; break-inside:avoid; }
+    table.ntr-items .ntr-work-item td { padding-top:5px; padding-bottom:5px; }
 
     /* Totals */
     .totwrap { display:flex; justify-content:space-between; gap:22px; margin-top:14px; }
@@ -133,6 +136,41 @@
         </div>
     </div>
 
+    @if($ntrGroups !== null)
+    <table class="items ntr-items">
+        <thead>
+            <tr>
+                <th style="width:34px" class="c">No</th>
+                <th style="width:78px">Tgl Kirim</th>
+                <th>Keterangan</th>
+                <th style="width:100px" class="r">Jumlah (Rp)</th>
+            </tr>
+        </thead>
+        @foreach($ntrGroups as $group)
+            @php
+                $header = $group['header'];
+                $finalDo = $header->deliveryOrder;
+                $order = $header->requestOrder ?? $finalDo?->requestOrder;
+                $shipDate = $finalDo?->do_date?->format('d-m-y') ?? $order?->tgl_muat?->format('d-m-y') ?? $order?->order_date?->format('d-m-y') ?? '-';
+            @endphp
+            <tbody class="ntr-do-group">
+                <tr class="ntr-do-header">
+                    <td class="c" rowspan="{{ $group['items']->count() + 1 }}">{{ $loop->iteration }}</td>
+                    <td>{{ $shipDate }}</td>
+                    <td><b>{{ $finalDo?->do_number ?? $order?->do_number ?? 'DO' }}</b><br>{{ $header->exportWorkDescription() }}</td>
+                    <td></td>
+                </tr>
+                @foreach($group['items'] as $it)
+                <tr class="ntr-work-item">
+                    <td>{{ $shipDate }}</td>
+                    <td>* {{ $it->item_name ?: $it->description ?: 'Non-Trucking' }}@if($it->item_name && $it->description && $it->description !== $it->item_name) — {{ $it->description }}@endif</td>
+                    <td class="r">Rp {{ number_format($it->jual, 0, ',', '.') }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        @endforeach
+    </table>
+    @else
     <table class="items">
         <thead>
             <tr>
@@ -173,6 +211,7 @@
             @endforeach
         </tbody>
     </table>
+    @endif
 
     <div class="totwrap">
         <div class="terbilang">

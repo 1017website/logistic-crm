@@ -1075,7 +1075,7 @@ class InvoiceController extends Controller
         if ($documentMode === 'auto') {
             $documentMode = $invoice->status === 'draft' ? 'proforma' : 'invoice';
         }
-        $invoice->load(['customer', 'items.requestOrder', 'items.deliveryOrder.requestOrder']);
+        $invoice->load(['customer', 'items' => fn ($query) => $query->orderBy('id'), 'items.requestOrder', 'items.deliveryOrder.requestOrder']);
         $printItems = $invoice->items
             ->when($printType !== 'all', fn (Collection $items) => $items->where('item_type', $printType))->values();
         if ($printItems->isEmpty()) {
@@ -1084,6 +1084,9 @@ class InvoiceController extends Controller
         $printSubtotal = (float) $printItems->sum('jual');
         $printPpn = round($printSubtotal * (float) $invoice->ppn_persen / 100);
         $printGrand = $printSubtotal + $printPpn;
+        $ntrGroups = $printItems->every(fn (InvoiceItem $item) => $item->item_type === 'NTR')
+            ? app(\App\Services\InvoicePrintService::class)->nonTruckingGroups($invoice, $printItems)
+            : null;
         $companyName = Setting::get('company_name', 'Perusahaan');
         $salesManager = User::where('role', 'Sales Manager')->where('status', 'Active')->orderBy('id')->first();
         $logo = Setting::get('company_doc_logo') ?: Setting::get('company_logo', '');
@@ -1104,6 +1107,6 @@ class InvoiceController extends Controller
             ? $salesManager->phone
             : User::where('name', $company['signatory_name'])->value('phone');
 
-        return compact('invoice', 'printType', 'documentMode', 'printItems', 'printSubtotal', 'printPpn', 'printGrand', 'company', 'signature');
+        return compact('invoice', 'printType', 'documentMode', 'printItems', 'ntrGroups', 'printSubtotal', 'printPpn', 'printGrand', 'company', 'signature');
     }
 }

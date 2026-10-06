@@ -132,6 +132,37 @@ class InvoiceWorkflowTest extends TestCase
             ->assertSee('75.000');
     }
 
+    public function test_ntr_print_follows_tr_order_and_keeps_work_below_each_do(): void
+    {
+        [$finance, $customer, $first] = $this->makePodReadyOrder();
+        $second = $this->makeAdditionalPodReadyOrder($finance, $customer);
+        $third = $this->makeAdditionalPodReadyOrder($finance, $customer);
+        $payload = $this->invoicePayload($customer, $first, 'separate');
+        $payload['selections'] = [(string) $second->id, (string) $third->id, (string) $first->id];
+        $this->actingAs($finance)->post(route('invoices.store'), $payload)->assertSessionHas('success');
+        $tr = Invoice::where('customer_id', $customer->id)->where('jenis', 'TR')->sole();
+        $ntr = Invoice::where('customer_id', $customer->id)->where('jenis', 'NTR')->sole();
+        $ntr->items()->where('delivery_order_id', $third->id)->delete();
+        $ntr->items()->create([
+            'delivery_order_id' => $first->id, 'request_order_id' => $first->request_order_id,
+            'item_type' => 'NTR', 'item_name' => 'Kuli tambahan', 'description' => 'Kuli tambahan',
+            'quantity' => 1, 'unit_price' => 30000, 'hpp' => 10000, 'jual' => 30000,
+        ]);
+        $trOrder = $tr->items()->orderBy('id')->pluck('delivery_order_id')->all();
+        $response = $this->get(route('invoices.print', $ntr))->assertOk();
+        $groups = $response->viewData('ntrGroups');
+        $this->assertSame($trOrder, $groups->pluck('header.delivery_order_id')->all());
+        $this->assertCount(2, $groups->first(fn ($group) => $group['header']->delivery_order_id === $first->id)['items']);
+        $this->assertCount(0, $groups->first(fn ($group) => $group['header']->delivery_order_id === $third->id)['items']);
+        $this->assertSame(530000.0, $response->viewData('printSubtotal'));
+        $this->assertSame(3, substr_count($response->getContent(), 'class="ntr-do-header"'));
+        $this->assertSame(3, substr_count($response->getContent(), 'class="ntr-work-item"'));
+        $this->assertSame(1, substr_count($response->getContent(), '>'.$first->do_number.'</b>'));
+        $this->get(route('invoices.print', $tr))->assertOk()->assertViewHas('ntrGroups', null);
+        $this->assertSame($trOrder, $tr->items()->orderBy('id')->pluck('delivery_order_id')->all());
+        $this->get(route('invoices.pdf', $ntr))->assertOk()->assertHeader('content-type', 'application/pdf');
+    }
+
     public function test_finance_can_merge_tr_and_ntr_drafts_into_one_mixed_invoice(): void
     {
         [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
