@@ -27,6 +27,10 @@ class SettingsController extends Controller
             'company_document_city' => 'nullable|string|max:100',
             'company_signatory_name' => 'nullable|string|max:150',
             'company_signatory_title' => 'nullable|string|max:150',
+            'company_npwp' => 'nullable|string|max:50',
+            'company_bank_name' => 'nullable|string|max:100',
+            'company_bank_account' => 'nullable|string|max:100',
+            'company_bank_holder' => 'nullable|string|max:255',
             'invoice_default_top_days' => 'nullable|integer|min:1|max:365',
         ]);
 
@@ -39,6 +43,10 @@ class SettingsController extends Controller
             'company_document_city',
             'company_signatory_name',
             'company_signatory_title',
+            'company_npwp',
+            'company_bank_name',
+            'company_bank_account',
+            'company_bank_holder',
             'invoice_default_top_days',
             'currency',
             'timezone',

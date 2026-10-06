@@ -149,7 +149,13 @@ class InvoiceWorkflowTest extends TestCase
             'quantity' => 1, 'unit_price' => 30000, 'hpp' => 10000, 'jual' => 30000,
         ]);
         $trOrder = $tr->items()->orderBy('id')->pluck('delivery_order_id')->all();
-        $response = $this->get(route('invoices.print', $ntr))->assertOk();
+        $response = $this->get(route('invoices.print', $ntr))->assertOk()
+            ->assertViewIs('invoices.print_ntr')
+            ->assertSee('INVOICE NON TRUCKING')
+            ->assertSee('Ditransfer Ke Rekening')
+            ->assertSee('Term / Jangka')
+            ->assertSee('QR verifikasi tanda tangan elektronik')
+            ->assertSee('ditandatangani secara elektronik');
         $groups = $response->viewData('ntrGroups');
         $this->assertSame($trOrder, $groups->pluck('header.delivery_order_id')->all());
         $this->assertCount(2, $groups->first(fn ($group) => $group['header']->delivery_order_id === $first->id)['items']);
@@ -161,6 +167,56 @@ class InvoiceWorkflowTest extends TestCase
         $this->get(route('invoices.print', $tr))->assertOk()->assertViewHas('ntrGroups', null);
         $this->assertSame($trOrder, $tr->items()->orderBy('id')->pluck('delivery_order_id')->all());
         $this->get(route('invoices.pdf', $ntr))->assertOk()->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_tr_print_uses_portrait_layout_preserves_do_order_and_shows_tax(): void
+    {
+        [$finance, $customer, $first] = $this->makePodReadyOrder();
+        $second = $this->makeAdditionalPodReadyOrder($finance, $customer);
+        $payload = $this->invoicePayload($customer, $first, 'separate');
+        $payload['selections'] = [(string) $second->id, (string) $first->id];
+        $payload['ppn_mode'] = 'ppn';
+        $payload['ppn_types'] = ['TR'];
+        $payload['ppn_persen'] = 1.1;
+        $this->actingAs($finance)->post(route('invoices.store'), $payload)->assertSessionHas('success');
+        $tr = Invoice::where('customer_id', $customer->id)->where('jenis', 'TR')->sole();
+        $expectedOrder = $tr->items()->orderBy('id')->pluck('delivery_order_id')->all();
+        $response = $this->get(route('invoices.print', $tr))->assertOk()
+            ->assertViewIs('invoices.print_tr')
+            ->assertSee('INVOICE TRUCKING')
+            ->assertSee('PPN (1.1%)')
+            ->assertSee('22.000')
+            ->assertSee('2.022.000')
+            ->assertSee('Ditransfer Ke Rekening')
+            ->assertSee('QR verifikasi tanda tangan elektronik')
+            ->assertSee('ditandatangani secara elektronik')
+            ->assertDontSee('ntr-work-item');
+        $this->assertSame($expectedOrder, $response->viewData('printItems')->pluck('delivery_order_id')->all());
+        $this->assertSame(2, substr_count($response->getContent(), 'class="tr-do-row"'));
+        $this->assertSame(2022000.0, $response->viewData('printGrand'));
+        $pdf = $this->get(route('invoices.pdf', $tr))->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertMatchesRegularExpression('/\/MediaBox\s*\[\s*0(?:\.\d+)?\s+0(?:\.\d+)?\s+595\.28\d*\s+841\.89\d*\s*\]/', $pdf->getContent());
+    }
+
+    public function test_invoice_bank_settings_can_be_saved_in_crm_and_used_by_both_invoice_types(): void
+    {
+        [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
+        $admin = User::create(['name' => 'Bank Settings Admin', 'email' => uniqid().'@example.test', 'password' => 'password', 'role' => 'Admin', 'status' => 'Active']);
+        $this->actingAs($admin)->get(route('settings.index'))->assertOk()
+            ->assertSee('Nomor Rekening Invoice')->assertSee('Atas Nama Rekening Invoice');
+        $this->put(route('settings.update'), [
+            'company_name' => 'Perusahaan Test Rekening',
+            'company_bank_name' => 'Bank Contoh',
+            'company_bank_account' => '00123456789',
+            'company_bank_holder' => 'PT Contoh Rekening',
+        ])->assertSessionHasNoErrors()->assertRedirect(route('settings.index'));
+        $this->assertDatabaseHas('settings', ['key' => 'company_bank_account', 'value' => '00123456789']);
+        $this->actingAs($finance)->post(route('invoices.store'), $this->invoicePayload($customer, $deliveryOrder, 'separate'))->assertSessionHas('success');
+        foreach (Invoice::where('customer_id', $customer->id)->get() as $invoice) {
+            $this->get(route('invoices.print', $invoice))->assertOk()
+                ->assertSee('Bank Contoh')->assertSee('00123456789')->assertSee('PT Contoh Rekening')
+                ->assertSee('QR verifikasi tanda tangan elektronik');
+        }
     }
 
     public function test_finance_can_merge_tr_and_ntr_drafts_into_one_mixed_invoice(): void
@@ -342,14 +398,14 @@ class InvoiceWorkflowTest extends TestCase
             ->assertSee('Versi Invoice');
         $this->get(route('invoices.print', [$invoice, 'document' => 'invoice']))
             ->assertOk()
-            ->assertSee('<div class="ttl">INVOICE</div>', false)
-            ->assertDontSee('<div class="ttl">PRO FORMA INVOICE</div>', false);
+            ->assertSee('<div class="document-name">INVOICE TRUCKING</div>', false)
+            ->assertDontSee('PRO FORMA INVOICE TRUCKING');
 
         $this->post(route('invoices.submit', $invoice))->assertSessionHas('success');
         $this->get(route('invoices.print', $invoice->fresh()))
             ->assertOk()
-            ->assertSee('<div class="ttl">INVOICE</div>', false)
-            ->assertDontSee('<div class="ttl">PRO FORMA INVOICE</div>', false);
+            ->assertSee('<div class="document-name">INVOICE TRUCKING</div>', false)
+            ->assertDontSee('PRO FORMA INVOICE TRUCKING');
     }
 
     public function test_closed_delivery_order_waits_for_manual_invoice_selection(): void
@@ -698,10 +754,10 @@ class InvoiceWorkflowTest extends TestCase
                 ->get(route('invoices.print', $invoice))
                 ->assertOk()
                 ->assertSee('/storage/branding/print-logo.png', false)
-                ->assertSee('data:image/png;base64,', false)
-                ->assertSee('ditandatangani secara elektronik', false)
-                ->assertSee('Anggi')
-                ->assertSee('Sales Manager');
+                ->assertViewIs('invoices.print_tr')
+                ->assertSee('INVOICE TRUCKING')
+                ->assertSee('PT Print Test')
+                ->assertSee('Ditransfer Ke Rekening');
 
             $this->actingAs($user)
                 ->get(route('delivery-orders.surat-jalan.print', $deliveryOrder))

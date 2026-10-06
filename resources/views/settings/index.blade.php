@@ -197,6 +197,12 @@
                             <input type="text" name="company_signatory_title" class="form-control"
                                 value="{{ $settings['company_signatory_title'] ?? 'Direktur' }}" placeholder="Direktur">
                         </div>
+                        @foreach(['company_npwp' => 'NPWP Perusahaan', 'company_bank_name' => 'Bank Penerima Invoice', 'company_bank_account' => 'Nomor Rekening Invoice', 'company_bank_holder' => 'Atas Nama Rekening Invoice'] as $field => $label)
+                        <div class="col-md-3">
+                            <label class="form-label" for="{{ $field }}">{{ $label }}</label>
+                            <input type="text" id="{{ $field }}" name="{{ $field }}" class="form-control" value="{{ $settings[$field] ?? '' }}">
+                        </div>
+                        @endforeach
                         <div class="col-md-4">
                             <label class="form-label">Default TOP Invoice (hari)</label>
                             <input type="number" name="invoice_default_top_days" class="form-control" min="1" max="365"

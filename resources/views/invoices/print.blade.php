@@ -61,7 +61,8 @@
 
     .toolbar { width:210mm; margin:16px auto 0; display:flex; gap:8px; }
     .toolbar button, .toolbar a { font-size:13px; padding:8px 16px; border-radius:8px; border:1px solid var(--line); background:#fff; cursor:pointer; text-decoration:none; color:var(--ink); font-weight:600; }
-    .toolbar button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .toolbar a.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .toolbar a:focus-visible, .toolbar button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 
     @media print {
         body { background:#fff; }
@@ -95,14 +96,7 @@
     $statusText  = ['draft'=>'DRAFT','invoice'=>'INVOICE','termin'=>'TERMIN','paid'=>'LUNAS'][$invoice->status] ?? strtoupper($invoice->status);
 @endphp
 
-<div class="toolbar" @if($isPdf ?? false) style="display:none" @endif>
-    <button class="primary" onclick="window.print()">Cetak</button>
-    <a href="{{ route('invoices.print', [$invoice->id, 'type' => 'all', 'document' => $documentMode]) }}">Semua</a>
-    @if($invoice->items->contains('item_type', 'TR'))<a href="{{ route('invoices.print', [$invoice->id, 'type' => 'TR', 'document' => $documentMode]) }}">Trucking</a>@endif
-    @if($invoice->items->contains('item_type', 'NTR'))<a href="{{ route('invoices.print', [$invoice->id, 'type' => 'NTR', 'document' => $documentMode]) }}">Non-Trucking</a>@endif
-    <a href="{{ route('invoices.print', [$invoice->id, 'type' => $printType, 'document' => $documentMode === 'proforma' ? 'invoice' : 'proforma']) }}">{{ $documentMode === 'proforma' ? 'Versi Invoice' : 'Versi Pro Forma' }}</a>
-    <a href="{{ route('invoices.show', $invoice->id) }}">Kembali</a>
-</div>
+@include('invoices.partials.print_toolbar')
 
 <div class="sheet">
 

@@ -853,8 +853,10 @@ class InvoiceController extends Controller
 
     public function print(Request $request, Invoice $invoice, DocumentSignatureService $documentSignature)
     {
-        return view('invoices.print', [
-            ...$this->printPayload($request, $invoice, $documentSignature),
+        $payload = $this->printPayload($request, $invoice, $documentSignature);
+
+        return view($payload['printView'], [
+            ...$payload,
             'isPdf' => false,
         ]);
     }
@@ -871,7 +873,11 @@ class InvoiceController extends Controller
             $payload['company']['logo'] = null;
         }
 
-        return Pdf::loadView('invoices.print', $payload)->setPaper('a4', 'landscape')
+        $isServiceInvoice = $payload['printView'] !== 'invoices.print';
+
+        return Pdf::loadView($payload['printView'], $payload)
+            ->setOption('defaultMediaType', $isServiceInvoice ? 'print' : 'screen')
+            ->setPaper('a4', $isServiceInvoice ? 'portrait' : 'landscape')
             ->download('invoice-'.Str::slug($invoice->invoice_number ?: $invoice->invoice_id).'.pdf');
     }
 
@@ -1087,6 +1093,11 @@ class InvoiceController extends Controller
         $ntrGroups = $printItems->every(fn (InvoiceItem $item) => $item->item_type === 'NTR')
             ? app(\App\Services\InvoicePrintService::class)->nonTruckingGroups($invoice, $printItems)
             : null;
+        $printView = match (true) {
+            $ntrGroups !== null => 'invoices.print_ntr',
+            $printItems->every(fn (InvoiceItem $item) => $item->item_type === 'TR') => 'invoices.print_tr',
+            default => 'invoices.print',
+        };
         $companyName = Setting::get('company_name', 'Perusahaan');
         $salesManager = User::where('role', 'Sales Manager')->where('status', 'Active')->orderBy('id')->first();
         $logo = Setting::get('company_doc_logo') ?: Setting::get('company_logo', '');
@@ -1097,6 +1108,10 @@ class InvoiceController extends Controller
             'email' => Setting::get('company_email', ''),
             'website' => Setting::get('company_website', ''),
             'logo' => $logo,
+            'npwp' => Setting::get('company_npwp', ''),
+            'bank_name' => Setting::get('company_bank_name', ''),
+            'bank_account' => Setting::get('company_bank_account', ''),
+            'bank_holder' => Setting::get('company_bank_holder', ''),
             'signatory_name' => $salesManager?->name ?: (Setting::get('company_signatory_name') ?: $companyName),
             'signatory_title' => $salesManager
                 ? ($salesManager->position ?: 'Sales Manager')
@@ -1107,6 +1122,6 @@ class InvoiceController extends Controller
             ? $salesManager->phone
             : User::where('name', $company['signatory_name'])->value('phone');
 
-        return compact('invoice', 'printType', 'documentMode', 'printItems', 'ntrGroups', 'printSubtotal', 'printPpn', 'printGrand', 'company', 'signature');
+        return compact('invoice', 'printType', 'documentMode', 'printItems', 'ntrGroups', 'printView', 'printSubtotal', 'printPpn', 'printGrand', 'company', 'signature');
     }
 }
