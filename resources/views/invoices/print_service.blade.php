@@ -24,15 +24,15 @@
     .invoice-meta td:last-child { text-align:right; }
     .invoice-number { padding-top:12mm !important; white-space:nowrap; }
     .items { table-layout:auto; font-size:8pt; }
-    .items th, .items td { border:.6pt solid #171d29; padding:2pt 3pt; vertical-align:top; overflow-wrap:break-word; }
+    .items th, .items td { border:.6pt solid #171d29; padding:2pt 3pt; vertical-align:middle; overflow-wrap:break-word; }
     .items th { text-align:left; background:#fff; height:8mm; vertical-align:middle; }
     .items .number { width:9mm; text-align:center; }
     .items .date { width:22mm; text-align:center; white-space:nowrap; }
     .items .amount { width:30mm; }
     .money { position:relative; text-align:right; white-space:nowrap; padding-left:17pt !important; }
     .money .currency { position:absolute; left:3pt; }
-    .items .tr-amount { vertical-align:bottom; }
-    .items .amount-line td { border:0; padding:0; font-size:inherit; vertical-align:bottom; }
+    .items .tr-amount { vertical-align:middle; }
+    .items .amount-line td { border:0; padding:0; font-size:inherit; vertical-align:middle; }
     .items .amount-line .currency-label { width:17pt; text-align:left; }
     .items .amount-line .amount-value { text-align:right; }
     .do-number { font-size:7pt; }

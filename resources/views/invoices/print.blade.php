@@ -36,7 +36,7 @@
     table.items { width:100%; border-collapse:collapse; }
     table.items thead th { background:var(--accent); color:#fff; font-size:10.5px; font-weight:700; letter-spacing:.3px; padding:9px 10px; text-align:left; }
     table.items thead th.r { text-align:right; }
-    table.items tbody td { border-bottom:1px solid var(--line); padding:9px 10px; font-size:11px; vertical-align:top; }
+    table.items tbody td { border-bottom:1px solid var(--line); padding:9px 10px; font-size:11px; vertical-align:middle; }
     table.items tbody tr:nth-child(even) td { background:var(--soft); }
     table.items td.r { text-align:right; white-space:nowrap; }
     table.items td.c { text-align:center; }
