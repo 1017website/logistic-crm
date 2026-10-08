@@ -967,7 +967,11 @@ class InvoiceWorkflowTest extends TestCase
         $invoice = Invoice::where('customer_id', $customer->id)->where('jenis', 'TR')->sole();
 
         $this->actingAs($finance)->get(route('invoices.print', $invoice))
-            ->assertOk()->assertSee($description);
+            ->assertOk()->assertSee('class="work-description"', false)
+            ->assertSee('<b>Muat:</b> PT. MAYORA INDAH TBK, KRIAN', false)
+            ->assertSee('<b>Bongkar:</b> TERMINAL SURABAYA', false)
+            ->assertSee('<b>Tujuan:</b> BALIKPAPAN (KUTAI)', false)
+            ->assertSee('<b>No. Container:</b> CDLU2023098', false);
         $this->actingAs($finance)->get(route('invoices.pdf', $invoice))
             ->assertOk()->assertHeader('content-type', 'application/pdf');
         $response = $this->actingAs($finance)->get(route('invoices.excel', $invoice))

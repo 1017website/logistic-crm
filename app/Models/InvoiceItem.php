@@ -23,11 +23,25 @@ class InvoiceItem extends Model
 
     public function exportWorkDescription(): string
     {
+        $details = $this->workDescriptionDetails();
+
+        if ($details === []) {
+            return (string) $this->description;
+        }
+
+        return sprintf(
+            'Muat: %s, Bongkar: %s, Depo : %s Tujuan: %s, Komoditas: %s (No. Container: %s, No Seal: %s, No. Pol: %s, Armada: %s)',
+            ...array_values($details),
+        );
+    }
+
+    public function workDescriptionDetails(): array
+    {
         $deliveryOrder = $this->deliveryOrder;
         $requestOrder = $this->requestOrder ?? $deliveryOrder?->requestOrder;
 
         if (! $requestOrder && ! $deliveryOrder) {
-            return (string) $this->description;
+            return [];
         }
 
         $value = static function (...$values): string {
@@ -41,17 +55,16 @@ class InvoiceItem extends Model
             return '-';
         };
 
-        return sprintf(
-            'Muat: %s, Bongkar: %s, Depo : %s Tujuan: %s, Komoditas: %s (No. Container: %s, No Seal: %s, No. Pol: %s, Armada: %s)',
-            $value($requestOrder?->muat, $deliveryOrder?->origin, $requestOrder?->origin),
-            $value($requestOrder?->bongkar, $deliveryOrder?->destination, $requestOrder?->destination, $requestOrder?->tujuan),
-            $value($requestOrder?->depo, $requestOrder?->muat, $deliveryOrder?->origin, $requestOrder?->origin),
-            $value($requestOrder?->tujuan, $requestOrder?->bongkar, $deliveryOrder?->destination, $requestOrder?->destination),
-            $value($requestOrder?->komoditi),
-            $value($requestOrder?->no_container),
-            $value($requestOrder?->no_seal),
-            $value($requestOrder?->no_pol),
-            $value($requestOrder?->jenis_truck, $this->truck_type),
-        );
+        return [
+            'muat' => $value($requestOrder?->muat, $deliveryOrder?->origin, $requestOrder?->origin),
+            'bongkar' => $value($requestOrder?->bongkar, $deliveryOrder?->destination, $requestOrder?->destination, $requestOrder?->tujuan),
+            'depo' => $value($requestOrder?->depo, $requestOrder?->muat, $deliveryOrder?->origin, $requestOrder?->origin),
+            'tujuan' => $value($requestOrder?->tujuan, $requestOrder?->bongkar, $deliveryOrder?->destination, $requestOrder?->destination),
+            'komoditas' => $value($requestOrder?->komoditi),
+            'container' => $value($requestOrder?->no_container),
+            'seal' => $value($requestOrder?->no_seal),
+            'no_pol' => $value($requestOrder?->no_pol),
+            'armada' => $value($requestOrder?->jenis_truck, $this->truck_type),
+        ];
     }
 }

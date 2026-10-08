@@ -36,6 +36,8 @@
     .items .amount-line .currency-label { width:17pt; text-align:left; }
     .items .amount-line .amount-value { text-align:right; }
     .do-number { font-size:7pt; }
+    .tr-do-row { page-break-inside:avoid; break-inside:avoid; }
+    .items td.description { padding:4pt 3pt; }
     .ntr-do-group { page-break-inside:avoid; break-inside:avoid; }
     .summary { margin-top:3mm; page-break-inside:avoid; break-inside:avoid; font-size:8pt; }
     .tr-summary { page-break-before:always; break-before:page; }
@@ -122,7 +124,7 @@
             <tr class="tr-do-row">
                 <td class="number">{{ $loop->iteration }}</td>
                 <td class="date">{{ $shipDate }}</td>
-                <td>{{ $it->exportWorkDescription() }}</td>
+                <td class="description">@include('invoices.partials.work_description', ['item' => $it])</td>
                 <td class="tr-amount"><table class="amount-line"><tr><td class="currency-label">Rp.</td><td class="amount-value">{{ number_format($it->jual, 0, ',', '.') }}</td></tr></table></td>
             </tr>
             @endforeach
@@ -139,7 +141,7 @@
                 <tr class="ntr-do-header">
                     <td class="number" rowspan="{{ $group['items']->count() + 1 }}">{{ $loop->iteration }}</td>
                     <td class="date">{{ $shipDate }}</td>
-                    <td><b class="do-number">{{ $finalDo?->do_number ?? $order?->do_number ?? 'DO' }}</b><br>{{ $header->exportWorkDescription() }}</td>
+                    <td class="description"><b class="do-number">{{ $finalDo?->do_number ?? $order?->do_number ?? 'DO' }}</b><br>@include('invoices.partials.work_description', ['item' => $header])</td>
                     <td></td>
                 </tr>
                 @foreach($group['items'] as $it)

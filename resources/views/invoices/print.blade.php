@@ -151,7 +151,7 @@
                 <tr class="ntr-do-header">
                     <td class="c" rowspan="{{ $group['items']->count() + 1 }}">{{ $loop->iteration }}</td>
                     <td>{{ $shipDate }}</td>
-                    <td><b>{{ $finalDo?->do_number ?? $order?->do_number ?? 'DO' }}</b><br>{{ $header->exportWorkDescription() }}</td>
+                    <td><b>{{ $finalDo?->do_number ?? $order?->do_number ?? 'DO' }}</b><br>@include('invoices.partials.work_description', ['item' => $header])</td>
                     <td></td>
                 </tr>
                 @foreach($group['items'] as $it)
