@@ -952,6 +952,8 @@ class InvoiceWorkflowTest extends TestCase
     {
         [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
         $deliveryOrder->requestOrder->update([
+            'muat' => 'PT. MAYORA INDAH TBK, KRIAN',
+            'bongkar' => 'TERMINAL SURABAYA',
             'depo' => 'TT: SAMATOR GAS INDUSTRI, PT (BAMBE) - BERLIAN',
             'tujuan' => 'BALIKPAPAN (KUTAI)',
             'komoditi' => 'LCO2',
@@ -960,10 +962,12 @@ class InvoiceWorkflowTest extends TestCase
             'no_pol' => 'L9534UV',
             'jenis_truck' => "Trailer 20'",
         ]);
-        $description = "Depo : TT: SAMATOR GAS INDUSTRI, PT (BAMBE) - BERLIAN Tujuan: BALIKPAPAN (KUTAI), Komoditas: LCO2 (No. Container: CDLU2023098, No Seal: -, No. Pol: L9534UV, Armada: Trailer 20')";
+        $description = "Muat: PT. MAYORA INDAH TBK, KRIAN, Bongkar: TERMINAL SURABAYA, Depo : TT: SAMATOR GAS INDUSTRI, PT (BAMBE) - BERLIAN Tujuan: BALIKPAPAN (KUTAI), Komoditas: LCO2 (No. Container: CDLU2023098, No Seal: -, No. Pol: L9534UV, Armada: Trailer 20')";
         $this->actingAs($finance)->post(route('invoices.store'), $this->invoicePayload($customer, $deliveryOrder, 'separate'));
         $invoice = Invoice::where('customer_id', $customer->id)->where('jenis', 'TR')->sole();
 
+        $this->actingAs($finance)->get(route('invoices.print', $invoice))
+            ->assertOk()->assertSee($description);
         $this->actingAs($finance)->get(route('invoices.pdf', $invoice))
             ->assertOk()->assertHeader('content-type', 'application/pdf');
         $response = $this->actingAs($finance)->get(route('invoices.excel', $invoice))

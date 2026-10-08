@@ -31,7 +31,7 @@ class InvoiceExportDescriptionTest extends TestCase
         $item->setRelation('deliveryOrder', $deliveryOrder);
 
         $this->assertSame(
-            "Depo : Gudang Muat Tujuan: Gudang Bongkar, Komoditas: LOX (No. Container: -, No Seal: -, No. Pol: -, Armada: Trailer 20')",
+            "Muat: Gudang Muat, Bongkar: Gudang Bongkar, Depo : Gudang Muat Tujuan: Gudang Bongkar, Komoditas: LOX (No. Container: -, No Seal: -, No. Pol: -, Armada: Trailer 20')",
             $item->exportWorkDescription(),
         );
     }
@@ -43,7 +43,37 @@ class InvoiceExportDescriptionTest extends TestCase
         $item->setRelation('deliveryOrder', null);
 
         $this->assertSame(
-            'Depo : Surabaya Tujuan: Jakarta, Komoditas: - (No. Container: -, No Seal: -, No. Pol: -, Armada: -)',
+            'Muat: Surabaya, Bongkar: Jakarta, Depo : Surabaya Tujuan: Jakarta, Komoditas: - (No. Container: -, No Seal: -, No. Pol: -, Armada: -)',
+            $item->exportWorkDescription(),
+        );
+    }
+
+    public function test_operational_locations_are_shown_alongside_depot_and_regional_destination(): void
+    {
+        $item = new InvoiceItem();
+        $item->setRelation('requestOrder', new RequestOrder([
+            'muat' => 'PT. MAYORA INDAH TBK, KRIAN',
+            'bongkar' => 'TERMINAL SURABAYA',
+            'depo' => 'DMS', 'tujuan' => 'BATAM', 'komoditi' => 'BISKUIT',
+        ]));
+        $item->setRelation('deliveryOrder', null);
+
+        $this->assertSame(
+            'Muat: PT. MAYORA INDAH TBK, KRIAN, Bongkar: TERMINAL SURABAYA, Depo : DMS Tujuan: BATAM, Komoditas: BISKUIT (No. Container: -, No Seal: -, No. Pol: -, Armada: -)',
+            $item->exportWorkDescription(),
+        );
+    }
+
+    public function test_delivery_order_locations_are_used_without_request_order(): void
+    {
+        $item = new InvoiceItem();
+        $item->setRelation('requestOrder', null);
+        $deliveryOrder = new DeliveryOrder(['origin' => 'Terminal Surabaya', 'destination' => 'PT. Mayora Indah Tbk']);
+        $deliveryOrder->setRelation('requestOrder', null);
+        $item->setRelation('deliveryOrder', $deliveryOrder);
+
+        $this->assertStringContainsString(
+            'Muat: Terminal Surabaya, Bongkar: PT. Mayora Indah Tbk,',
             $item->exportWorkDescription(),
         );
     }

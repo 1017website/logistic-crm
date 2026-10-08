@@ -42,7 +42,9 @@ class InvoiceItem extends Model
         };
 
         return sprintf(
-            'Depo : %s Tujuan: %s, Komoditas: %s (No. Container: %s, No Seal: %s, No. Pol: %s, Armada: %s)',
+            'Muat: %s, Bongkar: %s, Depo : %s Tujuan: %s, Komoditas: %s (No. Container: %s, No Seal: %s, No. Pol: %s, Armada: %s)',
+            $value($requestOrder?->muat, $deliveryOrder?->origin, $requestOrder?->origin),
+            $value($requestOrder?->bongkar, $deliveryOrder?->destination, $requestOrder?->destination, $requestOrder?->tujuan),
             $value($requestOrder?->depo, $requestOrder?->muat, $deliveryOrder?->origin, $requestOrder?->origin),
             $value($requestOrder?->tujuan, $requestOrder?->bongkar, $deliveryOrder?->destination, $requestOrder?->destination),
             $value($requestOrder?->komoditi),
