@@ -873,11 +873,9 @@ class InvoiceController extends Controller
             $payload['company']['logo'] = null;
         }
 
-        $isServiceInvoice = $payload['printView'] !== 'invoices.print';
-
         return Pdf::loadView($payload['printView'], $payload)
-            ->setOption('defaultMediaType', $isServiceInvoice ? 'print' : 'screen')
-            ->setPaper('a4', $isServiceInvoice ? 'portrait' : 'landscape')
+            ->setOption('defaultMediaType', 'print')
+            ->setPaper('a4', 'portrait')
             ->download('invoice-'.Str::slug($invoice->invoice_number ?: $invoice->invoice_id).'.pdf');
     }
 
@@ -889,7 +887,7 @@ class InvoiceController extends Controller
             'Jenis Truck', 'Qty', 'Harga', 'Jumlah',
         ];
         $rows = $invoice->items->isNotEmpty()
-            ? $invoice->items->map(fn (InvoiceItem $item) => [
+            ? $this->invoiceExportItems($invoice)->map(fn (InvoiceItem $item) => [
                 $invoice->invoice_number,
                 $invoice->customer?->company_name ?? '-',
                 $item->deliveryOrder?->do_number ?? $item->requestOrder?->do_number ?? '-',
@@ -962,7 +960,7 @@ class InvoiceController extends Controller
                 ]];
             }
 
-            return $inv->items->map(fn (InvoiceItem $item) => [
+            return $this->invoiceExportItems($inv)->map(fn (InvoiceItem $item) => [
                 $inv->invoice_id,
                 $inv->invoice_number,
                 $inv->customer?->company_name ?? '-',
@@ -990,6 +988,19 @@ class InvoiceController extends Controller
             $rows,
             'Invoices'
         );
+    }
+
+    private function invoiceExportItems(Invoice $invoice): Collection
+    {
+        return $invoice->items->sort(function (InvoiceItem $first, InvoiceItem $second) {
+            $firstNumber = $first->deliveryOrder?->do_number ?? $first->requestOrder?->do_number ?? '';
+            $secondNumber = $second->deliveryOrder?->do_number ?? $second->requestOrder?->do_number ?? '';
+
+            return (($firstNumber === '') <=> ($secondNumber === ''))
+                ?: strnatcasecmp($firstNumber, $secondNumber)
+                ?: (($first->item_type === 'TR' ? 0 : 1) <=> ($second->item_type === 'TR' ? 0 : 1))
+                ?: ($first->id <=> $second->id);
+        })->values();
     }
 
     public function exportPdf(Request $request)
@@ -1090,11 +1101,12 @@ class InvoiceController extends Controller
         $printSubtotal = (float) $printItems->sum('jual');
         $printPpn = round($printSubtotal * (float) $invoice->ppn_persen / 100);
         $printGrand = $printSubtotal + $printPpn;
-        $ntrGroups = $printItems->every(fn (InvoiceItem $item) => $item->item_type === 'NTR')
-            ? app(\App\Services\InvoicePrintService::class)->nonTruckingGroups($invoice, $printItems)
+        $ntrItems = $printItems->where('item_type', 'NTR')->values();
+        $ntrGroups = $ntrItems->isNotEmpty()
+            ? app(\App\Services\InvoicePrintService::class)->nonTruckingGroups($invoice, $ntrItems)
             : null;
         $printView = match (true) {
-            $ntrGroups !== null => 'invoices.print_ntr',
+            $printItems->every(fn (InvoiceItem $item) => $item->item_type === 'NTR') => 'invoices.print_ntr',
             $printItems->every(fn (InvoiceItem $item) => $item->item_type === 'TR') => 'invoices.print_tr',
             default => 'invoices.print',
         };

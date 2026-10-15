@@ -1,6 +1,19 @@
-@php($details = $item->workDescriptionDetails())
+@php
+    $details = $item->workDescriptionDetails();
+    $showItemDetails = $showItemDetails ?? false;
+    $itemName = trim((string) $item->item_name);
+    $itemDescription = trim((string) $item->description);
+@endphp
+@if($showItemDetails)
+    <div class="item-name"><b>{{ $itemName ?: 'Trucking' }}</b></div>
+    @if($details !== [] && $itemDescription !== '' && $itemDescription !== $itemName)
+    <div class="item-description">{!! nl2br(e($itemDescription)) !!}</div>
+    @endif
+@endif
 @if($details === [])
+    @if(! $showItemDetails || $itemDescription !== $itemName)
     {{ $item->description }}
+    @endif
 @else
     <div class="work-description" style="line-height:1.45">
         <div><b>Muat:</b> {{ $details['muat'] }}</div>

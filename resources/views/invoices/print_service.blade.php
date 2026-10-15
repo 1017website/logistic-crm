@@ -1,9 +1,16 @@
+@php
+    $serviceLabel = match ($serviceType) {
+        'TR' => 'TRUCKING',
+        'NTR' => 'NON TRUCKING',
+        default => 'TRUCKING & NON TRUCKING',
+    };
+@endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Invoice {{ $serviceType === 'TR' ? 'Trucking' : 'Non Trucking' }} {{ $invoice->invoice_number }}</title>
+<title>Invoice {{ $serviceLabel }} {{ $invoice->invoice_number }}</title>
 <style>
     @page { size:A4 portrait; margin:39mm 14mm 19mm; }
     * { box-sizing:border-box; }
@@ -36,6 +43,7 @@
     .items .amount-line .currency-label { width:17pt; text-align:left; }
     .items .amount-line .amount-value { text-align:right; }
     .do-number { font-size:7pt; }
+    .service-heading { margin:3mm 0 1mm; font-size:9pt; page-break-after:avoid; break-after:avoid; }
     .tr-do-row { page-break-inside:avoid; break-inside:avoid; }
     .items td.description { padding:4pt 3pt; }
     .ntr-do-group { page-break-inside:avoid; break-inside:avoid; }
@@ -91,7 +99,7 @@
         @if($logoUrl)<img src="{{ $logoUrl }}" alt="Logo {{ $company['name'] }}">@endif
         <div class="company-name">{{ $company['name'] }}</div>
         <div class="tagline">THE TRANSPORTER</div>
-        <div class="document-name">{{ $documentMode === 'proforma' ? 'PRO FORMA INVOICE' : 'INVOICE' }} {{ $serviceType === 'TR' ? 'TRUCKING' : 'NON TRUCKING' }}</div>
+        <div class="document-name">{{ $documentMode === 'proforma' ? 'PRO FORMA INVOICE' : 'INVOICE' }} {{ $serviceLabel }}</div>
     </div>
     <div class="footer">
         @if($company['npwp'])<div>{{ $company['npwp'] }}</div>@endif
@@ -110,51 +118,16 @@
             </table></td>
         </tr>
     </table>
-    <table class="items">
-        <colgroup><col style="width:9mm"><col style="width:22mm"><col style="width:121mm"><col style="width:30mm"></colgroup>
-        <thead><tr><th class="number" style="width:9mm">No</th><th class="date" style="width:22mm">Tgl Kirim</th><th style="width:121mm">Keterangan</th><th class="amount" style="width:30mm">Jumlah (Rp)</th></tr></thead>
-        @if($serviceType === 'TR')
-        <tbody>
-            @foreach($printItems as $it)
-            @php
-                $finalDo = $it->deliveryOrder;
-                $order = $it->requestOrder ?? $finalDo?->requestOrder;
-                $shipDate = $finalDo?->do_date?->format('d-m-y') ?? $order?->tgl_muat?->format('d-m-y') ?? $order?->order_date?->format('d-m-y') ?? '-';
-            @endphp
-            <tr class="tr-do-row">
-                <td class="number">{{ $loop->iteration }}</td>
-                <td class="date">{{ $shipDate }}</td>
-                <td class="description">@include('invoices.partials.work_description', ['item' => $it])</td>
-                <td class="tr-amount"><table class="amount-line"><tr><td class="currency-label">Rp.</td><td class="amount-value">{{ number_format($it->jual, 0, ',', '.') }}</td></tr></table></td>
-            </tr>
-            @endforeach
-        </tbody>
-        @else
-        @foreach($ntrGroups as $group)
-            @php
-                $header = $group['header'];
-                $finalDo = $header->deliveryOrder;
-                $order = $header->requestOrder ?? $finalDo?->requestOrder;
-                $shipDate = $finalDo?->do_date?->format('d-m-y') ?? $order?->tgl_muat?->format('d-m-y') ?? $order?->order_date?->format('d-m-y') ?? '-';
-            @endphp
-            <tbody class="ntr-do-group">
-                <tr class="ntr-do-header">
-                    <td class="number" rowspan="{{ $group['items']->count() + 1 }}">{{ $loop->iteration }}</td>
-                    <td class="date">{{ $shipDate }}</td>
-                    <td class="description"><b class="do-number">{{ $finalDo?->do_number ?? $order?->do_number ?? 'DO' }}</b><br>@include('invoices.partials.work_description', ['item' => $header])</td>
-                    <td></td>
-                </tr>
-                @foreach($group['items'] as $it)
-                <tr class="ntr-work-item">
-                    <td class="date">{{ $shipDate }}</td>
-                    <td>* {{ $it->item_name ?: $it->description ?: 'Non-Trucking' }}@if($it->item_name && $it->description && $it->description !== $it->item_name) — {{ $it->description }}@endif</td>
-                    <td class="money"><span class="currency">Rp.</span>{{ number_format($it->jual, 0, ',', '.') }}</td>
-                </tr>
-                @endforeach
-            </tbody>
-        @endforeach
+    @foreach($serviceType === 'MIX' ? ['TR', 'NTR'] : [$serviceType] as $sectionType)
+        @if($serviceType === 'MIX')
+        <h2 class="service-heading">{{ $sectionType === 'TR' ? 'TRUCKING' : 'NON TRUCKING' }}</h2>
         @endif
-    </table>
+        @include('invoices.partials.print_service_items', [
+            'serviceType' => $sectionType,
+            'printItems' => $printItems->where('item_type', $sectionType)->values(),
+            'ntrGroups' => $serviceType === 'MIX' ? $ntrGroups?->filter(fn ($group) => $group['items']->isNotEmpty()) : $ntrGroups,
+        ])
+    @endforeach
     <div class="summary {{ $serviceType === 'TR' ? 'tr-summary' : '' }}">
         <table class="totals">
             <tr><td class="words">Terbilang :</td><td class="label">Total</td><td class="money"><span class="currency">Rp.</span>{{ number_format($printSubtotal, 0, ',', '.') }}</td></tr>

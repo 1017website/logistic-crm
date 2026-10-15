@@ -198,6 +198,87 @@ class InvoiceWorkflowTest extends TestCase
         $this->assertMatchesRegularExpression('/\/MediaBox\s*\[\s*0(?:\.\d+)?\s+0(?:\.\d+)?\s+595\.28\d*\s+841\.89\d*\s*\]/', $pdf->getContent());
     }
 
+    public function test_tr_print_keeps_additional_job_name_and_edited_description_with_do_details(): void
+    {
+        [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
+        $this->actingAs($finance)->post(route('invoices.store'), $this->invoicePayload($customer, $deliveryOrder, 'separate'))
+            ->assertSessionHas('success');
+        $invoice = Invoice::where('customer_id', $customer->id)->where('jenis', 'TR')->sole();
+        $stapel = $invoice->items()->create([
+            'delivery_order_id' => $deliveryOrder->id, 'request_order_id' => $deliveryOrder->request_order_id,
+            'item_type' => 'TR', 'item_name' => 'Stapel', 'description' => 'Stapel',
+            'quantity' => 1, 'unit_price' => 4250000, 'hpp' => 0, 'jual' => 4250000,
+        ]);
+        $this->put(route('invoices.items.update', [$invoice, $stapel]), [
+            'item_name' => 'Stapel', 'description' => 'Stapel Smtr Batang IGAU <tambahan>',
+            'truck_type' => "TRAILER 20'", 'quantity' => 1, 'unit_price' => 4250000,
+        ])->assertSessionHasNoErrors();
+
+        $response = $this->get(route('invoices.print', $invoice))->assertOk()
+            ->assertSee('<div class="item-name"><b>Stapel</b></div>', false)
+            ->assertSee('Stapel Smtr Batang IGAU &lt;tambahan&gt;', false)
+            ->assertSee('4.250.000');
+        preg_match_all('/<tr class="tr-do-row">(.*?)<\/tr>\s*<\/table><\/td>\s*<\/tr>/s', $response->getContent(), $rows);
+        $this->assertCount(2, $rows[1]);
+        $this->assertStringContainsString('<b>Stapel</b>', $rows[1][1]);
+        $this->assertStringContainsString('<b>Muat:</b>', $rows[1][1]);
+        $this->assertStringContainsString('<b>No. Container:</b>', $rows[1][1]);
+        $this->assertSame(5250000.0, $response->viewData('printSubtotal'));
+        $pdfHtml = view('invoices.print_tr', [...$response->original->getData(), 'isPdf' => true])->render();
+        $this->assertStringContainsString('<b>Stapel</b>', $pdfHtml);
+        $this->assertStringContainsString('Stapel Smtr Batang IGAU &lt;tambahan&gt;', $pdfHtml);
+        $this->get(route('invoices.pdf', $invoice))->assertOk()->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_mixed_invoice_uses_new_layout_for_all_services_and_filtered_prints(): void
+    {
+        [$finance, $customer, $first] = $this->makePodReadyOrder();
+        $second = $this->makeAdditionalPodReadyOrder($finance, $customer);
+        $payload = $this->invoicePayload($customer, $first, 'separate');
+        $payload['selections'] = [$second->id.':TR', $first->id.':TR', $first->id.':NTR'];
+        $this->actingAs($finance)->post(route('invoices.store'), $payload)->assertSessionHas('success');
+        $drafts = Invoice::where('customer_id', $customer->id)->get();
+        $this->post(route('invoices.merge-drafts', $customer), [
+            'invoice_ids' => $drafts->pluck('id')->all(),
+        ])->assertSessionHas('success');
+        $invoice = Invoice::where('customer_id', $customer->id)->sole();
+        $invoice->items()->create([
+            'delivery_order_id' => $first->id, 'request_order_id' => $first->request_order_id,
+            'item_type' => 'NTR', 'item_name' => 'Kuli tambahan', 'description' => 'Kuli tambahan',
+            'quantity' => 1, 'unit_price' => 30000, 'hpp' => 10000, 'jual' => 30000,
+        ]);
+        $invoice->update(['ppn_persen' => 1.1]);
+        $originalItems = $invoice->items()->orderBy('id')->get()->toArray();
+
+        $response = $this->get(route('invoices.print', $invoice))->assertOk()
+            ->assertViewIs('invoices.print')
+            ->assertSee('PRO FORMA INVOICE TRUCKING &amp; NON TRUCKING', false)
+            ->assertSee('class="masthead"', false)
+            ->assertSee('Kuli tambahan')->assertSee('Jasa Bongkar')
+            ->assertSee('2.280.000')->assertSee('25.080')->assertSee('2.305.080')
+            ->assertSee('Ditransfer Ke Rekening')->assertSee('QR verifikasi tanda tangan elektronik')
+            ->assertDontSee('class="metabox"', false);
+        $this->assertSame(2280000.0, $response->viewData('printSubtotal'));
+        $this->assertSame(2305080.0, $response->viewData('printGrand'));
+        $this->assertSame(2, substr_count($response->getContent(), 'class="tr-do-row"'));
+        $this->assertSame(1, substr_count($response->getContent(), 'class="ntr-do-header"'));
+        $this->assertSame(2, substr_count($response->getContent(), 'class="ntr-work-item"'));
+        $this->assertStringContainsString('>'.$first->do_number.'</b>', $response->getContent());
+        $this->assertStringNotContainsString('>'.$second->do_number.'</b>', $response->getContent());
+
+        $this->get(route('invoices.print', [$invoice, 'document' => 'invoice']))->assertOk()
+            ->assertSee('INVOICE TRUCKING &amp; NON TRUCKING', false)->assertDontSee('PRO FORMA INVOICE');
+        $this->get(route('invoices.print', [$invoice, 'type' => 'TR']))->assertOk()
+            ->assertViewIs('invoices.print_tr')->assertViewHas('printSubtotal', 2000000.0)
+            ->assertDontSee('Kuli tambahan');
+        $this->get(route('invoices.print', [$invoice, 'type' => 'NTR']))->assertOk()
+            ->assertViewIs('invoices.print_ntr')->assertViewHas('printSubtotal', 280000.0)
+            ->assertSee('Kuli tambahan')->assertDontSee('class="tr-do-row"', false);
+        $pdf = $this->get(route('invoices.pdf', $invoice))->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertMatchesRegularExpression('/\/MediaBox\s*\[\s*0(?:\.\d+)?\s+0(?:\.\d+)?\s+595\.28\d*\s+841\.89\d*\s*\]/', $pdf->getContent());
+        $this->assertSame($originalItems, $invoice->items()->orderBy('id')->get()->toArray());
+    }
+
     public function test_invoice_bank_settings_can_be_saved_in_crm_and_used_by_both_invoice_types(): void
     {
         [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
@@ -1009,6 +1090,63 @@ class InvoiceWorkflowTest extends TestCase
 
         $this->actingAs($finance)->get(route('invoices.export-pdf', ['customer_id' => $customer->id, 'status' => 'draft']))
             ->assertOk()->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_excel_exports_sort_by_rdo_with_trucking_before_its_non_trucking_jobs(): void
+    {
+        [$finance, $customer, $first] = $this->makePodReadyOrder();
+        $second = $this->makeAdditionalPodReadyOrder($finance, $customer);
+        $first->update(['do_number' => 'RDO-202609-10']);
+        $second->update(['do_number' => 'RDO-202609-2']);
+        $first->requestOrder->update(['do_number' => 'RDO-202609-1']);
+        $payload = $this->invoicePayload($customer, $first, 'separate');
+        $payload['selections'] = [(string) $first->id, (string) $second->id];
+        $this->actingAs($finance)->post(route('invoices.store'), $payload)->assertSessionHas('success');
+        $this->post(route('invoices.merge-drafts', $customer), [
+            'invoice_ids' => Invoice::where('customer_id', $customer->id)->pluck('id')->all(),
+        ])->assertSessionHas('success');
+        $invoice = Invoice::where('customer_id', $customer->id)->sole();
+        foreach ([
+            ['delivery_order_id' => $first->id, 'request_order_id' => $first->request_order_id,
+                'item_type' => 'NTR', 'item_name' => 'Empty TTL'],
+            ['request_order_id' => $first->request_order_id, 'item_type' => 'NTR', 'item_name' => 'Bongkar legacy'],
+            ['item_type' => 'NTR', 'item_name' => 'Biaya manual'],
+        ] as $attributes) {
+            $invoice->items()->create([
+                ...$attributes, 'quantity' => 1, 'unit_price' => 50000, 'hpp' => 0, 'jual' => 50000,
+            ]);
+        }
+        $originalIds = $invoice->items()->orderBy('id')->pluck('id')->all();
+        $expected = [
+            ['RDO-202609-1', 'Bongkar legacy', 50000],
+            ['RDO-202609-2', 'Trucking', 1000000],
+            ['RDO-202609-2', 'Jasa Bongkar', 250000],
+            ['RDO-202609-10', 'Trucking', 1000000],
+            ['RDO-202609-10', 'Jasa Bongkar', 250000],
+            ['RDO-202609-10', 'Empty TTL', 50000],
+            ['-', 'Biaya manual', 50000],
+        ];
+        foreach ([
+            [route('invoices.excel', $invoice), 'C', 'D', 'I'],
+            [route('invoices.export', ['customer_id' => $customer->id]), 'H', 'I', 'N'],
+        ] as [$url, $doColumn, $nameColumn, $amountColumn]) {
+            $response = $this->get($url)->assertOk()->assertDownload();
+            $path = tempnam(sys_get_temp_dir(), 'invoice-sorted-export-');
+            try {
+                file_put_contents($path, $response->streamedContent());
+                $sheet = IOFactory::load($path)->getActiveSheet();
+                $this->assertSame(count($expected) + 1, $sheet->getHighestRow());
+                foreach ($expected as $index => [$number, $name, $amount]) {
+                    $row = $index + 2;
+                    $this->assertSame($number, $sheet->getCell($doColumn.$row)->getValue());
+                    $this->assertSame($name, $sheet->getCell($nameColumn.$row)->getValue());
+                    $this->assertEquals($amount, $sheet->getCell($amountColumn.$row)->getValue());
+                }
+            } finally {
+                @unlink($path);
+            }
+        }
+        $this->assertSame($originalIds, $invoice->items()->orderBy('id')->pluck('id')->all());
     }
 
     public function test_excel_export_includes_summary_row_when_legacy_invoice_has_no_items(): void
