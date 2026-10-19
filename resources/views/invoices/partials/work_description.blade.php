@@ -4,6 +4,9 @@
     $itemName = trim((string) $item->item_name);
     $itemDescription = trim((string) $item->description);
 @endphp
+@if(strcasecmp($itemName, 'Stapel') === 0)
+    <div class="item-description">* {!! nl2br(e($itemDescription ?: $itemName)) !!}</div>
+@else
 @if($showItemDetails)
     <div class="item-name"><b>{{ $itemName ?: 'Trucking' }}</b></div>
     @if($details !== [] && $itemDescription !== '' && $itemDescription !== $itemName)
@@ -22,4 +25,5 @@
         <div><b>No. Container:</b> {{ $details['container'] }} &middot; <b>No. Seal:</b> {{ $details['seal'] }}</div>
         <div><b>No. Pol:</b> {{ $details['no_pol'] }} &middot; <b>Armada:</b> {{ $details['armada'] }}</div>
     </div>
+@endif
 @endif

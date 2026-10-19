@@ -198,7 +198,7 @@ class InvoiceWorkflowTest extends TestCase
         $this->assertMatchesRegularExpression('/\/MediaBox\s*\[\s*0(?:\.\d+)?\s+0(?:\.\d+)?\s+595\.28\d*\s+841\.89\d*\s*\]/', $pdf->getContent());
     }
 
-    public function test_tr_print_keeps_additional_job_name_and_edited_description_with_do_details(): void
+    public function test_tr_print_shows_stapel_description_without_do_details(): void
     {
         [$finance, $customer, $deliveryOrder] = $this->makePodReadyOrder();
         $this->actingAs($finance)->post(route('invoices.store'), $this->invoicePayload($customer, $deliveryOrder, 'separate'))
@@ -215,18 +215,20 @@ class InvoiceWorkflowTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $response = $this->get(route('invoices.print', $invoice))->assertOk()
-            ->assertSee('<div class="item-name"><b>Stapel</b></div>', false)
+            ->assertDontSee('<div class="item-name"><b>Stapel</b></div>', false)
             ->assertSee('Stapel Smtr Batang IGAU &lt;tambahan&gt;', false)
             ->assertSee('4.250.000');
         preg_match_all('/<tr class="tr-do-row">(.*?)<\/tr>\s*<\/table><\/td>\s*<\/tr>/s', $response->getContent(), $rows);
         $this->assertCount(2, $rows[1]);
-        $this->assertStringContainsString('<b>Stapel</b>', $rows[1][1]);
-        $this->assertStringContainsString('<b>Muat:</b>', $rows[1][1]);
-        $this->assertStringContainsString('<b>No. Container:</b>', $rows[1][1]);
+        $this->assertStringContainsString('* Stapel Smtr Batang IGAU &lt;tambahan&gt;', $rows[1][1]);
+        foreach (['Muat:', 'Bongkar:', 'Depo:', 'Tujuan:', 'Komoditas:', 'No. Container:', 'No. Seal:', 'No. Pol:', 'Armada:'] as $label) {
+            $this->assertStringNotContainsString('<b>'.$label.'</b>', $rows[1][1]);
+            $this->assertStringContainsString('<b>'.$label.'</b>', $rows[1][0]);
+        }
         $this->assertSame(5250000.0, $response->viewData('printSubtotal'));
         $pdfHtml = view('invoices.print_tr', [...$response->original->getData(), 'isPdf' => true])->render();
-        $this->assertStringContainsString('<b>Stapel</b>', $pdfHtml);
-        $this->assertStringContainsString('Stapel Smtr Batang IGAU &lt;tambahan&gt;', $pdfHtml);
+        $this->assertStringContainsString('* Stapel Smtr Batang IGAU &lt;tambahan&gt;', $pdfHtml);
+        $this->assertSame(1, substr_count($pdfHtml, '<b>Muat:</b>'));
         $this->get(route('invoices.pdf', $invoice))->assertOk()->assertHeader('content-type', 'application/pdf');
     }
 
