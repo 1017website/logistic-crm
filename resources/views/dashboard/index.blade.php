@@ -7,12 +7,12 @@
 @section('content')
 {{-- KPI Row --}}
 @php
-function growthBadge($val, $prev_label) {
+$growthBadge = function ($val, $prev_label) {
     if ($val == 0) return '<span class="kpi-change" style="color:#9ca3af">— vs ' . $prev_label . '</span>';
     $cls = $val > 0 ? 'up' : 'down';
     $icon = $val > 0 ? 'arrow-up' : 'arrow-down';
     return '<span class="kpi-change ' . $cls . '"><i class="fas fa-' . $icon . '"></i> ' . abs($val) . '%</span><span class="kpi-vs ms-1">vs ' . $prev_label . '</span>';
-}
+};
 @endphp
 <div class="row g-3 mb-4">
     <div class="col-lg-6">
@@ -50,7 +50,7 @@ function growthBadge($val, $prev_label) {
             <div>
                 <div class="kpi-label">Omzet Bulan Ini</div>
                 <div class="kpi-value">{{ idrm($revenue) }}</div>
-                <div>{!! growthBadge($revenueGrowth, $prevLabel) !!}</div>
+                <div>{!! $growthBadge($revenueGrowth, $prevLabel) !!}</div>
                 <div style="font-size:10px;color:#9ca3af;margin-top:2px">dari PO berstatus Done</div>
             </div>
         </div>
@@ -63,7 +63,8 @@ function growthBadge($val, $prev_label) {
             <div>
                 <div class="kpi-label">Total DO</div>
                 <div class="kpi-value">{{ $totalDo }}</div>
-                <div>{!! growthBadge($doGrowth, $prevLabel) !!}</div>
+                <div class="small">{{ $doPeriodLabel }}</div>
+                <div>{!! $growthBadge($doGrowth, $doPreviousLabel) !!}</div>
             </div>
         </div>
     </div>
@@ -87,7 +88,7 @@ function growthBadge($val, $prev_label) {
             <div>
                 <div class="kpi-label">Active Leads</div>
                 <div class="kpi-value">{{ $activeLeads }}</div>
-                <div>{!! growthBadge($leadsGrowth, $prevLabel) !!}</div>
+                <div>{!! $growthBadge($leadsGrowth, $prevLabel) !!}</div>
             </div>
         </div>
     </div>
@@ -99,11 +100,66 @@ function growthBadge($val, $prev_label) {
             <div>
                 <div class="kpi-label">Deal Closed</div>
                 <div class="kpi-value">{{ $dealClosed }}</div>
-                <div>{!! growthBadge($dealGrowth, $prevLabel) !!}</div>
+                <div>{!! $growthBadge($dealGrowth, $prevLabel) !!}</div>
             </div>
         </div>
     </div>
 </div>
+
+<section class="card mb-4" id="customer-do-summary" aria-labelledby="customer-do-heading">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+            <h2 id="customer-do-heading" class="h6 mb-1">Jumlah DO per Customer</h2>
+            <div class="small">{{ $doPeriodLabel }}: {{ number_format($customerDoTotal) }} DO dari {{ number_format($customerDoCount) }} customer</div>
+        </div>
+        <form method="GET" action="{{ route('dashboard') }}#customer-do-summary" class="d-flex flex-wrap align-items-end gap-2">
+            <div>
+                <label for="do-month" class="form-label small mb-1">Bulan</label>
+                <select id="do-month" name="do_month" required class="form-select form-select-sm">
+                    @foreach([1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'] as $month => $label)
+                    <option value="{{ $month }}" @selected($doMonth === $month)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label for="do-year" class="form-label small mb-1">Tahun</label>
+                <input id="do-year" type="number" name="do_year" value="{{ $doYear }}" min="1900" max="9999" required class="form-control form-control-sm" style="width:100px">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Tampilkan</button>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" style="min-width:0;table-layout:fixed;width:100%">
+            <thead><tr><th scope="col" class="px-3">Customer</th><th scope="col" class="text-end px-3" style="width:120px">Jumlah DO</th></tr></thead>
+            <tbody>
+                @forelse($customerDos as $row)
+                <tr>
+                    <td class="px-3" style="overflow-wrap:anywhere">{{ $row->customer?->company_name ?? 'Tanpa customer' }}</td>
+                    <td class="text-end px-3">
+                        @if(auth()->user()->canAccess('delivery_orders') && $row->customer_id)
+                        <a href="{{ route('delivery-orders.index', ['customer_id' => $row->customer_id, 'start_date' => $doStart->toDateString(), 'end_date' => $doEnd->toDateString()]) }}" aria-label="Lihat {{ $row->do_count }} DO {{ $row->customer?->company_name ?? 'customer' }} pada {{ $doPeriodLabel }}">{{ number_format($row->do_count) }}</a>
+                        @else
+                        {{ number_format($row->do_count) }}
+                        @endif
+                    </td>
+                </tr>
+                @empty
+                <tr><td colspan="2" class="text-center py-4">Belum ada Delivery Order pada {{ $doPeriodLabel }}.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+    @if($customerDoCount > 5 || $showAllCustomers)
+    <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <a class="btn btn-outline-secondary btn-sm" href="{{ route('dashboard', ['do_month' => $doMonth, 'do_year' => $doYear, 'do_all' => $showAllCustomers ? 0 : 1]) }}#customer-do-summary">{{ $showAllCustomers ? 'Tampilkan 5 Teratas' : 'Lihat Semua' }}</a>
+        @if($showAllCustomers)
+        {{ $customerDos->fragment('customer-do-summary')->links() }}
+        @else
+        <span class="small">Menampilkan 5 customer dengan jumlah DO terbanyak.</span>
+        @endif
+    </div>
+    @endif
+</section>
 
 {{-- Charts Row --}}
 <div class="row g-3 mb-4">

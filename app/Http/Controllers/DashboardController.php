@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Activity;
 use App\Models\Invoice;
 use App\Models\RequestOrder;
+use App\Models\DeliveryOrder;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -13,9 +14,29 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $now        = Carbon::now();
+        $filters = $request->validate([
+            'do_month' => 'nullable|integer|between:1,12',
+            'do_year' => 'nullable|integer|between:1900,9999',
+            'do_all' => 'nullable|boolean',
+        ]);
+        $doMonth = (int) ($filters['do_month'] ?? $now->month);
+        $doYear = (int) ($filters['do_year'] ?? $now->year);
+        $doStart = Carbon::create($doYear, $doMonth, 1)->startOfDay();
+        $doEnd = $doStart->copy()->endOfMonth();
+        $doPeriodLabel = $doStart->copy()->locale('id')->translatedFormat('F Y');
+        $showAllCustomers = $request->boolean('do_all');
+        $customerDoQuery = DeliveryOrder::query()->whereBetween('do_date', [$doStart->toDateString(), $doEnd->toDateString()]);
+        $customerDoTotal = (clone $customerDoQuery)->count();
+        $customerDoRows = (clone $customerDoQuery)->with(['customer' => fn ($query) => $query->withTrashed()])
+            ->select('customer_id')->selectRaw('COUNT(*) as do_count')
+            ->groupBy('customer_id')->orderByDesc('do_count')->orderBy('customer_id');
+        $customerDos = $showAllCustomers
+            ? $customerDoRows->paginate(25, ['*'], 'do_page')->withQueryString()
+            : $customerDoRows->limit(5)->get();
+        $customerDoCount = (clone $customerDoQuery)->select('customer_id')->distinct()->get()->count();
         $startMonth = $now->copy()->startOfMonth();
         $endMonth   = $now->copy()->endOfMonth();
         $startPrev  = $now->copy()->subMonth()->startOfMonth();
@@ -25,7 +46,7 @@ class DashboardController extends Controller
         // ── KPI bulan ini ──
         $doneDOs    = RequestOrder::with('items')->whereBetween('order_date', [$startMonth, $endMonth])->where('status','Done')->where('currency','IDR')->get();
         $revenue    = $doneDOs->sum(fn($po) => $po->total_revenue);
-        $totalDo    = RequestOrder::whereBetween('order_date', [$startMonth, $endMonth])->count();
+        $totalDo    = $customerDoTotal;
         $activeLeads = Lead::whereNotIn('pipeline_stage', ['Won','Lost'])->count();
         $dealClosed  = Lead::where('pipeline_stage','Won')->whereBetween('updated_at', [$startMonth, $endMonth])->count();
         $totalLeads  = Lead::count();
@@ -47,7 +68,9 @@ class DashboardController extends Controller
         // ── KPI bulan lalu (growth %) ──
         $doneDOsPrev    = RequestOrder::with('items')->whereBetween('order_date', [$startPrev, $endPrev])->where('status','Done')->where('currency','IDR')->get();
         $revenuePrev    = $doneDOsPrev->sum(fn($po) => $po->total_revenue);
-        $totalDoPrev    = RequestOrder::whereBetween('order_date', [$startPrev, $endPrev])->count();
+        $doPreviousStart = $doStart->copy()->subMonthNoOverflow();
+        $totalDoPrev = DeliveryOrder::whereBetween('do_date', [$doPreviousStart->toDateString(), $doPreviousStart->copy()->endOfMonth()->toDateString()])->count();
+        $doPreviousLabel = $doPreviousStart->locale('id')->translatedFormat('F Y');
         $dealClosedPrev = Lead::where('pipeline_stage','Won')->whereBetween('updated_at', [$startPrev, $endPrev])->count();
         $activeLeadsPrev = Lead::whereNotIn('pipeline_stage', ['Won','Lost'])->where('created_at','<',$startMonth)->count();
 
@@ -133,6 +156,8 @@ class DashboardController extends Controller
         }
 
         return view('dashboard.index', compact(
+            'doMonth', 'doYear', 'doPeriodLabel', 'doStart', 'doEnd', 'doPreviousLabel',
+            'showAllCustomers', 'customerDoTotal', 'customerDoCount', 'customerDos',
             'revenue','totalTurnover','totalReceivables','totalDo','activeLeads','dealClosed','conversionRate',
             'revenueGrowth','doGrowth','dealGrowth','leadsGrowth','prevLabel',
             'pipelineStages','todayReminders','recentActivities','topSales',

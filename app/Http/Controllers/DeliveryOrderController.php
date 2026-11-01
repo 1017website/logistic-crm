@@ -118,6 +118,13 @@ class DeliveryOrderController extends Controller
         $query = DeliveryOrder::with(['customer', 'vendor', 'salesUser', 'requestOrder.items', 'requestOrder.jobDetails'])
             ->whereBetween('do_date', [$startDate, $endDate]);
 
+        $customerFilter = $request->validate(['customer_id' => 'nullable|integer|min:1']);
+        $selectedCustomer = null;
+        if (!empty($customerFilter['customer_id'])) {
+            $query->where('customer_id', $customerFilter['customer_id']);
+            $selectedCustomer = Customer::withTrashed()->find($customerFilter['customer_id']);
+        }
+
         if ($status === 'ready_invoice') {
             $query->whereIn('status', ['closed', 'invoiced'])
                 ->whereIn('invoice_status', ['uninvoiced', 'partial'])
@@ -137,20 +144,23 @@ class DeliveryOrderController extends Controller
         // KPI
         $closed = DeliveryOrder::with(['requestOrder.items', 'requestOrder.jobDetails'])
             ->whereBetween('do_date', [$startDate, $endDate])
+            ->when($customerFilter['customer_id'] ?? null, fn ($query, $customerId) => $query->where('customer_id', $customerId))
             ->whereIn('status', ['closed', 'invoiced', 'paid'])->get();
 
         $revenue     = $closed->sum(fn($d) => $d->total_revenue);
         $totalCost   = $closed->sum(fn($d) => $d->total_cost);
         $grossProfit = $revenue - $totalCost;
         // Volume DO = jumlah record Delivery Order yang benar-benar dibuat pada periode.
-        $volumeDo    = DeliveryOrder::whereBetween('do_date', [$startDate, $endDate])->count();
+        $volumeDo = DeliveryOrder::whereBetween('do_date', [$startDate, $endDate])
+            ->when($customerFilter['customer_id'] ?? null, fn ($query, $customerId) => $query->where('customer_id', $customerId))
+            ->count();
 
         $pendingDeletionDoIds = \App\Models\DeletionRequest::pendingIdsFor(DeliveryOrder::class);
         $flowOptions = DeliveryOrder::FLOW;
 
         return view('delivery_orders.index', compact(
             'dos', 'revenue', 'grossProfit', 'volumeDo', 'totalCost',
-            'search', 'status', 'flowOptions', 'startDate', 'endDate', 'pendingDeletionDoIds'
+            'search', 'status', 'flowOptions', 'startDate', 'endDate', 'pendingDeletionDoIds', 'selectedCustomer'
         ));
     }
 
@@ -419,11 +429,13 @@ class DeliveryOrderController extends Controller
 
     public function export(Request $request)
     {
+        $customerFilter = $request->validate(['customer_id' => 'nullable|integer|min:1']);
         $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate   = $request->get('end_date', now()->endOfMonth()->format('Y-m-d'));
 
         $dos = DeliveryOrder::with(['customer', 'vendor', 'requestOrder.items', 'requestOrder.vendor'])
             ->whereBetween('do_date', [$startDate, $endDate])
+            ->when($customerFilter['customer_id'] ?? null, fn ($query, $customerId) => $query->where('customer_id', $customerId))
             ->orderByDesc('do_date')->get();
 
         $headers = ['DO Number', 'Tgl DO', 'Request DO', 'Customer', 'Armada/Vendor', 'Tipe', 'Origin', 'Destination', 'Flow', 'Pickup', 'Delivery', 'Revenue', 'Actual Cost', 'Other Cost', 'Gross Profit', 'POD At', 'Closed At', 'Tgl Order', 'Lokasi Muat', 'Lokasi Bongkar', 'No Cont', 'No Seal', 'Jenis Truck', 'No Pol', 'Driver', 'Vendor', 'Tracking', 'Kode Sektor'];

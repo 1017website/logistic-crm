@@ -28,6 +28,13 @@
 
         {{-- Filter --}}
         <form method="GET" action="{{ route('delivery-orders.index') }}">
+            @if(request('customer_id'))
+            <input type="hidden" name="customer_id" value="{{ request('customer_id') }}">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <span>Filter customer: {{ $selectedCustomer?->company_name ?? 'Customer tidak ditemukan' }}</span>
+                <a href="{{ route('delivery-orders.index', request()->except(['customer_id', 'page'])) }}" class="btn btn-outline-secondary btn-sm">Hapus filter customer</a>
+            </div>
+            @endif
             <div class="card mb-3"><div class="card-body p-3">
                 <div class="row g-2 align-items-end">
                     <div class="col-md-2"><input type="date" name="start_date" class="form-control form-control-sm" value="{{ $startDate }}"></div>
